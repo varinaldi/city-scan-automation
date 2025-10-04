@@ -1,0 +1,11 @@
+# Files that need placing
+oxford_locations: "../../03-multi-scan-materials/oxford-locations.csv"
+oxford_file: "../../03-multi-scan-materials/Oxford Global Cities Data.csv"
+oxford_areas_file: "../../03-multi-scan-materials/oxford-economics-areas.csv"
+undata_file: "../../03-multi-scan-materials/undata-pop.csv"
+koeppen_file: "../../03-multi-scan-materials/Koeppen-Geiger-ASCII.csv"
+flood_archive_file: "../../03-multi-scan-materials/flood-archive"
+cyclone_archive_file: "../../03-multi-scan-materials/IBTrACS-tropical-cyclones"
+pv_out_file: "../../03-multi-scan-materials/pvout-time-series.nosync/PVOUT-monthly.tif"
+earthquake_file: "../../03-multi-scan-materials/earthquake-archive.csv"
+# fwi_directory <- "../../wildfire-exploration.nosync/source-data.nosync/nasa-fwi/"

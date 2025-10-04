@@ -22,6 +22,14 @@ source('R/fns.R')
 
 
 ```{ojs}
+
+import {createLineChart} from "./JS/lineChart.js"
+import {createBarChart} from "./JS/barChart.js"
+import {createTreemap} from "./JS/treeMap.js"
+import {createScatterPlot} from "./JS/scatterPlot.js"
+import {createDonutChart} from "./JS/donutChart.js"
+
+
 function renderDiv(text, divClass) {
   if (!text) return "";
   const textMarkdown = Array.isArray(text) ? md`${text.join('\n')}` : md`${text}`;
@@ -93,38 +101,65 @@ City Scan
 
 ```{ojs}
 //| output: asis
-textColumn = d3.select('.text-column').node();
-textColumn
-columnWidth = textColumn.getBoundingClientRect().width * .95;
-columnWidth
+// textColumn = d3.select('.text-column').node();
+// textColumn
+// columnWidth = textColumn.getBoundingClientRect().width * .95;
+// columnWidth
+
 
 fillSlide("population")
+pg = FileAttachment("./data/processed/pg.csv").csv({typed: true})
 
-import {chart_pg}
-// with {pop_growth_tunis as pop_growth}
-// with {new_title as title}
-with {columnWidth as plotWidth}
-from "@carolinecullinan/tunis-tunisia"
-fillSlide("population growth", chart_pg)
+createLineChart(pg, {
+  x: "yearName",
+  y: "population",
+  title: "Population Growth",
+  subtitle: "Tunis, Tunisia",
+  xLabel: "Year",
+  yLabel: "Population",
+  xTickFormat: d => d.toString(),
+  yTickFormat: d => d >= 1e6 ? `${(d/1e6).toFixed(1)}M` : 
+                    d >= 1e3 ? `${(d/1e3).toFixed(0)}K` : 
+                    d.toString()
+})
+
+// fillSlide("population growth", chart_pg)
+// import {chart_pg}
+// // with {pop_growth_tunis as pop_growth}
+// // with {new_title as title}
+// with {columnWidth as plotWidth}
+// from "@carolinecullinan/tunis-tunisia"
+
+createLineChart(pg, {
+  x: "yearName",
+  y: "populationGrowthPercentage",
+  title: "Population Growth Percentage",
+  subtitle: "Tunis, Tunisia",
+  xLabel: "Year",
+  yLabel: "Population",
+  xTickFormat: d => d.toString(),
+  yTickFormat: d => d >= 1e6 ? `${(d/1e6).toFixed(1)}M` : 
+                    d >= 1e3 ? `${(d/1e3).toFixed(0)}K` : 
+                    d.toString()
+})
 
 md`#### Population Distribution by Age & Sex`
-import {chart_pas}
-with {columnWidth as plotWidth}
-from "@carolinecullinan/tunis-tunisia"
-fillSlide("population distro", chart_pas)
-```
-
-```{ojs}
-//| output: true
-fillSlide("rwi")
-```
-
-## Economic Activity
-
-```{ojs}
-//| output: asis
-fillSlide("economic_activity")
-fillSlide("economic_change")
+pas = FileAttachment("./data/processed/pas.csv").csv({typed: true})
+createBarChart(pas, {
+  x: "ageBracket",
+  y: "percentage",
+  fill: "sex",
+  title: "Population distribution by age and sex, 2021",
+  subtitle: "Tunis, Tunisia",
+  xLabel: "Age Bracket",
+  yLabel: "Percentage of Age Distribution",
+  colors: {female: "#ff7f7f", male: "#17becf"},
+  grouped: true,
+  xRotate: -45,  // Rotate x-axis labels 45 degrees
+  yTickFormat: d => d.toFixed(1),
+  height: 500,
+  marginBottom: 80  // Extra space for rotated labels
+})
 
 ```
 
@@ -132,21 +167,49 @@ fillSlide("economic_change")
 
 ```{ojs}
 //| output: true
-import {chart_uba} 
-with {columnWidth as plotWidth}
-from "@carolinecullinan/tunis-tunisia"
-// chart_uba
+// import {chart_uba} 
+// with {columnWidth as plotWidth}
+// from "@carolinecullinan/tunis-tunisia"
+// // chart_uba
 // addSlideText(slide_texts.wsf)
-fillSlide("wsf", chart_uba)
+// fillSlide("wsf", chart_uba)
 
-fillSlide("wsf_tracker")
+// fillSlide("wsf_tracker")
 
-fillSlide("impervious")
 
-import {chart_lc}
-with {columnWidth as plotWidth}
-from "@carolinecullinan/tunis-tunisia"
-fillSlide("land_cover", chart_lc)
+// Define your color mapping
+landCoverColors = ({
+  "Cropland": "#eaa86f",
+  "Built-up": "#d3605f",
+  "Grassland": "#9bbb7f",
+  "Tree cover": "#629777",
+  "Permanent water bodies": "#61acdc",
+  "Shrubland": "#e2c985",
+  "Bare / sparse vegetation": "#b4ada4", 
+  "Herbaceous wetland": "#979ec9",
+  "Snow and ice": "#e2e3e3",
+  "Mangroves": "#48d394",
+  "Moss and lichens": "#f6eba0"
+})
+
+
+lc = FileAttachment("./data/processed/lc.csv").csv({typed: true})
+// lc.map(d => ({type: d.lcType, pct: d.percentage}))
+
+fillSlide("Land Cover")
+createTreemap(lc, {
+  value: "percentage",
+  label: "lcType",
+  title: "Land Cover Types",
+  subtitle: "Tunis, Tunisia",
+  colors: landCoverColors,
+  fontSize: 13,
+  valueFormat: d => d.toFixed(1) + "%",
+  width: 1000,
+  height: 600
+})
+
+
 // fillSlide("school_zones", null, null, null, slide_texts.school_proximity)
 // fillSlide("health_zones", null, null, null, slide_texts.health_proximity)
 ```
@@ -166,38 +229,147 @@ fillSlide("vegetation")
 ```{ojs}
 //| output: true
 // fillSlide("fluvial", null, "infrastructure", null, slide.texts.flooding_infrastructure_fluvial)
-import {chart_fu}
-with {columnWidth as plotWidth}
-from "@carolinecullinan/tunis-tunisia"
-fillSlide("fluvial_uba", chart_fu)
+fu = FileAttachment("./data/processed/fu.csv").csv({typed: true})
 
-import {chart_pu} 
-with {columnWidth as plotWidth}
-from "@carolinecullinan/tunis-tunisia"
-fillSlide("fluvial_uba", chart_fu)
+createLineChart(fu, {
+  x: "yearName",
+  y: "fu",
+  // title: "Built-up Area exposed to fluvial flooding, 1985-2015",
+  subtitle: "Tunis, Tunisia",
+  // xLabel: "Year",
+  yLabel: "Exposed urban built-up area (sq km)",
+  showPoints: false,
+  yDomain: [0,8],
+  xGrid: true,
+  xTickFormat: d => d.toString(),
+})
 
-// import {chart_cu}
-// with {columnWidth as plotWidth}
-// from "@carolinecullinan/tunis-tunisia"
-// fillSlide("fluvial_uba", chart_cu)
+pu = FileAttachment("./data/processed/pu.csv").csv({typed: true})
 
-import {chart_comb}
-with {columnWidth as plotWidth}
-from "@carolinecullinan/tunis-tunisia"
-fillSlide("fluvial_uba", chart_comb)
+createLineChart(pu, {
+  x: "yearName",
+  y: "pu",
+  title: "Built-up Area exposed to pluvial flooding, 1985-2015",
+  subtitle: "Tunis, Tunisia",
+  // xLabel: "Year",
+  yLabel: "Exposed urban built-up area (sq km)",
+  showPoints: false,
+  yDomain: [0,60],
+  xGrid: true,
+  xTickFormat: d => d.toString(),
+})
+
+cu = FileAttachment("./data/processed/cu.csv").csv({typed: true})
+
+createLineChart(cu, {
+  x: "yearName",
+  y: "cu",
+  title: "Built-up Area exposed to coastal flooding, 1985-2015",
+  subtitle: "Tunis, Tunisia",
+  // xLabel: "Year",
+  yLabel: "Exposed urban built-up area (sq km)",
+  showPoints: false,
+  yDomain: [0,6],
+  xGrid: true,
+  xTickFormat: d => d.toString(),
+})
+
+
+comb = FileAttachment("./data/processed/comb.csv").csv({typed: true})
+
+createLineChart(comb, {
+  x: "yearName",
+  y: "comb",
+  title: "Built-up Area exposed to combined flooding, 1985-2015",
+  subtitle: "Tunis, Tunisia",
+  // xLabel: "Year",
+  yLabel: "Exposed urban built-up area (sq km)",
+  showPoints: false,
+
+  xGrid: true,
+  xTickFormat: d => d.toString(),
+})
 
 fillSlide("elevation")
+
+e = FileAttachment("./data/processed/e.csv").csv({typed: true})
+
+elevationColors = ({
+  "-5-40": "#f5c4c0",
+  "40-90": "#fa9fb5", 
+  "90-135": "#f768a1",
+  "135-185": "#c51b8a"
+})
+
+createDonutChart(e, {
+  value: "percentage",
+  label: "bin",
+  title: "Elevation",
+  subtitle: "Meters above sea level (MASL)",
+  legendTitle: "Elevation Range (m)",
+  colors: elevationColors,
+  // innerRadius: 0.6,
+  valueFormat: d => d.toFixed(2) + "%",
+  width:460,
+  height: 200
+})
+
 fillSlide("slope")
+
+s = FileAttachment("./data/processed/s.csv").csv({typed: true})
+
+slopeColors = ({
+    "0-2":"#ffffd4",  // for 0-2° slopes (77.92%)
+    "2-5":"#fed98e",  // for 2-5° slopes (14.38%)
+    "5-10":"#fe9929",  // for 5-10° slopes (5.66%)
+    "10-20":"#d95f0e",  // for 10-20° slopes (1.85%)
+    "20-90":"#993404"   // for 20°+ slopes (0.19, the unlabeled remainder)
+})
+
+createDonutChart(s, {
+  value: "percentage",
+  label: "bin",
+  title: "Slope",
+  subtitle: "Meters above sea level (MASL)",
+  legendTitle: "Angle of hillside in degrees",
+  colors: slopeColors,
+  // innerRadius: 0.6,
+  valueFormat: d => d.toFixed(2) + "%",
+  width:500,
+  height: 200
+})
+
 fillSlide("landslides")
 fillSlide("liquefaction")
+fillSlide("earthquake")
+
+ee = FileAttachment("./data/processed/ee.csv").csv({typed: true})
+createScatterPlot(ee, {
+  x: "distance",
+  y: "begin_year",
+  r: "eqMagnitude",
+  fill:'gray',
+  title: "Significant Earthquakes within 500 km since 1900",
+  subtitle: "Tunis, Tunisia",
+  tooltipColumns: ["text"],
+  xLabel: "Distance from Tunis, Tunisia →",
+  yLabel: "Year",
+  yGrid:false, 
+
+  opacity: 0.6,
+  // strokeWidth: 1,
+  // yTickFormat: d => d.toString(),
+  height: 400
+})
+
 fillSlide("roads")
 fillSlide("burnable")
 fillSlide("moisture")
 
-import {chart_fwi} 
-with {columnWidth as plotWidth}
-from "@carolinecullinan/tunis-tunisia"
-fillSlide("fluvial_uba", chart_fwi)
+// import {chart_fwi} 
+// with {columnWidth as plotWidth}
+// from "@carolinecullinan/tunis-tunisia"
+// fillSlide("fluvial_uba", chart_fwi)
 
 ```
 

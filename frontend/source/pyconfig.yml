@@ -1,0 +1,34 @@
+
+tabular:
+  {
+    'population-growth':clean_pg,
+    'demographics':clean_pas,
+    'wsf_stats':clean_uba,
+    'lc': clean_lc,
+    'monthly-pv': clean_pv,
+    'flood_wsf':clean_flood,
+    'elevation':clean_e,
+    'slope':clean_s,
+    'earthquake-events':clean_ee,
+    'fwi': clean_fwi,
+  }
+
+
+raster: 
+  {
+    'wsf_evolution_utm': clean_uba_area,
+    'solar': clean_pv_area,
+    'air': clean_aq_area,
+    'ndvi_season': clean_ndvi_area,
+    'forest_cover23': clean_deforestation_area,
+    'deforestation': clean_deforestation_area,
+    'landslide': clean_ls_area,
+    'liquefaction':clean_l_area,
+  }
+
+create_raw:
+  {
+    'population-growth': get_oxford_pop,
+    'earthquake-events': get_earthquake_events,
+    'monthly-pv': get_monthly_pv
+  }

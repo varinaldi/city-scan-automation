@@ -1,0 +1,34 @@
+accessibility: True
+# accessibility analysis parameters
+basic_info: True
+burned_area: True
+demographics: True
+population: True
+wsf: True
+earthquake: False   # under development
+elevation: True
+# if slope is set to True, please also set elevation to True
+# because slope is derived from elevation
+# unless the elevation raster file is already on cloud storage
+slope: True
+flood_coastal: True
+flood_fluvial: True
+flood_pluvial: True
+flood_comb: True
+flood_event: True
+fwi: True
+landcover_burn: True
+road_network: True
+rwi: True
+air: True
+landslide: True
+liquefaction: True
+oe_plot: True
+solar: True
+forest: True
+green: True
+landcover: True
+lst_summer: True
+lst_winter: False
+ndmi: True
+nightlight: True

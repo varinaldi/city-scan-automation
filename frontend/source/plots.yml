@@ -1,0 +1,378 @@
+population_growth:
+  type: lineChart
+  data_source: "./data/processed/pg.csv"
+  config:
+    x: "yearName"
+    y: "population"
+    title: "Population"
+    subtitle: "Tunis, Tunisia"
+    colors: black
+    showPoints: true
+    xLabel: "Year"
+    yLabel: "Population"
+    xTickFormat: |
+      d => d.toString()
+    yTickFormat: |
+      d => d >= 1e6 ? `${(d/1e6).toFixed(1)}M` : d >= 1e3 ? `${(d/1e3).toFixed(0)}K` : d.toString()
+    tooltipYLabel: "Population"
+ 
+
+population_growth_percentage:
+  type: lineChart
+  data_source: "./data/processed/pg.csv"
+  config:
+    x: "yearName"
+    y: "populationGrowthPercentage"
+    title: "Population Growth Percentage"
+    subtitle: "Tunis, Tunisia"
+    colors: black
+    xLabel: "Year"
+    yLabel: "Population"
+    xTickFormat: |
+      d => d.toString()
+    yTickFormat: |
+      d => d >= 1e6 ? `${(d/1e6).toFixed(1)}M` : d >= 1e3 ? `${(d/1e3).toFixed(0)}K` : d.toString()
+    showPoints: true
+    xGrid: true
+    tooltipYLabel: "Population Growth"
+    tooltipYFormat: |
+      d => d.toFixed(2) + "%"
+
+population_demographics:
+  type: barChart
+  data_source: "./data/processed/pas.csv"
+  config:
+    x: "ageBracket"
+    y: "percentage"
+    fill: "sex"
+    title: "Population distribution by age and sex, 2021"
+    subtitle: "Tunis, Tunisia"
+    grouped: true
+    Label: "Age Bracket"
+    yLabel: "Percentage of Age Distribution"
+    TickFormat: d => d.toFixed(1)
+    colors: {female: "#ff7f7f", male: "#17becf"}
+    xRotate: -45
+ 
+
+urban_growth:
+  type: lineChart
+  data_source: "./data/processed/uba.csv"
+  config:
+    x: "yearName"
+    y: "uba"
+    title: "Urban Built-up Area"
+    subtitle: "Tunis, Tunisia"
+    colors: "black"
+    xLabel: "Year"
+    yLabel: "Urban built-up area (sq km)"
+    xTickFormat: |
+      d => d.toString()
+    tooltipYLabel: "Built-up Area"
+    tooltipYFormat: |
+      d => d.toFixed(2) + " sq km"
+    showPoints: true
+    yDomain: [0,350]
+
+urban_growth_percentage:
+  type: lineChart
+  data_source: "./data/processed/uba.csv"
+  config:
+    x: "yearName"
+    y: "ubaGrowthPercentage"
+    title: "Changes in Urban Built-up Area"
+    subtitle: "Tunis, Tunisia"
+    tooltipYLabel: "Built-up Area"
+    tooltipYFormat: |
+      d => d.toFixed(2) + "%"
+    xLabel: "Year"
+    yLabel: "Urban growth percentage"
+    xTickFormat: |
+      d => d.toString()
+    colors: "black"
+    showPoints: true
+    xGrid: true
+
+land_cover:
+    type: treeMap
+    data_source: "./data/processed/lc.csv"
+    config:
+      value: "percentage"
+      label: "lcType"
+      title: "Land Cover Types"
+      subtitle: "Tunis, Tunisia"
+      colors:
+        "Cropland": "#eaa86f"
+        "Built-up": "#d3605f"
+        "Grassland": "#9bbb7f"
+        "Tree cover": "#629777"
+        "Permanent water bodies": "#61acdc"
+        "Shrubland": "#e2c985"
+        "Bare / sparse vegetation": "#b4ada4" 
+        "Herbaceous wetland": "#979ec9"
+        "Snow and ice": "#e2e3e3"
+        "Mangroves": "#48d394"
+        "Moss and lichens": "#f6eba0"
+      # width: 1000
+      # height: 600
+      fontSize: 13
+      valueFormat: |
+         d => d.toFixed(1) + "%"
+
+solar_pv:
+  type: lineChart
+  data_source: "./data/processed/pv.csv"
+  config:
+    x: "month"
+    y: "maxPv"
+    title: "Seasonal availability of solar energy"
+    subtitle: "Tunis, Tunisia"
+    yLabel: "Daily PV energy yield (kWh/kWp)"
+    yDomain: [0,6]
+    tooltipXLabel: "Month"
+    tooltipYLabel: "Daily PV yield"
+    tooltipYFormat: |
+      d => d.toFixed(2) + " kWh/kWp"
+    xTickFormat: |
+      d => ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][d - 1]
+    colors: "black"
+    showPoints: true
+    referenceLines:
+      - value: 4.5
+        label: "Excellent Conditions"
+        color: "#999"
+        strokeDasharray: "4,4"
+      - value: 3.5
+        label: "Favorable Conditions"
+        color: "#999"
+        strokeDasharray: "4,4"
+
+fluvial_flooding:
+  type: lineChart
+  data_source: "./data/processed/fu.csv"
+  config:
+    x: "yearName"
+    y: "fu"
+    title: "Built-up Area exposed to fluvial flooding"
+    subtitle: "Tunis, Tunisia"
+    xLabel: "Year"
+    yLabel: "Exposed urban built-up area (sq km)"
+    showPoints: false
+    yDomain: [0, 8]
+    xGrid: true
+    xTickFormat: |
+      d => d.toString()
+    colors: "black"
+    # tooltipXLabel: "Month"
+    tooltipYLabel: "Area exposed"
+    tooltipYFormat: |
+      d => d.toFixed(2) + " sq km"
+
+pluvial_flooding:
+  type: lineChart
+  data_source: "./data/processed/pu.csv"
+  config:
+    x: "yearName"
+    y: "pu"
+    title: "Built-up Area exposed to pluvial flooding"
+    subtitle: "Tunis, Tunisia"
+    colors: "black"
+    xLabel: "Year"
+    yLabel: "Exposed urban built-up area (sq km)"
+    showPoints: false
+    yDomain: [0, 60]
+    xGrid: true
+    xTickFormat: |
+      d => d.toString()
+    tooltipYLabel: "Area exposed"
+    tooltipYFormat: |
+      d => d.toFixed(2) + " sq km"
+
+coastal_flooding:
+  type: lineChart
+  data_source: "./data/processed/cu.csv"
+  config:
+    x: "yearName"
+    y: "cu"
+    title: "Built-up Area exposed to coastal flooding"
+    subtitle: "Tunis, Tunisia"
+    colors: "black"
+    xLabel: "Year"
+    yLabel: "Exposed urban built-up area (sq km)"
+    showPoints: false
+    yDomain: [0, 6]
+    xGrid: true
+    xTickFormat: |
+      d => d.toString()
+    tooltipYLabel: "Area exposed"
+    tooltipYFormat: |
+      d => d.toFixed(2) + " sq km"
+
+combined_flooding:
+  type: lineChart
+  data_source:
+    - "./data/processed/fu.csv"
+    - "./data/processed/pu.csv"
+    - "./data/processed/cu.csv"
+    - "./data/processed/comb.csv"
+  data_transform: |
+    (files) => {
+      const [fu, pu, cu, comb] = files;
+      return [
+        ...fu.map(d => ({yearName: d.yearName, value: d.fu, type: "River"})),
+        ...pu.map(d => ({yearName: d.yearName, value: d.pu, type: "Rainwater"})),
+        ...cu.map(d => ({yearName: d.yearName, value: d.cu, type: "Coastal"})),
+        ...comb.map(d => ({yearName: d.yearName, value: d.comb, type: "Combined"}))
+      ];
+    }
+  config:
+    x: "yearName"
+    y: "value"
+    group: "type"
+    title: "Built-up Area exposed to combined flooding"
+    subtitle: "Tunis, Tunisia"
+    xLabel: "Year"
+    yLabel: "Exposed urban built-up area (sq km)"
+    tooltipXField: "yearName"
+    showPoints: false
+    xGrid: true
+    xTickFormat: |
+      d => d.toString()
+    tooltipYFormat: |
+      d => d.toFixed(1) + " sq km"
+    colors: ["#f8766d", "#619cfe", "#02b939", "black", ]
+    strokeDasharray: ["8,4", "8,4", "8,4", "",]
+
+elevation:
+  type: donutChart
+  data_source: "./data/processed/e.csv"
+  config:
+    value: "percentage"
+    label: "bin"
+    title: "Elevation"
+    subtitle: "Meters above sea level (MASL)"
+    # legendTitle: "Elevation Range (m)"
+    colors:
+      "-5-40": "#f5c4c0"
+      "40-90": "#fa9fb5"
+      "90-135": "#f768a1"
+      "135-185": "#c51b8a"
+    valueFormat: |
+      d => d.toFixed(2) + "%"
+    width: 460
+    height: 200
+
+slope:
+  type: donutChart
+  data_source: "./data/processed/s.csv"
+  config:
+    value: "percentage"
+    label: "bin"
+    title: "Slope"
+    subtitle: "Angle of hillside in degrees"
+    # legendTitle: "Slope Range (degrees)"
+    colors:
+      "0-2": "#ffffd4"
+      "2-5": "#fed98e"
+      "5-10": "#fe9929"
+      "10-20": "#d95f0e"
+      "20-90": "#993404"
+    valueFormat: |
+      d => d.toFixed(2) + "%"
+    width: 500
+    height: 200
+
+
+earthquake:
+  type: scatterPlot
+  data_source: "./data/processed/ee.csv"
+  config:
+    x: "distance"
+    y: "begin_year"
+    r: "eqMagnitude"
+    fill: gray
+    title: "Significant Earthquakes within 500 km since 1900"
+    subtitle: "Tunis, Tunisia"
+    tooltipColumns: ["text"]
+    xLabel: "Distance from Tunis, Tunisia (km)"
+    yTickFormat: |
+      d => d.toString()
+    yLabel: "Year"
+    yGrid: false
+    opacity: 0.6
+    height: 400
+
+
+fire_weather_index:
+  type: lineChart
+  data_source: "./data/processed/fwi.csv"
+  config:
+    x: "week"
+    y: "fwi"
+    title: "Fire Weather Index (FWI)"
+    subtitle: "Tunis, Tunisia"
+    yLabel: "95th Percentile FWI"
+    xLabel: null
+    tooltipXLabel: "Month"
+    tooltipXField: "monthName"
+    tooltipYLabel: "FWI"
+    tooltipYFormat: |
+      d => d.toFixed(2)
+    xTicks: [1, 5, 9, 13, 18, 22, 27, 31, 36, 40, 44, 49]
+    xTickFormat: |
+      d => {
+        const weekToMonth = {1:"Jan",5:"Feb",9:"Mar",13:"Apr",18:"May",22:"Jun",27:"Jul",31:"Aug",36:"Sep",40:"Oct",44:"Nov",49:"Dec"};
+        return weekToMonth[d] || "";
+      }
+    colors: "black"
+    showPoints: false
+    xGrid: true
+
+  
+
+density:
+  type: lineChart
+  data_source: "./data/processed/pug.csv"
+  config:
+    x: "yearName"
+    y: "density"
+    title: "Density"
+    subtitle: "Tunis, Tunisia"
+    colors: black
+    showPoints: true
+    xLabel: "Year"
+    yLabel: "Density (people/sq km)"
+    xTickFormat: |
+      d => d.toString()
+    tooltipYLabel: "Density"
+    yDomain: [0, 9000]
+    tooltipYFormat: |
+      d => d.toFixed(2) + " people/sq km"
+
+population_urban_growth_ratio:
+  type: slopeChart
+  data_source: "./data/processed/pug.csv"
+  config:
+    x: "populationUrbanGrowthRatio"
+    y: "yearName"
+    title: "Population-Urban Growth Ratio"
+    subtitle: "Tunis, Tunisia"
+    xLabel: null
+    yLabel: null
+    xDomain: [0, 3]
+    yDomain: [2000, 2015]
+    xTicks: []
+    yTickFormat: |
+      d => d.toString()
+    referenceLine:
+      value: 1
+      label: "Balanced"
+      color: "gray"
+    xAnnotations:
+      - position: 0.4
+        label: "Potential Sprawl\n(Housing Surplus)"
+      - position: 2
+        label: "Potential Densification\n(Housing Shortage)"
+    colors: "black"
+    height: 600
+    yGrid: false

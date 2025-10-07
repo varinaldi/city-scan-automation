@@ -2,23 +2,26 @@
 
 export async function createDonutChart(data, config = {}) {
   const d3 = await import("https://esm.sh/d3@7");
-  
+  const Plot = await import("https://esm.sh/@observablehq/plot@0.6");
+
   const {
     value = "value",
     label = "label",
-    
+
     title = null,
     subtitle = null,
-    
+
     innerRadius = 0.5,
-    
+
     colors = null,
     colorScheme = "tableau10",
-    
+
     showLegend = true,
-    
+    legendTitle = null,
+
     width = null,
-    height = null
+    height = null,
+    valueFormat = null
   } = config;
 
   const plotWidth = width || 600;
@@ -43,26 +46,40 @@ export async function createDonutChart(data, config = {}) {
   // Create container
   const container = d3.create("div")
     .style("display", "flex")
-    .style("flex-direction", "column");
-  
+    .style("flex-direction", "column")
+    .style("padding", "20px");
+
+  // Add title and subtitle using Observable Plot styling
   if (title) {
-    container.append(() => {
-      const h2 = document.createElement("h2");
-      h2.textContent = title;
-      return h2;
-    });
+    container.append("div")
+      .style("font-family", "system-ui, sans-serif")
+      .style("font-size", "18")
+      .style("margin-bottom", subtitle ? "4px" : "12px")
+      .text(title);
   }
-  
+
   if (subtitle) {
-    container.append(() => {
-      const h3 = document.createElement("h3");
-      h3.textContent = subtitle;
-      return h3;
-    });
+    container.append("div")
+      .style("font-family", "system-ui, sans-serif")
+      .style("font-size", "14px")
+      .style("font-style", "italic")
+      .style("color", "#666")
+      .style("margin-bottom", "12px")
+      .text(subtitle);
   }
 
   // Add legend if requested (before chart)
   if (showLegend) {
+    if (legendTitle) {
+      container.append("div")
+        .style("font-family", "system-ui, sans-serif")
+        .style("font-size", "12px")
+        .style("font-weight", "bold")
+        .style("margin-bottom", "8px")
+        .style("color", "#333")
+        .text(legendTitle);
+    }
+
     const legend = container.append("div")
       .style("display", "flex")
       .style("flex-wrap", "wrap")
@@ -131,8 +148,9 @@ export async function createDonutChart(data, config = {}) {
         .duration(200)
         .style("opacity", 1);
 
+      const formattedValue = valueFormat ? valueFormat(d.data[value]) : `${d.data[value].toFixed(2)}%`;
       tooltip
-        .html(`<strong>${d.data[label]}</strong><br/>${d.data[value].toFixed(2)}%`)
+        .html(`<strong>${d.data[label]}</strong><br/>${formattedValue}`)
         .style("left", (event.pageX + 10) + "px")
         .style("top", (event.pageY - 10) + "px");
     })
@@ -164,7 +182,12 @@ export async function createDonutChart(data, config = {}) {
     .style("font-size", "14px")
     .style("font-weight", "600")
     .style("fill", "black")
-    .text(d => d.data[value] > 3 ? `${d.data[value].toFixed(2)}%` : "");
+    .text(d => {
+      if (d.data[value] > 3) {
+        return valueFormat ? valueFormat(d.data[value]) : `${d.data[value].toFixed(2)}%`;
+      }
+      return "";
+    });
 
   return container.node();
 }

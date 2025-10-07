@@ -36,6 +36,7 @@ librarian::shelf(quiet = T,
   curl,
   rvest,
 
+
   # Basic
   stringr,
   glue,

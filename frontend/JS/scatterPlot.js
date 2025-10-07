@@ -80,12 +80,12 @@ export async function createScatterPlot(data, config = {}) {
   // Add tooltip
   if (tooltip) {
     dotConfig.tip = true;
-    
+
     // Custom tooltip based on specified columns
     if (tooltipColumns && !tooltipContent) {
       dotConfig.title = d => {
         return tooltipColumns
-          .map(col => `${col}: ${d[col]}`)
+          .map(col => d[col])
           .join('\n');
       };
     } else if (tooltipContent) {

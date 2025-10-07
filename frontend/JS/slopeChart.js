@@ -35,6 +35,7 @@ export async function createSlopeChart(data, config = {}) {
     yDomain = null,
     xGrid = true,
     yGrid = false,
+    xTicks = null,
     xTickFormat = null,
     yTickFormat = null,
     
@@ -43,7 +44,11 @@ export async function createSlopeChart(data, config = {}) {
   } = config;
 
   const marks = [];
-  
+
+  // Get max y value for positioning reference label
+  const yValues = data.map(d => d[y]);
+  const maxY = Math.max(...yValues);
+
   // Add reference line if specified
   if (referenceLine) {
     marks.push(
@@ -53,21 +58,21 @@ export async function createSlopeChart(data, config = {}) {
         strokeWidth: 2
       })
     );
-    
+
     if (referenceLine.label) {
       marks.push(
-        Plot.text([referenceLine], {
-          x: referenceLine.value,
-          y: yDomain ? yDomain[0] : 0,
-          text: [referenceLine.label],
-          dy: -10,
+        Plot.text([{val: referenceLine.value, label: referenceLine.label}], {
+          x: d => d.val,
+          y: maxY + (yValues.length * 0.05),
+          text: d => d.label,
           fill: referenceLine.color || "gray",
-          fontSize: 11
+          fontSize: 11,
+          textAnchor: "middle"
         })
       );
     }
   }
-  
+
   // Add lines connecting points
   marks.push(
     Plot.line(data, {
@@ -78,7 +83,7 @@ export async function createSlopeChart(data, config = {}) {
       opacity
     })
   );
-  
+
   // Add points
   marks.push(
     Plot.dot(data, {
@@ -90,17 +95,20 @@ export async function createSlopeChart(data, config = {}) {
     })
   );
   
-  // Add x-axis annotations if provided
+  // Add x-axis annotations at bottom if provided
   if (xAnnotations) {
+    const minY = Math.min(...yValues);
+
     xAnnotations.forEach(annotation => {
       marks.push(
         Plot.text([annotation], {
           x: annotation.position,
-          y: yDomain ? yDomain[1] : data[data.length - 1][y],
+          y: minY,
           text: [annotation.label],
-          dy: 40,
+          dy: -5,
           fill: "gray",
-          fontSize: 10,
+          fontSize: 14,
+          fontWeight: "bold",
           textAnchor: "middle",
           lineHeight: 1.4
         })
@@ -119,6 +127,7 @@ export async function createSlopeChart(data, config = {}) {
       label: xLabel,
       grid: xGrid,
       ...(xDomain && { domain: xDomain }),
+      ...(xTicks !== undefined && { ticks: xTicks }),
       ...(xTickFormat && { tickFormat: xTickFormat })
     },
     y: {

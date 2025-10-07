@@ -6,7 +6,7 @@ editor: source
 execute:
   echo: false
   output: false
-  cache: true
+  cache: false
 engine: knitr
 ---
 
@@ -23,6 +23,14 @@ cover_image <- fuzzy_read(file.path(output_dir, "maps"), "^aoi.png$", paste)
 #| cache: false
 # Which layers do we have plots for? Tell Observable cells
 ojs_define(createdMaps = names(plots_html))
+```
+
+```{r}
+#| include: false
+#| label: run python pre-render
+cfg <- yaml::read_yaml("source/pyconfig.yml")
+system2(cfg$python, "Py/setup.py")
+system2(cfg$python, "_pre-render.py")
 ```
 
 ---
@@ -86,6 +94,17 @@ function fillSlide(layer, chart = null, extra_layers = [], title = null, slide_t
 
 textColumn = d3.select('.text-column').node();
 columnWidth = textColumn.getBoundingClientRect().width * .95;
+```
+
+```{ojs}
+
+// Read plots from config
+yaml = import("https://esm.sh/js-yaml@4")
+import {addPlot} from "./JS/plotManager.js"
+
+plotConfig = FileAttachment("source/plots.yml").text()
+plots = yaml.load(await plotConfig)
+
 ```
 
 :::
@@ -182,9 +201,12 @@ print_slide_text(slide_texts$basic_city_info)
 //| output: asis
 fillSlide("population")
 
-import {chart_pga}
-with {columnWidth as plotWidth}
-from "@carolinecullinan/tunis-tunisia"
+// import {chart_pga}
+// with {columnWidth as plotWidth}
+// from "@carolinecullinan/tunis-tunisia"
+
+chart_pga = addPlot(plots.population_growth)
+
 // fillSlide("population_growth", chart_pas)
 html`<section class="level4">
     ${md`#### Population Growth`}
@@ -205,9 +227,8 @@ if (!is.na(plots_file)) {
 
 ```{ojs}
 //| output: asis
-import {chart_pas}
-with {columnWidth as plotWidth}
-from "@carolinecullinan/tunis-tunisia"
+
+chart_pas = addPlot(plots.population_demographics)
 // fillSlide("population_distribution_age_sex", chart_pas)
 html`<section class="level4">
     ${md`#### Population Distribution by Age & Sex`}
@@ -279,18 +300,22 @@ if (!is.na(plots_file)) {
 
 ```{ojs}
 //| output: true
-import {chart_ubaa} 
-with {columnWidth as plotWidth}
-from "@carolinecullinan/tunis-tunisia"
+// import {chart_ubaa} 
+// with {columnWidth as plotWidth}
+// from "@carolinecullinan/tunis-tunisia"
+
+chart_ubaa = addPlot(plots.urban_growth)
 fillSlide("wsf", chart_ubaa)
 
 fillSlide("wsf_tracker")
 
 fillSlide("impervious")
 
-import {chart_lc}
-with {columnWidth as plotWidth}
-from "@carolinecullinan/tunis-tunisia"
+// import {chart_lc}
+// with {columnWidth as plotWidth}
+// from "@carolinecullinan/tunis-tunisia"
+
+chart_lc = addPlot(plots.land_cover)
 fillSlide("land_cover", chart_lc)
 fillSlide("school_zones", null, null, null, slide_texts.school_proximity)
 fillSlide("health_zones", null, null, null, slide_texts.health_proximity)
@@ -300,9 +325,11 @@ fillSlide("health_zones", null, null, null, slide_texts.health_proximity)
 
 ```{ojs}
 //| output: asis
-import {chart_pv}
-with {columnWidth as plotWidth}
-from "@carolinecullinan/tunis-tunisia"
+// import {chart_pv}
+// with {columnWidth as plotWidth}
+// from "@carolinecullinan/tunis-tunisia"
+
+chart_pv = addPlot(plots.solar_pv)
 fillSlide("solar", chart_pv)
 
 fillSlide("air_quality")
@@ -317,6 +344,7 @@ fillSlide("forest", null, ["deforest"])
 import {chart_fe}
 with {columnWidth as plotWidth}
 from "@carolinecullinan/tunis-tunisia"
+
 html`<section class="level4">
     ${md`#### Signficant Flood Events`}
     ${chart_fe ?? ""}
@@ -328,24 +356,22 @@ fillSlide("pluvial", null, ["infrastructure"], null, slide_texts.flooding_infras
 fillSlide("coastal", null, ["infrastructure"], null, slide_texts.flooding_infrastructure_coastal)
 fillSlide("combined_flooding", null, ["infrastructure"], null, slide_texts.flooding_infrastructure_combined)
 
-import {chart_fu}
-with {columnWidth as plotWidth}
-from "@carolinecullinan/tunis-tunisia"
+// import {chart_fu}
+// with {columnWidth as plotWidth}
+// from "@carolinecullinan/tunis-tunisia"
+
+chart_fu = addPlot(plots.fluvial_flooding)
 fillSlide("fluvial", chart_fu, ["wsf"], null, slide_texts.flooding_builtup_fluvial)
 
-import {chart_pu} 
-with {columnWidth as plotWidth}
-from "@carolinecullinan/tunis-tunisia"
+
+chart_pu = addPlot(plots.pluvial_flooding)
 fillSlide("pluvial", chart_pu, ["wsf"], null, slide_texts.flooding_builtup_pluvial)
 
-import {chart_cu}
-with {columnWidth as plotWidth}
-from "@carolinecullinan/tunis-tunisia"
+
+chart_cu = addPlot(plots.coastal_flooding)
 fillSlide("coastal", chart_cu, ["wsf"], null, slide_texts.flooding_builtup_coastal)
 
-import {chart_comb}
-with {columnWidth as plotWidth}
-from "@carolinecullinan/tunis-tunisia"
+chart_comb = addPlot(plots.combined_flooding)
 fillSlide("combined_flooding", chart_comb, ["wsf"], null, slide_texts.flooding_builtup_combined)
 
 fillSlide("fluvial", null, ["population"], null, slide_texts.flooding_population_fluvial)
@@ -354,12 +380,15 @@ fillSlide("coastal", null, ["population"], null, slide_texts.flooding_population
 fillSlide("combined_flooding", null, ["population"], null, slide_texts.flooding_population_combined)
 
 fillSlide("elevation")
+
+addPlot(plots.elevation)
+
 fillSlide("slope")
+
+addPlot(plots.slope)
 fillSlide("landslides")
 
-import {chart_ee}
-with {columnWidth as plotWidth}
-from "@carolinecullinan/tunis-tunisia"
+chart_ee = addPlot(plots.earthquake)
 html`<section class="level4">
     ${md`#### Signficant Earthquake Events`}
     ${chart_ee ?? ""}
@@ -371,9 +400,11 @@ fillSlide("roads")
 fillSlide("burnable")
 fillSlide("moisture")
 
-import {chart_fwi} 
-with {columnWidth as plotWidth}
-from "@carolinecullinan/tunis-tunisia"
+// import {chart_fwi} 
+// with {columnWidth as plotWidth}
+// from "@carolinecullinan/tunis-tunisia"
+
+chart_fwi = addPlot(plots.fire_weather_index)
 fillSlide("burnt_area", chart_fwi)
 ```
 

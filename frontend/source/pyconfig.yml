@@ -1,3 +1,4 @@
+python: /path/to/python
 
 tabular:
   {
@@ -12,7 +13,6 @@ tabular:
     'earthquake-events':clean_ee,
     'fwi': clean_fwi,
   }
-
 
 raster: 
   {
@@ -32,3 +32,5 @@ create_raw:
     'earthquake-events': get_earthquake_events,
     'monthly-pv': get_monthly_pv
   }
+
+

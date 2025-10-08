@@ -15,12 +15,16 @@ Individual interactive Observable JS chart helper functions are in JS folder.
 The charts in [`index.qmd`](index.qmd) will read the plot names in [source/plots.yml](source/plots.yml). To add the plot, use addPlot from [JS/plotManager.js](JS/plotManager.js).
 
 ```
-    # loads the plot configuration from source/plots.yml
+    // load the plot configuration from source/plots.yml
     yaml = import("https://esm.sh/js-yaml@4")
     plotConfig = FileAttachment("source/plots.yml").text()
     plots = yaml.load(await plotConfig)
+```
 
-    # import addPlot from plotManager to add the chart
+ To add the plot, use addPlot from [JS/plotManager.js](JS/plotManager.js).
+
+```
+    // import addPlot from plotManager to add the chart
     import {addPlot} from "./JS/plotManager.js"
     chart_pas = addPlot(plots.population_demographics)
 ```

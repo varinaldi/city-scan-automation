@@ -2,25 +2,38 @@ from pathlib import Path
 import importlib
 import subprocess
 import sys
-import yaml
-
-# cfg = yaml.safe_load(Path("frontend/source/pyconfig.yml").read_text())
-# py = cfg.get('python') or sys.executable
-# reqs = cfg.get('requirements', [])
 
 
 import subprocess, sys, importlib
 
-def ensure(pkg):
+# Check which packages are missing
+required_packages = [ "yaml", "pandas", "numpy", "rasterio", "geopandas", "shapely"]
+missing_packages = []
+
+print("Checking required packages...")
+for pkg in required_packages:
     try:
         importlib.import_module(pkg)
+        print(f"  ✓ {pkg}")
     except ImportError:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", pkg])
+        print(f"  ✗ {pkg} (missing)")
+        missing_packages.append(pkg)
 
-for pkg in ["pyyaml", "pandas", "numpy", "rasterio", "geopandas", "shapely"]:
-    ensure(pkg)
+# If packages are missing, ask user before installing
+if missing_packages:
+    print(f"\nMissing packages: {', '.join(missing_packages)}")
+    response = input("Would you like to install them? (y/n): ").strip().lower()
 
-import yaml  # safe to import now
+    if response == 'y' or response == 'yes':
+        print("\nInstalling missing packages...")
+        for pkg in missing_packages:
+            print(f"  Installing {pkg}...")
+            subprocess.check_call([sys.executable, "-m", "pip", "install", pkg])
+        print("\nAll packages installed successfully!")
+    else:
+        print("\nInstallation aborted. Required packages are missing.")
+        sys.exit(1)
+else:
+    print("\nAll required packages are already installed!")
 
-# for r in reqs:
-#     ensure(r)
+

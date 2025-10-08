@@ -1,6 +1,6 @@
 population_growth:
   type: lineChart
-  data_source: "./data/processed/pg.csv"
+  data_source: "pg.csv"
   config:
     x: "yearName"
     y: "population"
@@ -19,7 +19,7 @@ population_growth:
 
 population_growth_percentage:
   type: lineChart
-  data_source: "./data/processed/pg.csv"
+  data_source: "pg.csv"
   config:
     x: "yearName"
     y: "populationGrowthPercentage"
@@ -40,7 +40,7 @@ population_growth_percentage:
 
 population_demographics:
   type: barChart
-  data_source: "./data/processed/pas.csv"
+  data_source: "pas.csv"
   config:
     x: "ageBracket"
     y: "percentage"
@@ -57,7 +57,7 @@ population_demographics:
 
 urban_growth:
   type: lineChart
-  data_source: "./data/processed/uba.csv"
+  data_source: "uba.csv"
   config:
     x: "yearName"
     y: "uba"
@@ -76,7 +76,7 @@ urban_growth:
 
 urban_growth_percentage:
   type: lineChart
-  data_source: "./data/processed/uba.csv"
+  data_source: "uba.csv"
   config:
     x: "yearName"
     y: "ubaGrowthPercentage"
@@ -95,7 +95,7 @@ urban_growth_percentage:
 
 land_cover:
     type: treeMap
-    data_source: "./data/processed/lc.csv"
+    data_source: "lc.csv"
     config:
       value: "percentage"
       label: "lcType"
@@ -121,7 +121,7 @@ land_cover:
 
 solar_pv:
   type: lineChart
-  data_source: "./data/processed/pv.csv"
+  data_source: "pv.csv"
   config:
     x: "month"
     y: "maxPv"
@@ -149,7 +149,7 @@ solar_pv:
 
 fluvial_flooding:
   type: lineChart
-  data_source: "./data/processed/fu.csv"
+  data_source: "fu.csv"
   config:
     x: "yearName"
     y: "fu"
@@ -170,7 +170,7 @@ fluvial_flooding:
 
 pluvial_flooding:
   type: lineChart
-  data_source: "./data/processed/pu.csv"
+  data_source: "pu.csv"
   config:
     x: "yearName"
     y: "pu"
@@ -190,7 +190,7 @@ pluvial_flooding:
 
 coastal_flooding:
   type: lineChart
-  data_source: "./data/processed/cu.csv"
+  data_source: "cu.csv"
   config:
     x: "yearName"
     y: "cu"
@@ -211,10 +211,10 @@ coastal_flooding:
 combined_flooding:
   type: lineChart
   data_source:
-    - "./data/processed/fu.csv"
-    - "./data/processed/pu.csv"
-    - "./data/processed/cu.csv"
-    - "./data/processed/comb.csv"
+    - "fu.csv"
+    - "pu.csv"
+    - "cu.csv"
+    - "comb.csv"
   data_transform: |
     (files) => {
       const [fu, pu, cu, comb] = files;
@@ -245,7 +245,7 @@ combined_flooding:
 
 elevation:
   type: donutChart
-  data_source: "./data/processed/e.csv"
+  data_source: "e.csv"
   config:
     value: "percentage"
     label: "bin"
@@ -264,7 +264,7 @@ elevation:
 
 slope:
   type: donutChart
-  data_source: "./data/processed/s.csv"
+  data_source: "s.csv"
   config:
     value: "percentage"
     label: "bin"
@@ -285,7 +285,7 @@ slope:
 
 earthquake:
   type: scatterPlot
-  data_source: "./data/processed/ee.csv"
+  data_source: "ee.csv"
   config:
     x: "distance"
     y: "begin_year"
@@ -305,7 +305,7 @@ earthquake:
 
 fire_weather_index:
   type: lineChart
-  data_source: "./data/processed/fwi.csv"
+  data_source: "fwi.csv"
   config:
     x: "week"
     y: "fwi"
@@ -332,7 +332,7 @@ fire_weather_index:
 
 density:
   type: lineChart
-  data_source: "./data/processed/pug.csv"
+  data_source: "pug.csv"
   config:
     x: "yearName"
     y: "density"
@@ -351,7 +351,7 @@ density:
 
 population_urban_growth_ratio:
   type: slopeChart
-  data_source: "./data/processed/pug.csv"
+  data_source: "pug.csv"
   config:
     x: "populationUrbanGrowthRatio"
     y: "yearName"

@@ -49,9 +49,13 @@ def clean_pg(input_file, output_file=None):
     # create output filename if not provided
     if output_file is None:
         import os
-        # ensure the processed directory exists
-        os.makedirs('data/processed', exist_ok=True)
-        output_file = 'data/processed/pg.csv' # saves to data/processed folder
+        # Read city directory from city-dir.txt
+        with open('city-dir.txt', 'r') as f:
+            city_dir = f.readline().strip()
+        # ensure the chart-data directory exists
+        chart_data_dir = os.path.join(city_dir, '02-process-output', 'chart-data')
+        os.makedirs(chart_data_dir, exist_ok=True)
+        output_file = os.path.join(chart_data_dir, 'pg.csv')
             
     # save the cleaned data
     result_df.to_csv(output_file, index=False)
@@ -128,9 +132,13 @@ def clean_pas(input_file, output_file=None):
     # create output filename if not provided
     if output_file is None:
         import os
-        # ensure the processed directory exists
-        os.makedirs('data/processed', exist_ok=True)
-        output_file = 'data/processed/pas.csv' # saves to data/processed folder
+        # Read city directory from city-dir.txt
+        with open('city-dir.txt', 'r') as f:
+            city_dir = f.readline().strip()
+        # ensure the chart-data directory exists
+        chart_data_dir = os.path.join(city_dir, '02-process-output', 'chart-data')
+        os.makedirs(chart_data_dir, exist_ok=True)
+        output_file = os.path.join(chart_data_dir, 'pas.csv')
             
     # save the cleaned data
     result_df.to_csv(output_file, index=False)
@@ -179,9 +187,13 @@ def clean_uba(input_file, output_file=None):
     # create output filename if not provided
     if output_file is None:
         import os
-        # ensure the processed directory exists
-        os.makedirs('data/processed', exist_ok=True)
-        output_file = 'data/processed/uba.csv'
+        # Read city directory from city-dir.txt
+        with open('city-dir.txt', 'r') as f:
+            city_dir = f.readline().strip()
+        # ensure the chart-data directory exists
+        chart_data_dir = os.path.join(city_dir, '02-process-output', 'chart-data')
+        os.makedirs(chart_data_dir, exist_ok=True)
+        output_file = os.path.join(chart_data_dir, 'uba.csv')
             
     # save the cleaned data
     result_df.to_csv(output_file, index=False)
@@ -271,9 +283,13 @@ def clean_uba_area(input_tif_file: str, output_file: Optional[str] = None) -> pd
     
     # create output filename if not provided
     if output_file is None:
-        # ensure the processed directory exists
-        os.makedirs('data/processed', exist_ok=True)
-        output_file = 'data/processed/uba_area.csv'
+        # Read city directory from city-dir.txt
+        with open('city-dir.txt', 'r') as f:
+            city_dir = f.readline().strip()
+        # ensure the chart-data directory exists
+        chart_data_dir = os.path.join(city_dir, '02-process-output', 'chart-data')
+        os.makedirs(chart_data_dir, exist_ok=True)
+        output_file = os.path.join(chart_data_dir, 'uba_area.csv')
     
     # save cleaned data
     result_df.to_csv(output_file, index=False)
@@ -340,9 +356,13 @@ def clean_lc(input_file, output_file=None):
     # create output filename if not provided
     if output_file is None:
         import os
-        # ensure the processed directory exists
-        os.makedirs('data/processed', exist_ok=True)
-        output_file = 'data/processed/lc.csv'
+        # Read city directory from city-dir.txt
+        with open('city-dir.txt', 'r') as f:
+            city_dir = f.readline().strip()
+        # ensure the chart-data directory exists
+        chart_data_dir = os.path.join(city_dir, '02-process-output', 'chart-data')
+        os.makedirs(chart_data_dir, exist_ok=True)
+        output_file = os.path.join(chart_data_dir, 'lc.csv')
             
     # save cleaned data
     result_df.to_csv(output_file, index=False)
@@ -376,9 +396,17 @@ def clean_pug(pg_file=None, uba_file=None, output_file=None):
     
     # set default file paths if not provided
     if pg_file is None:
-        pg_file = 'data/processed/pg.csv'
+        # Read city directory from city-dir.txt
+        with open('city-dir.txt', 'r') as f:
+            city_dir = f.readline().strip()
+        chart_data_dir = os.path.join(city_dir, '02-process-output', 'chart-data')
+        pg_file = os.path.join(chart_data_dir, 'pg.csv')
     if uba_file is None:
-        uba_file = 'data/processed/uba.csv'
+        # Read city directory from city-dir.txt
+        with open('city-dir.txt', 'r') as f:
+            city_dir = f.readline().strip()
+        chart_data_dir = os.path.join(city_dir, '02-process-output', 'chart-data')
+        uba_file = os.path.join(chart_data_dir, 'uba.csv')
     
     # read pg.csv and uba.csv
     try:
@@ -432,9 +460,13 @@ def clean_pug(pg_file=None, uba_file=None, output_file=None):
     # create output filename if not provided
     if output_file is None:
         import os
-        # ensure the processed directory exists
-        os.makedirs('data/processed', exist_ok=True)
-        output_file = 'data/processed/pug.csv'
+        # Read city directory from city-dir.txt
+        with open('city-dir.txt', 'r') as f:
+            city_dir = f.readline().strip()
+        # ensure the chart-data directory exists
+        chart_data_dir = os.path.join(city_dir, '02-process-output', 'chart-data')
+        os.makedirs(chart_data_dir, exist_ok=True)
+        output_file = os.path.join(chart_data_dir, 'pug.csv')
     
     # save pug_df for population urban growth data to csv
     pug_df.to_csv(output_file, index=False)
@@ -506,9 +538,13 @@ def clean_pv(input_file, output_file=None):
     # create output filename if not provided
     if output_file is None:
         import os
-        # ensure the processed directory exists
-        os.makedirs('data/processed', exist_ok=True)
-        output_file = 'data/processed/pv.csv'
+        # Read city directory from city-dir.txt
+        with open('city-dir.txt', 'r') as f:
+            city_dir = f.readline().strip()
+        # ensure the chart-data directory exists
+        chart_data_dir = os.path.join(city_dir, '02-process-output', 'chart-data')
+        os.makedirs(chart_data_dir, exist_ok=True)
+        output_file = os.path.join(chart_data_dir, 'pv.csv')
             
     # save cleaned data
     result_df.to_csv(output_file, index=False)
@@ -610,9 +646,13 @@ def clean_pv_area(input_tif_file: str, output_file: Optional[str] = None) -> pd.
     
     # create output filename if not provided
     if output_file is None:
-        # ensure the "processed" directory exists
-        os.makedirs('data/processed', exist_ok=True)
-        output_file = 'data/processed/pv_area.csv'
+        # Read city directory from city-dir.txt
+        with open('city-dir.txt', 'r') as f:
+            city_dir = f.readline().strip()
+        # ensure the chart-data directory exists
+        chart_data_dir = os.path.join(city_dir, '02-process-output', 'chart-data')
+        os.makedirs(chart_data_dir, exist_ok=True)
+        output_file = os.path.join(chart_data_dir, 'pv_area.csv')
     
     # save cleaned data
     result_df.to_csv(output_file, index=False)
@@ -717,9 +757,13 @@ def clean_aq_area(input_tif_file: str, output_file: Optional[str] = None) -> pd.
     
     # create output filename if not provided
     if output_file is None:
-        # ensure the processed directory exists
-        os.makedirs('data/processed', exist_ok=True)
-        output_file = 'data/processed/aq_area.csv'
+        # Read city directory from city-dir.txt
+        with open('city-dir.txt', 'r') as f:
+            city_dir = f.readline().strip()
+        # ensure the chart-data directory exists
+        chart_data_dir = os.path.join(city_dir, '02-process-output', 'chart-data')
+        os.makedirs(chart_data_dir, exist_ok=True)
+        output_file = os.path.join(chart_data_dir, 'aq_area.csv')
     
     # save the cleaned data
     result_df.to_csv(output_file, index=False)
@@ -820,8 +864,13 @@ def clean_ndvi_area(input_tif_file: str, output_file: Optional[str] = None) -> p
     
     # create output filename if not provided
     if output_file is None:
-        os.makedirs('data/processed', exist_ok=True)
-        output_file = 'data/processed/ndvi_area.csv'
+        # Read city directory from city-dir.txt
+        with open('city-dir.txt', 'r') as f:
+            city_dir = f.readline().strip()
+        # ensure the chart-data directory exists
+        chart_data_dir = os.path.join(city_dir, '02-process-output', 'chart-data')
+        os.makedirs(chart_data_dir, exist_ok=True)
+        output_file = os.path.join(chart_data_dir, 'ndvi_area.csv')
     
     # save the cleaned data
     result_df.to_csv(output_file, index=False)
@@ -992,8 +1041,13 @@ def clean_deforestation_area(forest_tif_file: str, deforestation_tif_file: str,
     
     # create output filename if not provided
     if output_file is None:
-        os.makedirs('data/processed', exist_ok=True)
-        output_file = 'data/processed/deforestation_area.csv'
+        # Read city directory from city-dir.txt
+        with open('city-dir.txt', 'r') as f:
+            city_dir = f.readline().strip()
+        # ensure the chart-data directory exists
+        chart_data_dir = os.path.join(city_dir, '02-process-output', 'chart-data')
+        os.makedirs(chart_data_dir, exist_ok=True)
+        output_file = os.path.join(chart_data_dir, 'deforestation_area.csv')
     
     # save cleaned data
     result_df.to_csv(output_file, index=False)
@@ -1036,7 +1090,11 @@ def clean_flood(input_file, output_dir=None):
     # set default output directory
     if output_dir is None:
         import os
-        output_dir = 'data/processed'
+        # Read city directory from city-dir.txt
+        with open('city-dir.txt', 'r') as f:
+            city_dir = f.readline().strip()
+        # ensure the chart-data directory exists
+        output_dir = os.path.join(city_dir, '02-process-output', 'chart-data')
         os.makedirs(output_dir, exist_ok=True)
     
     # ID available flood types based on column names
@@ -1175,9 +1233,13 @@ def clean_e(input_file, output_file=None):
     # create output filename if not provided
     if output_file is None:
         import os
-        # ensure the processed directory exists
-        os.makedirs('data/processed', exist_ok=True)
-        output_file = 'data/processed/e.csv' 
+        # Read city directory from city-dir.txt
+        with open('city-dir.txt', 'r') as f:
+            city_dir = f.readline().strip()
+        # ensure the chart-data directory exists
+        chart_data_dir = os.path.join(city_dir, '02-process-output', 'chart-data')
+        os.makedirs(chart_data_dir, exist_ok=True)
+        output_file = os.path.join(chart_data_dir, 'e.csv') 
             
     # save the cleaned data
     result_df.to_csv(output_file, index=False)
@@ -1253,9 +1315,13 @@ def clean_s(input_file, output_file=None):
     # create output filename if not provided
     if output_file is None:
         import os
-        # ensure the processed directory exists
-        os.makedirs('data/processed', exist_ok=True)
-        output_file = 'data/processed/s.csv'
+        # Read city directory from city-dir.txt
+        with open('city-dir.txt', 'r') as f:
+            city_dir = f.readline().strip()
+        # ensure the chart-data directory exists
+        chart_data_dir = os.path.join(city_dir, '02-process-output', 'chart-data')
+        os.makedirs(chart_data_dir, exist_ok=True)
+        output_file = os.path.join(chart_data_dir, 's.csv')
             
     # save cleaned data
     result_df.to_csv(output_file, index=False)
@@ -1386,9 +1452,13 @@ def clean_ls_area(input_tif_file: str, output_file: Optional[str] = None, includ
     
     # create output filename if not provided
     if output_file is None:
-        # ensure  processed directory exists
-        os.makedirs('data/processed', exist_ok=True)
-        output_file = 'data/processed/ls_area.csv'
+        # Read city directory from city-dir.txt
+        with open('city-dir.txt', 'r') as f:
+            city_dir = f.readline().strip()
+        # ensure the chart-data directory exists
+        chart_data_dir = os.path.join(city_dir, '02-process-output', 'chart-data')
+        os.makedirs(chart_data_dir, exist_ok=True)
+        output_file = os.path.join(chart_data_dir, 'ls_area.csv')
     
     # save cleaned data
     result_df.to_csv(output_file, index=False)
@@ -1454,9 +1524,13 @@ def clean_ee(input_file, output_file=None):
     # create output filename if not provided
     if output_file is None:
         import os
-        # ensure the processed directory exists
-        os.makedirs('data/processed', exist_ok=True)
-        output_file = 'data/processed/ee.csv'
+        # Read city directory from city-dir.txt
+        with open('city-dir.txt', 'r') as f:
+            city_dir = f.readline().strip()
+        # ensure the chart-data directory exists
+        chart_data_dir = os.path.join(city_dir, '02-process-output', 'chart-data')
+        os.makedirs(chart_data_dir, exist_ok=True)
+        output_file = os.path.join(chart_data_dir, 'ee.csv')
             
     # save cleaned data
     result_df.to_csv(output_file, index=False)
@@ -1572,9 +1646,13 @@ def clean_l_area(input_tif_file: str, output_file: Optional[str] = None, include
     
     # create output filename if not provided
     if output_file is None:
-        # ensure processed directory exists
-        os.makedirs('data/processed', exist_ok=True)
-        output_file = 'data/processed/l_area.csv'
+        # Read city directory from city-dir.txt
+        with open('city-dir.txt', 'r') as f:
+            city_dir = f.readline().strip()
+        # ensure the chart-data directory exists
+        chart_data_dir = os.path.join(city_dir, '02-process-output', 'chart-data')
+        os.makedirs(chart_data_dir, exist_ok=True)
+        output_file = os.path.join(chart_data_dir, 'l_area.csv')
     
     # save cleaned data
     result_df.to_csv(output_file, index=False)
@@ -1682,9 +1760,13 @@ def clean_fwi(input_file, output_file=None):
     # create output filename if not provided
     if output_file is None:
         import os
-        # ensure the processed directory exists
-        os.makedirs('data/processed', exist_ok=True)
-        output_file = 'data/processed/fwi.csv'
+        # Read city directory from city-dir.txt
+        with open('city-dir.txt', 'r') as f:
+            city_dir = f.readline().strip()
+        # ensure the chart-data directory exists
+        chart_data_dir = os.path.join(city_dir, '02-process-output', 'chart-data')
+        os.makedirs(chart_data_dir, exist_ok=True)
+        output_file = os.path.join(chart_data_dir, 'fwi.csv')
             
     # save cleaned data
     result_df.to_csv(output_file, index=False)

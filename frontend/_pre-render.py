@@ -3,23 +3,22 @@ import yaml
 import numpy as np
 import pandas as pd
 
-os.getcwd()
 
 
-
-# Load City Directory 
+# ---- Load City Directory ----
 city_dir = open('city-dir.txt').readlines()[0].strip()
 
 user_input_dir = os.path.join(city_dir, '01-user-input/')
 process_output_dir = os.path.join(city_dir, '02-process-output/')
 spatial_dir = os.path.join(process_output_dir, 'spatial/')
 tabular_dir = os.path.join(process_output_dir, 'tabular/')
+chart_data_dir = os.path.join(process_output_dir, 'chart-data/')
 
 city_name = city_dir.split('-')[-1].lower() 
 country_name = city_dir.split('-')[-2].lower()
 
 
-# Load files for missing files
+# ---- Load files for missing files ----
 if not os.path.exists('source/files.yml'):
     raise FileNotFoundError("The 'source/files.yml' file does not exist. Please create it with the necessary file paths.")
 
@@ -34,13 +33,13 @@ with open('source/pyconfig.yml', 'r') as file:
 
 
 
-# Check if we are missing any raw files
+# ---- Check if we are missing any raw files ----
 import Py.utils
 
-Py.utils.check_raw(city_dir, tabular_dir, spatial_dir,config, files)
+Py.utils.check_raw(city_dir, tabular_dir, spatial_dir, config, files)
 
 
-# Run cleaning functions
+# ---- Run cleaning functions ----
 import Py.clean
 
 tabular = [f for f in os.listdir(tabular_dir) if f.endswith('.csv')]
@@ -55,10 +54,13 @@ for key in config['tabular'].keys():
     func(filename)
     print()
 
-Py.utils.create_pug()
-print()
+# ---- Create pug data ----
+print('Creating pug data...')
+Py.utils.create_pug(chart_data_dir)
+print('done', flush=True)
 
-
+# ---- Clean Forest raster data ----
+print('Cleaning forest and deforestation data...')
 for key in config['raster'].keys():
 
     if 'forest' not in key:
@@ -72,6 +74,7 @@ for key in config['raster'].keys():
 forest_tif_path = Py.utils.get_file_by_topic('forest_cover23.', raster, spatial_dir)
 
 deforestation_tif_path = Py.utils.get_file_by_topic('deforestation.', raster, spatial_dir)
+print('done', flush=True)
 
 Py.clean.clean_deforestation_area(
     forest_tif_file=forest_tif_path,
@@ -79,3 +82,9 @@ Py.clean.clean_deforestation_area(
     base_year=2000,
     auto_align=True
 )
+
+# ---- Final Check ----
+print("Data created in ", chart_data_dir, ':')
+print(os.listdir(chart_data_dir))
+print('================================')
+print(len(os.listdir(chart_data_dir)), " files created.")

@@ -273,12 +273,12 @@ def get_file_by_topic(topic, folder, dir):
 
 # Function to creare pug data once pg and uba are available
 from Py.clean import clean_pug
-def create_pug():
+def create_pug( chart_data_dir ):
     print("Checking prerequisite files...")
 
     # check if required input files exist
-    pg_file = 'data/processed/pg.csv'
-    uba_file = 'data/processed/uba.csv'
+    pg_file = os.path.join(chart_data_dir, 'pg.csv')
+    uba_file = os.path.join(chart_data_dir, 'data/processed/uba.csv')
 
     if os.path.exists(pg_file):
         print(f"Population growth file found: {pg_file}")
@@ -292,7 +292,6 @@ def create_pug():
         print(f"Urban built area file missing: {uba_file}")
         print("Run clean_uba function first to generate this file")
         
-
     if os.path.exists(pg_file) and os.path.exists(uba_file):
         print("Both prerequisite files are available. Proceeding to merge and clean population urban growth data...")
         clean_pug()  # uses default paths: pg.csv and uba.csv

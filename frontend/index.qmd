@@ -33,6 +33,7 @@ system2(cfg$python, "Py/setup.py")
 system2(cfg$python, "_pre-render.py")
 ```
 
+
 ---
 title: "`r paste(city, country, sep = ', ')`"
 ---

@@ -51,8 +51,16 @@ export async function addPlot(plotConfig) {
 }
 
 async function loadData(dataSource) {
+  // Read city directory from city-dir.txt (first line only)
+  const cityDirResponse = await fetch('../city-dir.txt');
+  const cityDirText = await cityDirResponse.text();
+  const cityDir = cityDirText.split('\n')[0].trim();
+
+  // Construct full path: {cityDir}/02-process-output/chart-data/{dataSource}
+  const fullPath = `${cityDir}/02-process-output/chart-data/${dataSource}`;
+
   // Use FileAttachment to load the data
-  const response = await fetch(dataSource);
+  const response = await fetch(fullPath);
   const text = await response.text();
 
   // Parse CSV

@@ -327,6 +327,7 @@ fire_weather_index:
     colors: "black"
     showPoints: false
     xGrid: true
+    curve: "basis"
 
   
 
@@ -376,3 +377,9 @@ population_urban_growth_ratio:
     colors: "black"
     height: 600
     yGrid: false
+
+pop_density_scatter:
+  type: image
+  config:
+    url: "https://wbcrp.quarto.pub/tunisia-tunis/03-render-output//plots//png/oxford-pop-density-scatter.png"
+    attribution: "WB CRP - Tunis, Tunisia City Scan"

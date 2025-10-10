@@ -142,7 +142,7 @@ addPlot(plots.population_growth_percentage)
 // from "@carolinecullinan/tunis-tunisia"
 
 
-
+addPlot(plots.pop_density_scatter)
 md`#### Population Distribution by Age & Sex`
 addPlot(plots.population_demographics)
 

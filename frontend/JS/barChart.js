@@ -161,6 +161,17 @@ export async function createBarChart(data, config = {}) {
     xAxisConfig.domain = xValues;
   }
 
+  // Calculate y domain if not provided
+  let finalYDomain = yDomain;
+  if (!yDomain) {
+    const yValues = data.map(d => d[y]).filter(v => v != null && !isNaN(v));
+    if (yValues.length > 0) {
+      const maxY = Math.max(...yValues);
+      const minY = Math.min(...yValues);
+      finalYDomain = [minY, maxY * 1.075];
+    }
+  }
+
   const plotOptions = {
     marks,
     height,
@@ -172,7 +183,7 @@ export async function createBarChart(data, config = {}) {
     y: {
       label: yLabel,
       grid: yGrid,
-      ...(yDomain && { domain: yDomain }),
+      ...(finalYDomain && { domain: finalYDomain }),
       ...(yTickFormat && { tickFormat: yTickFormat })
     }
   };

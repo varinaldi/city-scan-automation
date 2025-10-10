@@ -47,6 +47,9 @@ To generate individual chart, update [source/plots.yml](source/plots.yml) with t
 **Visual options:**
 - `showPoints` (default: true), `pointRadius` (default: 4)
 - `lineWidth` (default: 2), `opacity` (default: 1)
+- `curve` (default: null) - Line smoothing/interpolation method
+  - Options: `"basis"`, `"cardinal"`, `"catmull-rom"`, `"linear"`, `"step"`, `"step-after"`, `"step-before"`
+  - `null` = no smoothing (straight lines between points)
 
 **Colors:**
 - `colors` - Single color string or array for groups
@@ -112,6 +115,9 @@ To generate individual chart, update [source/plots.yml](source/plots.yml) with t
 - `opacity` (default: 0.7)
 - `stroke` (default: "black"), `strokeWidth` (default: 0.5)
 - `colors`
+- `symbol` - String or array of symbols for groups (e.g., "circle", "square", "diamond", "triangle", "star")
+  - Single string: applies same shape to all points
+  - Array: applies different shapes to each group (requires `fill` to be specified)
 
 **Dimensions:**
 - `height`, `marginTop/Right/Bottom/Left` (defaults: 40/20/60/60)
@@ -195,4 +201,23 @@ To generate individual chart, update [source/plots.yml](source/plots.yml) with t
 
 **Annotations:**
 - `xAnnotations` - Array like `[{position, label}]`
+
+---
+
+### embedImage
+**Core mappings:**
+- `url` (required) - URL or path to the image
+
+**Dimensions:**
+- `widthPercent` (default: 100) - Width as percentage of canvas (clamped to 100%)
+- `heightPercent` (default: null) - Height as percentage of canvas (clamped to 100%)
+
+**Attribution:**
+- `attribution` (default: null) - Attribution text displayed at bottom-right
+
+**Notes:**
+- Images are sized as percentages and automatically constrained to canvas boundaries
+- `maxWidth` and `maxHeight` are set to 100% to prevent overflow
+- Attribution appears at bottom-right corner with semi-transparent white background
+
 

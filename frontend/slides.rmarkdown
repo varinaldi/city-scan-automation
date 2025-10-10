@@ -1,0 +1,140 @@
+---
+format:
+  revealjs:
+    theme: source/custom.scss
+    # width: 1122.5  # 297mm
+    # height: 793.7   # 210mm
+    navigation-mode: vertical
+    controls-layout: bottom-right
+    controls-tutorial: true
+execute:
+  echo: false
+  output: false
+  cache: false
+# engine: knitr
+---
+
+
+::: setup
+```{r}
+#| include: false
+#| label: prerender
+source('R/maps-web.R')
+cover_image <- fuzzy_read(file.path(output_dir, "maps"), "^aoi.png$", paste)
+```
+
+```{r}
+#| cache: false
+# Which layers do we have plots for? Tell Observable cells
+ojs_define(createdMaps = names(plots_html))
+```
+
+```{r}
+#| include: false
+#| label: run python pre-render
+cfg <- yaml::read_yaml("source/pyconfig.yml")
+system2(cfg$python, "Py/setup.py")
+system2(cfg$python, "_pre-render.py")
+```
+
+```{r}
+#| label: get-text
+generic_text <- read_yaml("source/generic-text.yml") %>% rapply(double_space, how = "replace")
+city_text_file <- file.path(user_input_dir, "text-files/manual-text.md")
+if (file.exists(city_text_file)) {
+  city_text <- read_md(city_text_file)
+  slide_texts <- merge_lists(city_text, generic_text)
+} else {
+  slide_texts <- generic_text
+}
+slide_texts <- unlist(slide_texts, recursive = F) %>%
+  setNames(str_extract(names(.), "\\.(.*)$", group = T))
+```
+
+```{r}
+#| cache: false
+ojs_define(layerParams = layer_params)
+ojs_define(slide_texts = slide_texts)
+```
+
+```{ojs}
+#| include: false
+function renderDiv(text, divClass) {
+  if (!text) return "";
+  const textMarkdown = Array.isArray(text) ? md`${text.join('\n')}` : md`${text}`;
+  return html`<div class="${divClass}">${textMarkdown}</div>`;
+}
+
+function addSlideText(slide) {
+  return html`
+  ${renderDiv(slide.takeaways, "takeaways")}
+  ${renderDiv(slide.method, "method")}
+  ${renderDiv(slide.footnote, "footnote")}`
+}
+
+function fillSlide(layer, chart = null, extra_layers = [], title = null, slide_text = null) {
+  if (!createdMaps.includes(layer)) return md``;
+  var mappingLayers = [...(extra_layers ?? []), layer]
+    .map(lay => layerParams[lay].group_id)
+    .filter(Boolean)
+    .join(";");
+    if (!slide_text && layer) slide_text = slide_texts[layer];
+    if (!title) title = slide_text?.title;
+    if (!title && layer) title = layer;
+  return html`
+    <section class="level3">
+      ${md`### ${title}`}
+      ${html`<div class="map-list" data-layers="${mappingLayers}"></div>`}
+      ${chart ?? ""}
+      ${addSlideText(slide_text)}
+    </section>
+    `
+}
+
+textColumn = d3.select('.text-column').node();
+columnWidth = textColumn.getBoundingClientRect().width * .95;
+```
+
+```{ojs}
+#| include: false
+// Read plots from config
+yaml = import("https://esm.sh/js-yaml@4")
+import {addPlot} from "./JS/plotManager.js"
+
+plotConfig = FileAttachment("source/plots.yml").text()
+plots = yaml.load(await plotConfig)
+
+```
+
+
+
+---
+title: "`r paste(city, country, sep = ', ')`"
+---
+:::
+
+::: {#cover-page}
+# {{< meta title >}} <!-- Put "City Scan" on second line-->
+
+City Scan
+
+`r month.name[lubridate::month(Sys.Date())]` `r lubridate::year(Sys.Date())`
+<div> 
+by the [City Resilience Program](https://www.gfdrr.org/en/crp)
+</div>
+
+<!-- ::: {.donors} -->
+![GFDRR](https://upload.wikimedia.org/wikipedia/commons/f/fe/GFDRR_Primary_Logo_BW-Shade-nobg.png)
+
+![World Bank](https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/The_World_Bank_logo.svg/624px-The_World_Bank_logo.svg.png)
+
+![Austrian Federal Ministry of Finance](https://www.bmf.gv.at/dam/jcr:b259928e-ef89-43c8-9bf3-4d2dae928bcd/BMF_Logo_srgb_EN.png)
+
+![Swiss Confederation Federal Department of Economic Affairs State Secretariat for Economic Affairs SECO](https://biotrade-asia.com/wp-content/uploads/2022/05/Logo-Swiss.png)
+:::
+
+::: text-column
+
+## Executive Summary
+- test point
+- test point 2

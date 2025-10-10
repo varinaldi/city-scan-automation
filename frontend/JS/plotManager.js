@@ -6,6 +6,7 @@ import { createTreeMap } from './treeMap.js';
 import { createDonutChart } from './donutChart.js';
 import { createBarChart } from './barChart.js';
 import { createSlopeChart } from './slopeChart.js';
+import { embedImage } from './embedImage.js';
 
 const plotTypes = {
   lineChart: createLineChart,
@@ -13,7 +14,8 @@ const plotTypes = {
   treeMap: createTreeMap,
   donutChart: createDonutChart,
   barChart: createBarChart,
-  slopeChart: createSlopeChart
+  slopeChart: createSlopeChart,
+  image: embedImage
 };
 
 export async function addPlot(plotConfig) {
@@ -23,25 +25,28 @@ export async function addPlot(plotConfig) {
     throw new Error(`Unknown plot type: ${plotConfig.type}`);
   }
 
-  // Load data from the source(s) specified in config
-  let data;
-  if (Array.isArray(plotConfig.data_source)) {
-    // Multiple data sources - load all
-    const dataSources = await Promise.all(
-      plotConfig.data_source.map(source => loadData(source))
-    );
+  // Skip data loading for embedImage type
+  let data = null;
+  if (plotConfig.type !== 'embedImage') {
+    // Load data from the source(s) specified in config
+    if (Array.isArray(plotConfig.data_source)) {
+      // Multiple data sources - load all
+      const dataSources = await Promise.all(
+        plotConfig.data_source.map(source => loadData(source))
+      );
 
-    // Apply data transformation if provided
-    if (plotConfig.data_transform) {
-      const transformFn = eval(`(${plotConfig.data_transform})`);
-      data = transformFn(dataSources);
+      // Apply data transformation if provided
+      if (plotConfig.data_transform) {
+        const transformFn = eval(`(${plotConfig.data_transform})`);
+        data = transformFn(dataSources);
+      } else {
+        // If no transform, just use the first data source
+        data = dataSources[0];
+      }
     } else {
-      // If no transform, just use the first data source
-      data = dataSources[0];
+      // Single data source
+      data = await loadData(plotConfig.data_source);
     }
-  } else {
-    // Single data source
-    data = await loadData(plotConfig.data_source);
   }
 
   // Parse config (convert string functions to actual functions)

@@ -26,6 +26,7 @@ export async function createLineChart(data, config = {}) {
     pointRadius = 4,
     lineWidth = 2,
     opacity = 1,
+    curve = null, // Line smoothing: null (default), "basis", "cardinal", "catmull-rom", "linear", "step", etc.
 
     // Colors
     colors = null, // Single color string or array for groups
@@ -135,7 +136,8 @@ export async function createLineChart(data, config = {}) {
         stroke: color,
         strokeWidth: lineWidth,
         opacity,
-        ...(dashPattern && { strokeDasharray: dashPattern })
+        ...(dashPattern && { strokeDasharray: dashPattern }),
+        ...(curve && { curve })
       };
 
       marks.push(Plot.line(groupData, groupLineConfig));
@@ -180,7 +182,8 @@ export async function createLineChart(data, config = {}) {
       y,
       stroke: colors || "black",
       strokeWidth: lineWidth,
-      opacity
+      opacity,
+      ...(curve && { curve })
     };
 
     marks.push(Plot.line(data, lineConfig));
@@ -219,6 +222,17 @@ export async function createLineChart(data, config = {}) {
     }
   }
 
+  // Calculate y domain if not provided
+  let finalYDomain = yDomain;
+  if (!yDomain) {
+    const yValues = data.map(d => d[y]).filter(v => v != null && !isNaN(v));
+    if (yValues.length > 0) {
+      const maxY = Math.max(...yValues);
+      const minY = Math.min(...yValues);
+      finalYDomain = [minY, maxY * 1.075];
+    }
+  }
+
   // Build plot options
   const plotOptions = {
     marks,
@@ -239,7 +253,7 @@ export async function createLineChart(data, config = {}) {
     y: {
       label: yLabel,
       grid: yGrid,
-      ...(yDomain && { domain: yDomain }),
+      ...(finalYDomain && { domain: finalYDomain }),
       ...(yTickFormat && { tickFormat: yTickFormat })
 
     }

@@ -134,6 +134,8 @@ export async function createScatterPlot(data, config = {}) {
       dotConfig.fill = fill;
     } else if (colors && !fill) {
       dotConfig.fill = colors;
+    } else {
+      dotConfig.fill = "black";
     }
 
     // Add tooltip

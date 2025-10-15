@@ -1,0 +1,504 @@
+---
+title: "City Scan Sandbox"
+format:
+  dashboard:
+    theme: default
+orientation: columns
+server: shiny
+---
+
+```{=html}
+<style>
+.navbar, .navbar-default {
+  background-color: #6c757d !important;
+  border-color: #5a6268 !important;
+}
+.navbar-default .navbar-brand,
+.navbar-default .navbar-nav > li > a {
+  color: #ffffff !important;
+}
+</style>
+```
+
+
+```{r}
+#| context: setup
+source('R/setup.R')
+
+library(htmlwidgets)
+library(leaflet)
+
+```
+
+## Column {width=20%}
+```{r}
+
+# Get raster files and remove .tif extension for display
+raster_files <- list.files(spatial_dir, pattern = '\\.tif$')
+raster_names <- tools::file_path_sans_ext(raster_files)
+
+# Remove city name from display names (case insensitive)
+# city_string is loaded from setup.R
+clean_names <- gsub(paste0(city_string, "[_-]?"), "", raster_names, ignore.case = TRUE)
+clean_names <- gsub(paste0("[_-]?", city_string), "", clean_names, ignore.case = TRUE)
+
+selectInput('layer', 'Select Rasters',
+            choices = setNames(raster_files, clean_names),
+            multiple = TRUE,
+            selected = raster_files[1])
+
+selectInput('x_column', 'X-axis', choices = c("area"), selected = "area")
+selectInput('y_column', 'Y-axis', choices = c("area"), selected = "area")
+
+hr()
+
+actionButton('aggregate_btn', 'Aggregate Selected', class = 'btn-primary', width = '100%')
+actionButton('reset_btn', 'Reset All', class = 'btn-warning', width = '100%')
+
+htmlOutput('aggregate_info')
+
+```
+
+
+## Column {width=80%}
+```{r}
+leafletOutput('map')
+```
+
+
+
+```{ojs}
+//| title: "Plot"
+
+import {createScatterPlot} from "./js/scatterPlot.js"
+
+
+// Transform polygon_data from R data frame to array of objects
+plotData = transpose(polygon_data)
+
+// Get all column names for tooltip
+tooltipCols = Object.keys(plotData[0] || {})
+
+// Create color mapping based on type
+colorMap = {
+  const colors = {};
+  plotData.forEach(d => {
+    if (d.type === "aggregated" && group_colors_map[d.name]) {
+      colors[d.name] = group_colors_map[d.name];
+    } else {
+      colors[d.name] = "black";
+    }
+  });
+  return colors;
+}
+
+// Add color field to data
+plotDataWithColors = plotData.map(d => ({
+  ...d,
+  color: colorMap[d.name] || "black"
+}))
+
+plot = createScatterPlot(plotDataWithColors, {
+  x: x_col,
+  y: y_col,
+  xLabel: x_col,
+  yLabel: y_col,
+  pointRadius: 6,
+  opacity: 0.7,
+  stroke: "white",
+  fill: "color",
+  tooltip: true,
+  tooltipColumns: tooltipCols,
+  height: 400,
+  marginLeft: 70,
+  marginBottom: 50,
+  style: {
+    background: "white",
+    color: "black"
+  }
+})
+```
+
+
+```{r}
+#| context: server
+
+# Reactive value to store selected polygon IDs
+selected_polygons <- reactiveVal(character(0))
+
+# Reactive to store aggregated groups
+# Structure: list of lists, each containing:
+#   - name: group name (e.g., "Group 1")
+#   - polygon_ids: vector of original polygon IDs
+#   - geometry: dissolved geometry
+aggregated_groups <- reactiveVal(list())
+
+# Counter for group naming
+group_counter <- reactiveVal(0)
+
+# Colors for groups
+group_colors <- c("#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00",
+                  "#ffff33", "#a65628", "#f781bf", "#999999")
+
+
+
+# ----------------------------------
+# ---------- REACTIVES -------------
+# ----------------------------------
+
+layers <- reactive({
+    req(input$layer)
+    # Load all selected rasters
+    raster_list <- lapply(input$layer, function(lyr) {
+        r <- rast(file.path(spatial_dir, lyr))
+        # Reproject AOI to match raster CRS if needed
+        aoi_reproj <- terra::project(aoi, crs(r))
+        r %>% crop(aoi_reproj) %>% mask(aoi_reproj)
+    })
+
+    # Create clean names without city name
+    base_names <- tools::file_path_sans_ext(input$layer)
+    clean_names <- gsub(paste0(city_string, "[_-]?"), "", base_names, ignore.case = TRUE)
+    clean_names <- gsub(paste0("[_-]?", city_string), "", clean_names, ignore.case = TRUE)
+
+    names(raster_list) <- clean_names
+    raster_list
+})
+
+# Calculate polygon statistics (including aggregated groups)
+polygon_stats <- reactive({
+    req(layers())
+    raster_list <- layers()
+    groups <- aggregated_groups()
+
+    # Get all polygon IDs that are part of aggregated groups
+    aggregated_ids <- unlist(lapply(groups, function(g) g$polygon_ids))
+
+    # Calculate stats for non-aggregated wards
+    non_aggregated_wards <- wards[!wards$DESA %in% aggregated_ids, ]
+
+    if (nrow(non_aggregated_wards) > 0) {
+        wards_reproj <- terra::project(non_aggregated_wards, crs(raster_list[[1]]))
+        areas <- terra::expanse(wards_reproj, unit = "km")
+
+        stats_df <- data.frame(
+            name = non_aggregated_wards$DESA,
+            area = areas,
+            type = "individual"
+        )
+
+        # Extract values from each raster
+        for (lyr_name in names(raster_list)) {
+            r <- raster_list[[lyr_name]]
+            wards_reproj <- terra::project(non_aggregated_wards, crs(r))
+            extracted <- terra::extract(r, wards_reproj, fun = mean, na.rm = TRUE)
+            stats_df[[lyr_name]] <- extracted[[2]]
+        }
+    } else {
+        stats_df <- data.frame(
+            name = character(0),
+            area = numeric(0),
+            type = character(0)
+        )
+    }
+
+    # Add aggregated groups
+    if (length(groups) > 0) {
+        for (i in seq_along(groups)) {
+            group <- groups[[i]]
+            group_geom <- group$geometry
+
+            # Reproject for area calculation
+            group_reproj <- terra::project(group_geom, crs(raster_list[[1]]))
+            group_area <- terra::expanse(group_reproj, unit = "km")
+
+            group_row <- data.frame(
+                name = group$name,
+                area = group_area,
+                type = "aggregated"
+            )
+
+            # Extract values from each raster
+            for (lyr_name in names(raster_list)) {
+                r <- raster_list[[lyr_name]]
+                group_reproj <- terra::project(group_geom, crs(r))
+                extracted <- terra::extract(r, group_reproj, fun = mean, na.rm = TRUE)
+                group_row[[lyr_name]] <- extracted[[2]]
+            }
+
+            stats_df <- rbind(stats_df, group_row)
+        }
+    }
+
+    stats_df
+})
+
+# Create reactive for selected data
+selected_stats <- reactive({
+    current_selection <- selected_polygons()
+    stats <- polygon_stats()
+
+    if (length(current_selection) > 0) {
+        stats[stats$name %in% current_selection, ]
+    } else {
+        stats
+    }
+})
+
+
+
+
+# --------------------------------
+# ---------- MAPPING -------------
+# --------------------------------
+
+output$map <- renderLeaflet({
+   map <- aoi %>%
+    leaflet() %>%
+    addProviderTiles(providers$CartoDB.Positron)
+
+   # Add all selected rasters with colors from layers.yml
+   raster_list <- layers()
+   for (i in seq_along(raster_list)) {
+       layer_name <- names(raster_list)[i]
+       r <- raster_list[[i]]
+
+       # Find matching layer params
+       layer_key <- NULL
+       for (key in names(layer_params)) {
+           param <- layer_params[[key]]
+           if (!is.null(param$fuzzy_string)) {
+               if (grepl(param$fuzzy_string, paste0(layer_name, ".tif"), perl = TRUE)) {
+                   layer_key <- key
+                   break
+               }
+           }
+       }
+
+       # Get color palette from layers.yml if available
+       if (!is.null(layer_key) && !is.null(layer_params[[layer_key]]$palette)) {
+           pal <- colorNumeric(
+               palette = unlist(layer_params[[layer_key]]$palette),
+               domain = values(r),
+               na.color = "transparent"
+           )
+           map <- map %>% addRasterImage(r, colors = pal, group = layer_name, opacity = 0.7)
+       } else {
+           # Use default palette if no match found
+           map <- map %>% addRasterImage(r, group = layer_name, opacity = 0.7)
+       }
+   }
+
+   # Add polygons
+   map <- map %>%
+    addPolygons(
+      data = wards,
+      layerId = ~DESA,
+      popup = ~DESA,
+      color = 'white',
+      weight = 1,
+      fillOpacity = 0.2,
+      highlightOptions = highlightOptions(
+        color = 'cyan',
+        weight = 3,
+        fillColor = 'cyan',
+        fillOpacity = 0.5,
+        bringToFront = TRUE
+      )
+    )
+
+   # Add layer control if multiple rasters
+   if (length(raster_list) > 1) {
+       map <- map %>% addLayersControl(
+           overlayGroups = names(raster_list),
+           options = layersControlOptions(collapsed = FALSE)
+       )
+   }
+
+   map
+})
+
+
+# ---------------------------------
+# ---------- OBSERVER -------------
+# ---------------------------------
+
+# ----- Click Additive Selection --------
+observeEvent(input$map_shape_click, {
+  click <- input$map_shape_click
+
+  if (!is.null(click$id)) {
+    current_selection <- selected_polygons()
+
+    # Toggle selection: add if not selected, remove if already selected
+    if (click$id %in% current_selection) {
+      selected_polygons(setdiff(current_selection, click$id))
+    } else {
+      selected_polygons(c(current_selection, click$id))
+    }
+  }
+})
+
+# ----- Reset Click Outside Polygon --------
+observeEvent(input$map_click, {
+  selected_polygons(character(0))
+})
+
+# ----- Aggregate Additive Selection --------
+observeEvent(input$aggregate_btn, {
+  current_selection <- selected_polygons()
+
+  if (length(current_selection) == 0) {
+    showNotification("Please select polygons to aggregate", type = "warning")
+    return()
+  }
+
+  # Increment group counter
+  counter <- group_counter() + 1
+  group_counter(counter)
+
+  # Get selected ward geometries
+  selected_wards <- wards[wards$DESA %in% current_selection, ]
+
+  # Dissolve/union the geometries
+  dissolved_geom <- terra::aggregate(selected_wards)
+
+  # Create new group
+  new_group <- list(
+    name = paste0("Group ", counter),
+    polygon_ids = current_selection,
+    geometry = dissolved_geom,
+    color = group_colors[(counter - 1) %% length(group_colors) + 1]
+  )
+
+  # Add to aggregated groups
+  groups <- aggregated_groups()
+  groups[[length(groups) + 1]] <- new_group
+  aggregated_groups(groups)
+
+  # Clear selection
+  selected_polygons(character(0))
+
+  showNotification(paste0("Created ", new_group$name, " with ", length(current_selection), " polygons"), type = "message")
+})
+
+# ----- Reset Additive Selection --------
+observeEvent(input$reset_btn, {
+  aggregated_groups(list())
+  group_counter(0)
+  selected_polygons(character(0))
+  showNotification("Reset all aggregations", type = "message")
+})
+
+
+# ----- UPDATE POLYGONS BASED ON AGGREGATION --------
+observeEvent(list(selected_polygons(), aggregated_groups()), {
+  current_selection <- selected_polygons()
+  groups <- aggregated_groups()
+
+  # Get all polygon IDs that are part of aggregated groups
+  aggregated_ids <- unlist(lapply(groups, function(g) g$polygon_ids))
+
+  # Clear and redraw all polygons with updated styling
+  map_proxy <- leafletProxy('map') %>%
+    clearShapes()
+
+  # Add base ward polygons (not aggregated)
+  non_aggregated_wards <- wards[!wards$DESA %in% aggregated_ids, ]
+  if (nrow(non_aggregated_wards) > 0) {
+    map_proxy <- map_proxy %>%
+      addPolygons(
+        data = non_aggregated_wards,
+        layerId = ~DESA,
+        popup = ~DESA,
+        color = ~ifelse(DESA %in% current_selection, 'cyan', 'white'),
+        weight = ~ifelse(DESA %in% current_selection, 3, 1),
+        fillColor = ~ifelse(DESA %in% current_selection, 'cyan', NA),
+        fillOpacity = ~ifelse(DESA %in% current_selection, 0.5, 0.2),
+        highlightOptions = highlightOptions(
+          color = 'cyan',
+          weight = 3,
+          fillColor = 'cyan',
+          fillOpacity = 0.5,
+          bringToFront = TRUE
+        )
+      )
+  }
+
+  # Add aggregated group polygons
+  for (i in seq_along(groups)) {
+    group <- groups[[i]]
+    map_proxy <- map_proxy %>%
+      addPolygons(
+        data = group$geometry,
+        layerId = paste0("group_", i),
+        popup = paste0(group$name, "<br>", length(group$polygon_ids), " polygons"),
+        color = group$color,
+        weight = 3,
+        fillColor = group$color,
+        fillOpacity = 0.4,
+        highlightOptions = highlightOptions(
+          color = group$color,
+          weight = 5,
+          fillOpacity = 0.6,
+          bringToFront = TRUE
+        )
+      )
+  }
+})
+
+
+
+# ----- AGGREGATION SELECTION --------
+output$aggregate_info <- renderText({
+  groups <- aggregated_groups()
+  if (length(groups) == 0) {
+    return("<p style='color: #666;'>No aggregated groups yet</p>")
+  }
+
+  info_html <- "<div style='margin-top: 10px;'>"
+  info_html <- paste0(info_html, "<p><strong>Aggregated Groups:</strong></p>")
+  for (i in seq_along(groups)) {
+    group <- groups[[i]]
+    info_html <- paste0(info_html,
+                       "<p style='margin: 5px 0;'>",
+                       "<span style='display:inline-block; width:15px; height:15px; background-color:",
+                       group$color, "; margin-right:5px; border: 1px solid #333;'></span>",
+                       group$name, " (", length(group$polygon_ids), " polygons)</p>")
+  }
+  info_html <- paste0(info_html, "</div>")
+  info_html
+})
+
+
+# ----- OBSERVER FOR PLOT --------
+observeEvent(polygon_stats(), {
+    stats <- polygon_stats()
+    # All columns except name and type
+    column_choices <- setdiff(names(stats), c("name", "type"))
+
+    # Find first raster column (not area)
+    raster_cols <- setdiff(column_choices, "area")
+    default_y <- if(length(raster_cols) > 0) raster_cols[1] else "area"
+
+    updateSelectInput(session, "x_column", choices = column_choices, selected = "area")
+    updateSelectInput(session, "y_column", choices = column_choices, selected = default_y)
+})
+
+# Pass data to OJS including group colors
+ojs_define(
+    polygon_data = reactive({ selected_stats() }),
+    x_col = reactive({ input$x_column }),
+    y_col = reactive({ input$y_column }),
+    group_colors_map = reactive({
+        groups <- aggregated_groups()
+        if (length(groups) == 0) return(list())
+
+        color_map <- list()
+        for (i in seq_along(groups)) {
+            color_map[[groups[[i]]$name]] <- groups[[i]]$color
+        }
+        color_map
+    })
+)
+```

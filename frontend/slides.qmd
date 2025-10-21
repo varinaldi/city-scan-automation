@@ -1,64 +1,211 @@
 ---
-title: PPTX automation using R + officeR
+title: PPTX automation using R + officeR - Population Focus
 engine: knitr
 ---
 
 ```{r}
-# | label: load packages
+#| label: load packages
 library(officer)
 library(tidyverse)
+library(magrittr)
 ```
 
 ```{r}
-#| label: setup R 
+#| label: setup R
 source('R/setup.R')
 ```
 
 ```{r}
 #| label: get-text
-generic_text <- read_yaml("source/generic-text.yml") %>% 
-    rapply(double_space, how = "replace") # Do I only want this for print?
+# Load text descriptions (similar to index.qmd)
+generic_text <- read_yaml("source/generic-text.yml") %>%
+    rapply(double_space, how = "replace")
 
 city_text_file <- file.path(user_input_dir, "text-files/manual-text.md")
 if (file.exists(city_text_file)) {
     city_text <- read_md(city_text_file)
     slide_texts <- merge_lists(city_text, generic_text)
-        } else {
+} else {
     slide_texts <- generic_text
-     }
+}
 
 slide_texts <- unlist(slide_texts, recursive = F) %>%
   setNames(str_extract(names(.), "\\.(.*)$", group = T))
 ```
 
+
+
+
 ```{r}
-pres <- read_pptx('crp-template.pptx') 
-layout <- layout_summary(pres) # print layout slides
+#| label: slide-creation-function
+# Flexible function to create new slides
+create_slide <- function(pres, layout, master = "Base", labels = list()) {
+  # Add the slide with specified layout and master
+  pres <- add_slide(pres, layout = layout, master = master)
+
+  # Iterate through the labels dictionary and add content
+  for (label_name in names(labels)) {
+    content <- labels[[label_name]]
+
+    # Try to add content, skip if placeholder doesn't exist
+    tryCatch({
+      # Determine content type and add accordingly
+      if (is.character(content)) {
+        # Check if it's a file path (for images)
+        if (file.exists(content)) {
+          pres <- pres %>%
+            ph_with(value = external_img(content),
+                    location = ph_location_label(ph_label = label_name))
+        } else {
+          # It's text content
+          pres <- pres %>%
+            ph_with(value = content,
+                    location = ph_location_label(ph_label = label_name))
+        }
+      } else {
+        # For other types (ggplot, fpar, etc.), add directly
+        pres <- pres %>%
+          ph_with(value = content,
+                  location = ph_location_label(ph_label = label_name))
+      }
+    }, error = function(e) {
+      warning(paste("Could not add content to placeholder:", label_name, "- placeholder may not exist in layout"))
+    })
+  }
+
+  return(pres)
+}
+
 
 ```
 
 ```{r}
-# | label: Title Slide
+#| label: initialize-presentation
+pres <- read_pptx('crp-template.pptx')
+layout <- layout_summary(pres)
 
+layout
+```
+
+```{r}
+#| label: title-slide
+# Title Slide
 title <- toupper(paste(city, country, sep = '\n'))
-date <- toupper(paste(month.name[lubridate::month(Sys.Date())], 
-    lubridate::year(Sys.Date()), sep = ' '))
+date <- toupper(paste(month.name[lubridate::month(Sys.Date())],
+                     lubridate::year(Sys.Date()), sep = ' '))
 
-cover_image <- external_img(fuzzy_read(file.path(output_dir, "maps"), "^aoi.png$", paste))
+cover_image_path <- tryCatch(
+  fuzzy_read(file.path(output_dir, "maps"), "^aoi.png$", paste),
+  error = function(e) NULL
+)
 
-pres <- add_slide(pres, layout = "Title Slide", master = "Office Theme") %>% 
-    ph_with(pres, 
-            value = title , 
-            location = ph_location_label(ph_label = ('Title'))
-            ) %>%
-    ph_with(pres, 
-            value = date , 
-            location = ph_location_label(ph_label = ('Date'))
-            ) 
+pres <- create_slide(
+    pres,
+    layout = "Title Slide",
+    master = "Base",
+    labels = list(
+      "Title" = title,
+      "Date" =  date,
+      "Image" = cover_image_path
+    )
+  )
 
+## add introduction 
+pres <- add_slide(pres, layout = "Introduction", master = "Base")
 ```
 
 ```{r}
-print(pres, target = "test-slide.pptx") 
+#| label: create-slides-loop
+slides_config <- read_yaml("source/slides.yml")
+
+section_num <- 1 # initiate section numbering
+for (section_name in names(slides_config)) {
+  section <- slides_config[[section_name]]
+  section_title <- section$section_title
+
+  subsection_num <- 1 # initiate subsection
+  for (item_name in names(section)) {
+    if (item_name == "section_title") next
+
+    slide_def <- section[[item_name]]
+
+    # Skip if no layout defined
+    if (is.null(slide_def$layout)) next
+
+    labels <- list()
+
+    # Add Text - check slides.yml first, then generic-text.yml
+    if (!is.null(slide_def$Text)) {
+      labels[["Text"]] <- slide_def$Text
+    } else {
+      text_content <- slide_texts[[item_name]]
+      if (!is.null(text_content$method)) {
+        # Get only first paragraph from method
+        paragraphs <- strsplit(text_content$method, "\n\n")[[1]]
+        labels[["Text"]] <- paragraphs[1]
+      }
+    }
+
+    # Add Footer from generic-text.yml footnote
+    text_content <- slide_texts[[item_name]]
+    if (!is.null(text_content$footnote) && text_content$footnote != "NULL") {
+      labels[["Footer"]] <- text_content$footnote
+    }
+
+    # Handle intro/section header slides
+    if (item_name == "intro") {
+      labels[["Title"]] <- toupper(paste(section_num, section_title))
+
+    # Handle content slides with title
+    } else if (!is.null(slide_def$title)) {
+      labels[["Title"]] <- paste0(section_num, ".", subsection_num, " ", slide_def$title)
+      subsection_num <- subsection_num + 1
+
+      # Process any content placeholders (Content 1, Content 2, etc.)
+      for (placeholder_name in names(slide_def)) {
+        if (placeholder_name %in% c("title", "layout")) next
+
+        content_value <- slide_def[[placeholder_name]]
+        if (!is.character(content_value)) next
+
+        # Split by "/" to get folder and pattern
+        parts <- strsplit(content_value, "/")[[1]]
+        if (length(parts) == 2) {
+          folder <- parts[1]
+          pattern <- parts[2]
+
+          # Search in the specified folder
+          image_file <- tryCatch(
+            fuzzy_read(file.path(output_dir, folder), paste0(pattern, ".*\\.png$"), paste),
+            error = function(e) NULL
+          )
+
+          if (!is.null(image_file)) {
+            labels[[placeholder_name]] <- image_file
+          }
+        }
+      }
+    }
+
+    # Use section_name as master if it exists in layout, otherwise use "Base"
+    master_name <- if (section_name %in% layout$master) section_name else "Base"
+
+    pres <- create_slide(pres, layout = slide_def$layout, master = master_name, labels = labels)
+  }
+
+  section_num <- section_num + 1
+}
+```
+
+
+
+```{r}
+#| label: save-presentation
+# Save the presentation
+output_path <- "test-slide.pptx"
+print(pres, target = output_path)
+
+cat("Presentation saved to:", output_path, "\n")
+
 
 ```

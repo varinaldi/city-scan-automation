@@ -1,0 +1,216 @@
+# SECTION 1
+executive_summary:
+  section_title: "Executive Summary"
+  intro:
+    layout: "Section Header"
+    Text: "Summarizes the key messages and top- line findings from each section of the City Scan, serving as an entry point for further discussion around investment identification and prioritization."
+  slide1:
+    title: "Executive Summary"
+    layout: "Executive Summary 1"
+  slide2:
+    title: "Executive Summary"
+    layout: "Executive Summary 2"
+
+# SECTION 2
+setting_the_context:
+  section_title: "Setting Context"
+  intro:
+    layout: "Section Header"
+    Text: "Descries the city's urbanization context, as well as its salient geographical features, principal economic activities, major access routes, and assets and constraints that favor or hinder urban expansion."
+  basic_city_info:
+    title: "Basic City Information"
+    layout: "Content with Caption"
+    Content 1: "maps/^aoi"
+  infrastructure1:
+    title: "State of Urban Infrastructure and Service Delivery"
+    layout: "Title and Content"
+  infrastructure2:
+    title: "State of Urban Infrastructure and Service Delivery"
+    layout: "Title and Content"
+
+# SECTION 3
+demographics:
+  section_title: "Population and Demographics Trends"
+  intro:
+    layout: "Section Header"
+    Text: "Presents some of the city's key population and demographic information, including growth trends, age distribution, and density."
+  population_growth:
+    title: "Population Growth & Density"
+    layout: "Two Content"
+  population_distribution_age_sex:
+    title: "Population Distribution By Age & Sex"
+    layout: "Title and Content"
+  population:
+    title: "Population Density"
+    layout: "Content with Caption"
+    Content 1: "maps/^pop_dens"
+  rwi:
+    title: "Relative Index Wealth"
+    layout: "Content with Caption"
+    Content 1: "maps/^relative_wealth"
+
+# SECTION 4
+economic_activity:
+  section_title: "Economic Activities"
+  intro:
+    layout: "Section Header"
+    Text: "Assesses the role of the city as a driver of economic growth and employment through growth trends, city-level GDP, and economic hot spots."
+  economic_activity:
+    title: "Economic Hot Spots"
+    layout: "Content with Caption"
+    Content 1: "maps/^economic_activity"
+  economic_change:
+    title: "Change in Economic Hot Spots"
+    layout: "Content with Caption"
+    Content 1: "maps/^economic_change"
+
+# SECTION 5
+built_form:
+  section_title: "Built Form"
+  intro:
+    layout: "Section Header"
+    Text: "Examines the city's state of built-up area and infrastructure by analyzing its expansion over time, land cover, slope and elevation, existing road network criticality, and intersection density."
+  wsf:
+    title: "Urban Extent and Change"
+    layout: "Content with Caption"
+    Content 1: "maps/^wsf_evo"
+  land_cover:
+    title: "Land Cover"
+    layout: "Content with Caption"
+    Content 1: "maps/^land_cover"
+  road_network_orientation:
+    title: "Road Network Layout and Orientation"
+    layout: "Content with Caption"
+    Content 1: "maps/^orientation"
+  intersections:
+    title: "Intersection Density"
+    layout: "Content with Caption"
+    Content 1: "maps/^intersections"
+  school_proximity:
+    title: "Access to School"
+    layout: "Content with Caption"
+    Content 1: "maps/^school_prox"
+
+# SECTION 6 CLIMATE CONDITIONS
+climate_conditions:
+  section_title: "Climate Condition"
+  intro:
+    layout: "Section Header"
+    Text: "Explores climate change impacts and mitigation through photovoltaic power potential, air quality, and surface temperature and urban heat island effects."
+  solar:
+    title: "Solar Photovoltaic Power Potential"
+    layout: "Content with Caption"
+    Content 1: "maps/^solar"
+  air_quality:
+    title: "Air Quality"
+    layout: "Content with Caption"
+    Content 1: "maps/^air_quality"
+  summer_lst:
+    title: "Summer Surface Temperature"
+    layout: "Content with Caption"
+    Content 1: "maps/^surface_temp"
+  vegetation:
+    title: "Green Spaces"
+    layout: "Content with Caption"
+    Content 1: "maps/^tree_cover|^vegetation"
+
+# SECTION 7
+risk_identification:
+  section_title: "Risk Identification"
+  intro:
+    layout: "Section Header"
+    Text: "Overlays various risk data, including urban flooding, landslides, earthquakes, and sea level rise with the city's built form and infrastructure assets."
+  flood_events:
+    title: "Significant Flood Events"
+    layout: "Content with Caption"
+    Content 1: "maps/^significant_flood|^flood_events"
+  flooding_infrastructure_fluvial:
+    title: "Infrastructure Assets Exposed to River Flooding"
+    layout: "Content with Caption"
+    Content 1: "maps/^fluvial_infrastructure"
+  flooding_infrastructure_pluvial:
+    title: "Infrastructure Assets Exposed to Rainwater Flooding"
+    layout: "Content with Caption"
+    Content 1: "maps/^pluvial_infrastructure"
+  flooding_infrastructure_combined:
+    title: "Infrastructure Assets Exposed to Combined River and Rainwater Flooding"
+    layout: "Content with Caption"
+    Content 1: "maps/^combined_flooding_infrastructure|^comb.*infrastructure"
+  flooding_builtup_fluvial:
+    title: "Urban Built-Up Area Exposed to River Flooding"
+    layout: "Content with Caption"
+    Content 1: "maps/^fluvial_wsf"
+  flooding_builtup_pluvial:
+    title: "Urban Built-Up Area Exposed to Rainwater Flooding"
+    layout: "Content with Caption"
+    Content 1: "maps/^pluvial_wsf"
+  flooding_builtup_combined:
+    title: "Urban Built-Up Area Exposed to River and Rainwater Flooding"
+    layout: "Content with Caption"
+    Content 1: "maps/^combined_flooding_wsf|^comb.*wsf"
+  flooding_population_fluvial:
+    title: "Population Exposed to River Flooding"
+    layout: "Content with Caption"
+    Content 1: "maps/^fluvial_population"
+  flooding_population_pluvial:
+    title: "Population Exposed to Rainwater Flooding"
+    layout: "Content with Caption"
+    Content 1: "maps/^pluvial_population"
+  flooding_population_combined:
+    title: "Population Exposed to River and Rainwater Flooding"
+    layout: "Content with Caption"
+    Content 1: "maps/^combined_flooding_population|^comb.*population"
+  elevation:
+    title: "Elevation"
+    layout: "Content with Caption"
+    Content 1: "maps/^elevation"
+  slope:
+    title: "Slope"
+    layout: "Content with Caption"
+    Content 1: "maps/^slope"
+  landslides:
+    title: "Landslide Susceptibility"
+    layout: "Content with Caption"
+    Content 1: "maps/^landslides"
+  earthquake:
+    title: "Earthquake Events"
+    layout: "Content with Caption"
+    Content 1: "maps/^earthquake"
+  liquefaction:
+    title: "Liquefication Susceptibility"
+    layout: "Content with Caption"
+    Content 1: "maps/^liquefaction"
+  seismic:
+    title: "Seismic Hazard and Risk"
+    layout: "Content with Caption"
+    Content 1: "maps/^seismic"
+  road_criticality:
+    title: "Road Criticality"
+    layout: "Content with Caption"
+    Content 1: "maps/^road_critical"
+  drought:
+    title: "Drought"
+    layout: "Content with Caption"
+    Content 1: "maps/^drought"
+  burnable:
+    title: "Burnability"
+    layout: "Content with Caption"
+    Content 1: "maps/^burnable"
+  fire:
+    title: "Historical Burnt Area & Fire Weather Index"
+    layout: "Content with Caption"
+    Content 1: "maps/^fire|^burn"
+
+# SECTION 8
+local_institution:
+  section_title: "Local Institution Planning"
+  intro:
+    layout: "Section Header"
+    Text: "Draws upon existing frameworks and policies to identify critical issues from financial, planning, and institutional perspectives for better city management."
+
+# SECTION 9
+investment_planning:
+  section_title: "Key Consideration For Investment Planning & Prioritization"
+  intro:
+    layout: "Section Header"
+    Text: "Concludes with guiding questions for further discussion"

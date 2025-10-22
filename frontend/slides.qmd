@@ -49,9 +49,8 @@ create_slide <- function(pres, layout, master = "Base", labels = list()) {
 
     # Try to add content, skip if placeholder doesn't exist
     tryCatch({
-      # Determine content type and add accordingly
       if (is.character(content)) {
-        # Check if it's a file path (for images)
+        # if it's image content
         if (file.exists(content)) {
           pres <- pres %>%
             ph_with(value = external_img(content),
@@ -63,7 +62,7 @@ create_slide <- function(pres, layout, master = "Base", labels = list()) {
                     location = ph_location_label(ph_label = label_name))
         }
       } else {
-        # For other types (ggplot, fpar, etc.), add directly
+        # For other types - ggplots, ojs, etc
         pres <- pres %>%
           ph_with(value = content,
                   location = ph_location_label(ph_label = label_name))
@@ -119,26 +118,29 @@ pres <- add_slide(pres, layout = "Introduction", master = "Base")
 slides_config <- read_yaml("source/slides.yml")
 
 section_num <- 1 # initiate section numbering
+# LOOP OVER SECTIONS
 for (section_name in names(slides_config)) {
   section <- slides_config[[section_name]]
   section_title <- section$section_title
 
   subsection_num <- 1 # initiate subsection
+  # LOOP OVER SUBSECTIONS -> INDIVIDUAL SLIDES
   for (item_name in names(section)) {
     if (item_name == "section_title") next
 
-    slide_def <- section[[item_name]]
+    slide_def <- section[[item_name]] # reads items
 
     # Skip if no layout defined
     if (is.null(slide_def$layout)) next
 
     labels <- list()
 
+    # ------ CHECK IF TEXT IS AVAILABLE -------
     # Add Text - check slides.yml first, then generic-text.yml
     if (!is.null(slide_def$Text)) {
       labels[["Text"]] <- slide_def$Text
     } else {
-      text_content <- slide_texts[[item_name]]
+      text_content <- slide_texts[[item_name]] # Uses text_xontent
       if (!is.null(text_content$method)) {
         # Get only first paragraph from method
         paragraphs <- strsplit(text_content$method, "\n\n")[[1]]
@@ -146,22 +148,21 @@ for (section_name in names(slides_config)) {
       }
     }
 
-    # Add Footer from generic-text.yml footnote
+    # takes  Footer from generic-text.yml footnote, may not be necessary
     text_content <- slide_texts[[item_name]]
     if (!is.null(text_content$footnote) && text_content$footnote != "NULL") {
       labels[["Footer"]] <- text_content$footnote
     }
 
-    # Handle intro/section header slides
-    if (item_name == "intro") {
+    # ------ HANDLES TITLE IF INTRO (SECTION HEADER) -------
+    if (item_name == "intro") { # intro is the section header slide
       labels[["Title"]] <- toupper(paste(section_num, section_title))
 
-    # Handle content slides with title
     } else if (!is.null(slide_def$title)) {
       labels[["Title"]] <- paste0(section_num, ".", subsection_num, " ", slide_def$title)
       subsection_num <- subsection_num + 1
 
-      # Process any content placeholders (Content 1, Content 2, etc.)
+      # GRABS PLACEHOLDER FROM LAYOUT
       for (placeholder_name in names(slide_def)) {
         if (placeholder_name %in% c("title", "layout")) next
 
@@ -187,9 +188,9 @@ for (section_name in names(slides_config)) {
       }
     }
 
-    # Use section_name as master if it exists in layout, otherwise use "Base"
+    # Use section_name as master slide for main sections.
     master_name <- if (section_name %in% layout$master) section_name else "Base"
-
+    # Create slides per subsection page
     pres <- create_slide(pres, layout = slide_def$layout, master = master_name, labels = labels)
   }
 

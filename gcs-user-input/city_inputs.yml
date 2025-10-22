@@ -1,0 +1,82 @@
+# city basic info (no need for country name)
+city_name: 'Sofifi'
+
+# optional: AOI shapefile name
+# If no AOI shapefile is provided, an AOI will automatically be identified from
+# the UCDB dataset, OSM, or a 5-km buffer around the city centroid
+AOI_shp_name: 'sofifi'
+
+# optional: use the directory from a previous run by specifying the year and month in the format of yyyy-mm
+# default value is null
+prev_run_date: 2025-10
+
+# accessibility analysis parameters
+osm_query:
+  schools:
+    amenity:
+      - school
+      - kindergarten
+      - university
+      - college
+  health:
+    amenity:
+      - clinic
+      - hospital
+      - health
+  police:
+    amenity:
+      - police
+  fire:
+    amenity:
+      - fire_station
+  electricity:
+    power:
+      - line
+      - minor_line
+      - cable
+      - pole
+isochrone:  # unit: m
+  schools:
+    - 1000 # 800
+    - 5000 # 1600
+    - 10000 # 2400
+  health:
+    - 1000
+    - 2000
+    - 3000
+  # fire:
+  #   - 1500
+  electricity:
+    - 150
+    - 300
+    - 450
+    - 650
+    - 900
+accessibility_buffer: 5  # percentage of AOI bounds to buffer in order to capture amenities and roads immediately outside the AOI
+
+# flood analysis parameters
+flood:
+  threshold: 15  # unit: cm
+  year:
+    - 2020
+    - 2030
+    - 2050
+    - 2080
+  ssp:  # available SSPs: 1, 2, 3, 5
+    # - 1
+    - 2
+    # - 3
+    - 5
+  return_period:  # available return periods: 10, 100, 1000, 20, 200, 5, 50, 500
+    - 10
+    - 100
+    - 1000
+
+# FWI date range
+fwi_first_year: 2016
+fwi_last_year: 2021
+
+# land surface temperature parameters
+# dataset available from 2013-03-18
+first_year: 2015
+last_year: 2024

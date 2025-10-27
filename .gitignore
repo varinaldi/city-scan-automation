@@ -209,4 +209,7 @@ backend/global_inputs.yml
 backend/cache/*
 
 # GitHub Wiki
-city-scan-automation.wiki.git
+city-scan-automation.wiki.git.Rproj.user/
+*.Rproj
+.Rhistory
+.RData

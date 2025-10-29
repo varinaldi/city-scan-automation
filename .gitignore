@@ -82,13 +82,6 @@ target/
 profile_default/
 ipython_config.py
 
-# Claude
-.claude/
-
-#  R Studio things
-.Rhistory
-.RData
-.Rproj.user/
 
 # pyenv
 #   For a library or package, you might want to ignore these files since the code is
@@ -208,8 +201,20 @@ backend/menu.yml
 backend/global_inputs.yml
 backend/cache/*
 
-# GitHub Wiki
+
+gcs-user-input/
+
+
+#  R Studio things
 city-scan-automation.wiki.git.Rproj.user/
 *.Rproj
 .Rhistory
 .RData
+
+
+NOTES.md
+
+
+# Claude
+.claude/
+

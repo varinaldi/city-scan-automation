@@ -1,4 +1,5 @@
 # pre-mapping.R
+message('\nPre-Mapping starting... might take while')
 
 # Combine infrastructure base points
 combine_infrastructure_points <- function() {
@@ -10,7 +11,13 @@ combine_infrastructure_points <- function() {
   infrastructure_points <- rbind_if_non_null(health_points, school_points, fire_points, police_points)
   if (!is.null(infrastructure_points)) writeVector(select(infrastructure_points, !contains("fid")), filename = file.path(spatial_dir, "infrastructure.gpkg"), overwrite = T)
 }
-combine_infrastructure_points()
+
+message("Combining infrastructure points...")
+if (!file.exists(file.path(spatial_dir, "infrastructure.gpkg"))) {
+  combine_infrastructure_points()
+} else {
+  message("infrastructure.gpkg already exists, skipping...")
+}
 
 combine_flood_types <- function() {
   flood_files <- str_subset(list.files(spatial_dir, full.names = T), "(fluvial|pluvial|coastal)_2020.tif$")
@@ -21,7 +28,12 @@ combine_flood_types <- function() {
     writeRaster(combined_flooding, filename = file.path(spatial_dir, paste0(city, "_combined_flooding_2020.tif")), overwrite = T)
   }
 }
-combine_flood_types()
+message("Combining flood types...")
+if (!file.exists(file.path(spatial_dir, paste0(city, "_combined_flooding_2020.tif")))) {
+  combine_flood_types()
+} else {
+  message(paste0(city, "_combined_flooding_2020.tif already exists, skipping..."))
+}
 
 # Road network centrality
 assign_road_types <- function() {
@@ -37,35 +49,11 @@ assign_road_types <- function() {
     writeVector(roads, filename = file.path(spatial_dir, "edges-edit.gpkg"), overwrite = T)
   }
 }
-assign_road_types()
-
-# Isochrones arrive as overlapping polygons; this function erases the overlaps.
-# It is more robust than the combine_*_zones functions below, but designed for
-# isochrones built by Daniel for the Philippines and does not match the backend
-# output
-erase_isochrone_overlaps <- function(x) {
-  zones <- fuzzy_read(spatial_dir, paste0(x, "_isochrone"))
-  if (!"distance" %in% names(zones)) return(NULL)
-  layer_distances <- layer_params[[paste0(x, "_zones")]]$breaks
-  # browser()
-  zones <- filter(zones, distance %in% layer_distances)
-  if (nrow(zones) == 0) {
-    warning(paste("No zones for", x, "of distances specified in layers.yml"))
-    return(NULL)
-  }
-  # If multiple distances have the same zone, the erase output gets inverted.
-  # We remove the duplicate zones that have the longer distance
-  zones <- zones %>% arrange(distance) %>%
-    distinct(geometry, .keep_all = T) %>%
-    arrange(desc(distance))
-  if (any(!is.valid(zones))) zones <- makeValid(zones)
-  # Using the sequential version of erase often caused geometries with no attribute data
-  zones <- seq_along(zones) %>%
-    map(\(i) {
-      if (nrow(zones[i + 1]) == 0) return(zones[i,])
-      erase(zones[i,], zones[i+1,])
-    }) %>% reduce(rbind)
-  writeVector(zones, filename = file.path(spatial_dir, paste0(x, "-journeys.gpkg")), overwrite = T)
+message("Assigning road types...")
+if (!file.exists(file.path(spatial_dir, "edges-edit.gpkg"))) {
+  assign_road_types()
+} else {
+  message("edges-edit.gpkg already exists, skipping...")
 }
 
 # Combine school zones
@@ -83,7 +71,13 @@ combine_school_zones <- function() {
     writeVector(school_zones, filename = file.path(spatial_dir, "school-journeys.gpkg"), overwrite = T)
   }
 }
-combine_school_zones()
+message("Combining school zones...")
+if (!file.exists(file.path(spatial_dir, "school-journeys.gpkg"))) {
+  combine_school_zones()
+} else {
+  message("school-journeys.gpkg already exists, skipping...")
+}
+
 rename_school_points <- function() {
   school_points <- fuzzy_read(spatial_dir, "schools(?=.shp$|.gpkg$|$)", FUN = vect)
   if (inherits(school_points, "SpatVector")) {
@@ -94,7 +88,12 @@ rename_school_points <- function() {
   writeVector(school_points, filename = file.path(spatial_dir, "school-points.gpkg"), overwrite = T)
   }
 }
-rename_school_points()
+message("Renaming school points...")
+if (!file.exists(file.path(spatial_dir, "school-points.gpkg"))) {
+  rename_school_points()
+} else {
+  message("school-points.gpkg already exists, skipping...")
+}
 
 combine_health_zones <- function() {
   health_1000 <- fuzzy_read(spatial_dir, "health_1000m(?=.shp$|.gpkg$|$)", FUN = vect) %>% tryCatch(error = \(e) {return(NULL)})
@@ -110,7 +109,13 @@ combine_health_zones <- function() {
     writeVector(health_zones, filename = file.path(spatial_dir, "health-journeys.gpkg"), overwrite = T)
   }
 }
-combine_health_zones()
+message("Combining health zones...")
+if (!file.exists(file.path(spatial_dir, "health-journeys.gpkg"))) {
+  combine_health_zones()
+} else {
+  message("health-journeys.gpkg already exists, skipping...")
+}
+
 rename_health_points <- function() {
   health_points <- fuzzy_read(spatial_dir, "health(?=.shp$|.gpkg$|$)", FUN = vect)
   if (inherits(health_points, "SpatVector")) {
@@ -121,49 +126,76 @@ rename_health_points <- function() {
   writeVector(health_points, filename = file.path(spatial_dir, "health-points.gpkg"), overwrite = T)
   }
 }
-rename_health_points()
-
-wsf <- fuzzy_read(spatial_dir, "wsf_evolution.tif$")
-if (inherits(wsf, "SpatRaster")) {
-  # # Projecting to 3857 causes problems for leaflet; but was possibly necessary
-  # # for ggplot2. If there are problems with static, perhaps split in two files?
-  # wsf_new <- project(wsf, "epsg:3857")
-  wsf_new <- wsf
-  # Using <- NA changes the datatype to unsigned, which ultimately results
-  # in huge values when wsf is re-projected in maps-static.R
-  # values(wsf_new)[values(wsf_new) == 0] <- NA
-  wsf_new <- classify(wsf_new, cbind(0, NA)) # Added this for Uzbekistan, but I don't suspect it will cause problems on newer runs
-  NAflag(wsf_new) <- NA
-  writeRaster(wsf_new, file.path(spatial_dir, "wsf-edit.tif"), overwrite = T)
+message("Renaming health points...")
+if (!file.exists(file.path(spatial_dir, "health-points.gpkg"))) {
+  rename_health_points()
+} else {
+  message("health-points.gpkg already exists, skipping...")
 }
 
-wsf_tracker <- fuzzy_read(spatial_dir, "wsf_tracker_utm.tif$")
-if (inherits(wsf_tracker, "SpatRaster")) {
-  # # Projecting to 3857 causes problems for leaflet; necessary for ggplot2?
-  # wsf_tracker_new <- project(wsf_tracker, "epsg:3857")
-  wsf_tracker_new <- wsf_tracker
-  wsf_tracker_new <- 2016 + wsf_tracker_new/2
-  # values(wsf_tracker_new)[values(wsf_tracker_new) == 0] <- NA
-  # NAflag(wsf_tracker_new) <- NA
-  writeRaster(wsf_tracker_new, file.path(spatial_dir, "wsf-tracker-edit.tif"), overwrite = T)
+message("Processing WSF data...")
+if (!file.exists(file.path(spatial_dir, "wsf-edit.tif"))) {
+  wsf <- fuzzy_read(spatial_dir, "wsf_evolution.tif$")
+  if (inherits(wsf, "SpatRaster")) {
+    # # Projecting to 3857 causes problems for leaflet; but was possibly necessary
+    # # for ggplot2. If there are problems with static, perhaps split in two files?
+    # wsf_new <- project(wsf, "epsg:3857")
+    wsf_new <- wsf
+    # Using <- NA changes the datatype to unsigned, which ultimately results
+    # in huge values when wsf is re-projected in maps-static.R
+    # values(wsf_new)[values(wsf_new) == 0] <- NA
+    wsf_new <- classify(wsf_new, cbind(0, NA)) # Added this for Uzbekistan, but I don't suspect it will cause problems on newer runs
+    NAflag(wsf_new) <- NA
+    writeRaster(wsf_new, file.path(spatial_dir, "wsf-edit.tif"), overwrite = T)
+  }
+} else {
+  message("wsf-edit.tif already exists, skipping...")
 }
 
-burn <- fuzzy_read(spatial_dir, "lc_burn.tif$")
-if (inherits(burn, "SpatRaster")) {
-  values(burn)[values(burn) < 0] <- NaN
-  writeRaster(burn, file.path(spatial_dir, "burn-edit.tif"), overwrite = T)
+if (!file.exists(file.path(spatial_dir, "wsf-tracker-edit.tif"))) {
+  wsf_tracker <- fuzzy_read(spatial_dir, "wsf_tracker_utm.tif$")
+  if (inherits(wsf_tracker, "SpatRaster")) {
+    # # Projecting to 3857 causes problems for leaflet; necessary for ggplot2?
+    # wsf_tracker_new <- project(wsf_tracker, "epsg:3857")
+    wsf_tracker_new <- wsf_tracker
+    wsf_tracker_new <- 2016 + wsf_tracker_new/2
+    # values(wsf_tracker_new)[values(wsf_tracker_new) == 0] <- NA
+    # NAflag(wsf_tracker_new) <- NA
+    writeRaster(wsf_tracker_new, file.path(spatial_dir, "wsf-tracker-edit.tif"), overwrite = T)
+  }
+} else {
+  message("wsf-tracker-edit.tif already exists, skipping...")
 }
 
-intersection_nodes <- fuzzy_read(spatial_dir, "nodes_and_edges(?=.shp$|.gpkg$|$)", layer = "nodes")
-if (inherits(intersection_nodes, "SpatVector")) {
-  intersection_density <- density_rast(intersection_nodes, n = 200)
-  writeRaster(intersection_density, file.path(spatial_dir, "intersection-density.tif"), overwrite = T)
+message("Processing burn data...")
+if (!file.exists(file.path(spatial_dir, "burn-edit.tif"))) {
+  burn <- fuzzy_read(spatial_dir, "lc_burn.tif$")
+  if (inherits(burn, "SpatRaster")) {
+    values(burn)[values(burn) < 0] <- NaN
+    writeRaster(burn, file.path(spatial_dir, "burn-edit.tif"), overwrite = T)
+  }
+} else {
+  message("burn-edit.tif already exists, skipping...")
 }
 
-historical_fire_data <- fuzzy_read(spatial_dir, "globfire")
-if (inherits(historical_fire_data, c("SpatVector", "SpatRaster")) && length(historical_fire_data) > 0) {
-  historical_fire_density <- density_rast(historical_fire_data, n = 200, aoi = aoi)
-  writeRaster(historical_fire_density, file.path(spatial_dir, "burnt-area-density.tif"), overwrite = T)
+if (!file.exists(file.path(spatial_dir, "intersection-density.tif"))) {
+  intersection_nodes <- fuzzy_read(spatial_dir, "nodes_and_edges(?=.shp$|.gpkg$|$)", layer = "nodes")
+  if (inherits(intersection_nodes, "SpatVector")) {
+    intersection_density <- density_rast(intersection_nodes, n = 200)
+    writeRaster(intersection_density, file.path(spatial_dir, "intersection-density.tif"), overwrite = T)
+  }
+} else {
+  message("intersection-density.tif already exists, skipping...")
+}
+
+if (!file.exists(file.path(spatial_dir, "burnt-area-density.tif"))) {
+  historical_fire_data <- fuzzy_read(spatial_dir, "globfire")
+  if (inherits(historical_fire_data, c("SpatVector", "SpatRaster")) && length(historical_fire_data) > 0) {
+    historical_fire_density <- density_rast(historical_fire_data, n = 200, aoi = aoi)
+    writeRaster(historical_fire_density, file.path(spatial_dir, "burnt-area-density.tif"), overwrite = T)
+  }
+} else {
+  message("burnt-area-density.tif already exists, skipping...")
 }
 
 adjust_deforstation_years <- function() {
@@ -191,3 +223,5 @@ if (inherits(ndvi, "SpatRaster")) {
   values(veg_binary)[values(veg_binary) == 0] <- NA
   writeRaster(veg_binary, file.path(spatial_dir, "vegetation-binary-edit.tif"), overwrite = T)
 }
+
+message("Pre-mapping processing complete.")

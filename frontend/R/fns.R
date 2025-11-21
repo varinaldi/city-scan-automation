@@ -1,30 +1,46 @@
 # Map Functions ----------------------------------------------------------------
 fuzzy_read <- function(dir, fuzzy_string, FUN = NULL, path = T, convert_to_vect = F, ...) {
-  file <- list.files(dir) %>% str_subset(fuzzy_string) #%>%
-  if (length(file) > 1) warning(paste("Too many", fuzzy_string, "files in", dir))
-  if (length(file) < 1) {
-    file <- list.files(dir, recursive = T) %>% str_subset(fuzzy_string)
+    file <- list.files(dir, full.names = FALSE) %>% str_subset(fuzzy_string)
+
     if (length(file) > 1) warning(paste("Too many", fuzzy_string, "files in", dir))
-    if (length(file) < 1) warning(paste("No", fuzzy_string, "file in", dir))
-  }
-  if (length(file) == 1) {
-    if (is.null(FUN)) {
-      FUN <- if (tolower(str_sub(file, -4, -1)) == ".tif") rast else vect
+    if (length(file) < 1) {
+      file <- list.files(dir, recursive = T, full.names = FALSE) %>% str_subset(fuzzy_string)
+      if (length(file) > 1 && any(grepl("\\.shp$", file, ignore.case = TRUE))) {
+        file <- file[grepl("\\.shp$", file, ignore.case = TRUE)]
+      }
+      if (length(file) > 1) warning(paste("Too many", fuzzy_string, "files in", dir))
+      if (length(file) < 1) warning(paste("No", fuzzy_string, "file in", dir))
     }
-    if (!path) {
-      content <- suppressMessages(FUN(dir, file, ...))
-    } else {
+
+    if (length(file) == 1) {
+      if (is.null(FUN)) {
+        FUN <- if (tolower(str_sub(file, -4, -1)) == ".tif") rast else vect
+      }
+
       file_path <- file.path(dir, file)
-      content <- suppressMessages(FUN(file_path, ...))
+
+      # Try reading normally, if fails try with /vsigs/ for GCS
+      content <- tryCatch({
+        suppressMessages(FUN(file_path, ...))
+      }, error = function(e) {
+        if (exists("USE_GCS") && USE_GCS) {
+          # Try with /vsigs/ prefix
+          path_clean <- gsub("/+$", "", dir)
+          gcs_path <- paste0("/vsigs/", GCS_BUCKET, "/", scan_id, "/", path_clean, "/", file)
+          suppressMessages(FUN(gcs_path, ...))
+        } else {
+          stop(e)
+        }
+      })
+
+      if (convert_to_vect && class(content)[1] %in% c("SpatRaster", "RasterLayer")) {
+        content <- rast_as_vect(content)
+      }
+      return(content)
+    } else {
+      return(NA)
     }
-    if (convert_to_vect && class(content)[1] %in% c("SpatRaster", "RasterLayer")) {
-      content <- rast_as_vect(content)
-    }
-    return(content)
-  } else {
-    return(NA)
   }
-}
 
 rast_as_vect <- function(x, digits = 8, ...) {
   if (class(x) == "SpatVector") return(x)
@@ -290,7 +306,7 @@ writeVector(v_styled, fgb_path, overwrite = T, filetype = "FlatGeobuf")
 plot_static_layer <- function(
     data, yaml_key, baseplot = NULL, static_map_bounds, zoom_adj = 0,
     expansion, aoi_stroke = list(color = "grey30", linewidth = 0.4),
-    plot_aoi = T, aoi_only = F, plot_wards = F, plot_roads = F, captions = F, packet = F, ...) {
+    plot_aoi = T, aoi_only = F, plot_wards = F, plot_roads = F, packet = F, ...) {
   if (aoi_only) {
     layer <- NULL
   } else { 
@@ -322,9 +338,8 @@ plot_static_layer <- function(
       color_scale(data_type, params),
       linewidth_scale(data_type, params)) %>%
       .[lengths(.) > 1]
-    lab <- if (captions) labs(caption = params$caption %||% "") else NULL
     theme <- theme_legend(data, params)
-    layer <- list(geom = geom, scale = scales, labs = lab, theme = theme)
+    layer <- list(geom = geom, scale = scales, theme = theme)
   }
 
   # I should make all these functions into a package and then define city_dir,
@@ -374,9 +389,10 @@ plot_static_layer <- function(
     scale_linewidth_manual(values = c("Secondary" = 0.25, "Primary" = 1), guide = "none")
   if (plot_aoi) p <- p + geom_spatvector(data = aoi, color = aoi_stroke$color, fill = NA, linetype = "solid", linewidth = aoi_stroke$linewidth)
   if (plot_wards) {
-    p <- p + geom_spatvector(data = wards, color = aoi_stroke$color, fill = NA, linetype = "solid", linewidth = .25)
-    if (exists("ward_labels")) p <- p +
-      geom_spatvector_text(data = ward_labels, aes(label = WARD_NO), size = 2, fontface = "bold")
+    p <- p + geom_spatvector(data = wards, color = aoi_stroke$color, fill = NA, linetype = "solid", linewidth = .25) 
+
+    if (exists("ward_labels") && exists("ward_label_column")) p <- p + geom_text_repel(data =ward_labels, aes(label = ward_label_column, geometry = geometry),stat = "sf_coordinates", size = 2, fontface = "bold") 
+  
   }
   p <- p + coord_3857_bounds(static_map_bounds)
   return(p)
@@ -447,7 +463,7 @@ fill_scale <- function(data_type, params) {
       limits = if (is.null(params$breaks)) NULL else range(params$breaks),
       rescaler = if (!is.null(params$center)) scales::rescale_mid else scales::rescale,
       na.value = "transparent",
-      oob = list(squish = scales::oob_squish, censor = scales::oob_censor, squish_any = scales::oob_squish_any, censor_any = scales::oob_censor_any)[[params$oob %||% "squish"]],
+      oob = scales::oob_squish,
       name = format_title(params$title, params$subtitle),
       guide = if (diff(lengths(list(params$labels, params$breaks))) == 1) "legend" else "colorsteps")
   }
@@ -461,15 +477,6 @@ color_scale <- function(data_type, params) {
   } else {
     scale_color_stepsn(
       colors = params$stroke$palette,
-      # Length of labels is one less than breaks when we want a discrete legend
-      breaks = if (is.null(params$stroke$breaks)) waiver() else if (diff(lengths(list(params$stroke$labels, params$stroke$breaks))) == 1) params$stroke$breaks[-1] else params$stroke$breaks,
-      # breaks_midpoints() is important for getting the legend colors to match the specified colors
-      values = if (is.null(params$stroke$breaks)) NULL else breaks_midpoints(params$stroke$breaks, rescaler = if (!is.null(params$stroke$center)) scales::rescale_mid else scales::rescale, mid = params$stroke$center),
-      labels = if (is.null(params$stroke$labels)) waiver() else params$stroke$labels,
-      limits = if (is.null(params$stroke$breaks)) NULL else range(params$stroke$breaks),
-      rescaler = if (!is.null(params$stroke$center)) scales::rescale_mid else scales::rescale,
-      na.value = "transparent",
-      oob = list(squish = scales::oob_squish, censor = scales::oob_censor, squish_any = scales::oob_squish_any, censor_any = scales::oob_censor_any)[[params$stroke$oob %||% "squish"]],
       name = format_title(params$stroke$title, params$stroke$subtitle))
   }
 }
@@ -524,16 +531,14 @@ coord_3857_bounds <- function(extent, expansion = 1, ...) {
   coord_sf(
     crs = "epsg:3857",
     expand = F,
-    default = T,
     xlim = extent[1:2] %>% { (. - mean(.)) * expansion + mean(.)},
     ylim = extent[3:4] %>% { (. - mean(.)) * expansion + mean(.)},
     ...)
 }
 
-get_zoom_level <- \(bounds, cap = 6) {
-  area <- sum(expanse(project(bounds, "epsg:3857")))
-  sq_area <- if (aspect_ratio >= 1) area * aspect_ratio else area / aspect_ratio
-  zoom <- round(28.10592 - .77015 * log(sq_area))
+get_zoom_level <- \(bounds, cap = 10) {
+  # cap & max() is a placeholder. The formula was developed for smaller cities, but calculates 7 for Guiyang which is far too coarse
+  zoom <- round(14.6 + -0.00015 * sqrt(expanse(project(bounds, "epsg:4326"))/3))
   if (is.na(cap)) return(zoom)
   max(zoom, cap)
 }
@@ -641,7 +646,7 @@ label_maker <- function(x, levels = NULL, labels = NULL, suffix = NULL) {
     x <- paste0(x, suffix)
   }
   return(x)
-}
+  }
 
 add_aoi <- function(map, data = aoi, color = 'black', weight = 2, fill = F, dashArray = '12', ...) {
   addPolygons(map, data = data, color = color, weight = weight, fill = fill, dashArray = dashArray, ...)
@@ -985,11 +990,44 @@ paste_and <- function(v) {
   }
 }
 
+paste_bold <- function(x) {
+  # Check if it looks like a list of items (commas/and between words, not number formatting)
+  # This pattern detects number formatting like "3,603,026"
+  has_number_format <- grepl("\\d{1,3}(,\\d{3})+", x)
+  has_list_pattern <- grepl(",| and ", x) && grepl("[a-zA-Z]", x)
+
+  if (has_list_pattern && !has_number_format) {
+    # Split by comma and " and " only if it's a word list, not a formatted number
+    parts <- strsplit(x, ",| and ")[[1]]
+    parts_bold <- paste0("<b>", trimws(parts), "</b>")
+    n_commas <- length(gregexpr(",", x)[[1]])
+
+    if (n_commas > 0 && grepl(" and ", x)) {
+      # Has both commas and "and"
+      paste(paste(head(parts_bold, -1), collapse = ", "), "and", tail(parts_bold, 1))
+    } else if (n_commas > 0) {
+      # Only commas
+      paste(parts_bold, collapse = ", ")
+    } else {
+      # Only "and"
+      paste(parts_bold, collapse = " and ")
+    }
+  } else {
+    # Simple case: no list pattern or has number formatting, just bold everything
+    paste0("<b>", x, "</b>")
+  }
+}
+
 duplicated2way <- duplicated_all <- function(x) {
   duplicated(x) | duplicated(x, fromLast = T)
 }
 
 tolatin <- function(x) stringi::stri_trans_general(x, id = "Latin-ASCII")
+
+normalize <- function(x, na.rm = T) {
+  return((x - min(x, na.rm = na.rm)) /(max(x, na.rm = na.rm)-min(x, na.rm = na.rm)))
+}
+
 
 ggdonut <- function(data, category_column, quantities_column, colors, title) {
   data <- as.data.frame(data) # tibble does weird things with data frame, not fixing now
@@ -1035,6 +1073,7 @@ prepare_html <- \(in_file, out_file, css_file) {
   library(rvest)
   library(xml2)
   pdf <- read_html(in_file)
+  # browser()
   stylesheet_nodes <- html_elements(pdf, "link[rel=stylesheet]")
   xml_attr(stylesheet_nodes[1], "href") <- css_file
   xml2::xml_remove(stylesheet_nodes[-1])

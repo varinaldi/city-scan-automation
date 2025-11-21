@@ -59,8 +59,8 @@ This document explains the three different ways to run the frontend code for gen
 
 
 ---
-
 ## Running with --stream
+
 The new streaming mode implementation modifies the NATIVE and DIRECT RUN methods to allow for data streaming from GCS, reducing local storage needs and enabling easier local development with uncommitted changes.
 
 
@@ -127,6 +127,10 @@ This will trigger the
 
 
 Need tor further discuss on this to make sure that native will work, or merge to include scan-calculations.Rmd in the main upstream branch.
+<br>
 
+**Benchmark Cities** The code is setup that manual benchmark cities and countries are set from city-inputs.yml. As of now, these variables are not available in the most if not all city-inputs.yml in GCS. So when running with --stream, the benchmark cities will not be generated unless added to city-inputs.yml in local 01-user-input/ directory to include benchmark cities and rerun scan-calculation.Rmd. 
+
+The fallback user-inputs.R is available in R/ folder but only triggered when run in a non a Scan directory. 
 
 ---

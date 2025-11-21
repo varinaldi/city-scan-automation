@@ -211,6 +211,20 @@ if [ -z "${CLOUD_RUN_EXECUTION:-}" ]; then
     fi
 fi
 
+# Set MNT_DIR default if not already set (Dockerfile sets it to /home/mnt)
+if [ -z "${MNT_DIR:-}" ]; then
+    if [ -n "${CLOUD_RUN_EXECUTION:-}" ]; then
+        # Running in Cloud Run
+        MNT_DIR="mnt"
+    elif [ -f "run.sh" ] && [ -n "${GCS_CITY_DIR:-}" ]; then
+        # Running from frontend/ directory locally
+        MNT_DIR="../mnt/${GCS_CITY_DIR}"
+    else
+        # Fallback to current directory
+        MNT_DIR="."
+    fi
+fi
+
 # Show what we're about to do
 log "Operations to perform:"
 [ "$DOWNLOAD" = true ] && log "- Downloading data"
@@ -237,24 +251,28 @@ fi
 
 # Moving into mnt/ directory for ease of file paths... silly?
 # Also for access in interactive local runs
+# Create working directory if it doesn't exist
+mkdir -p "$MNT_DIR"
+
 if [ "$COPYCODE" = true ]; then
-    cp -r R scripts source run.sh index.qmd pdf.qmd $MNT_DIR
+    cp -r R scripts source run.sh index.qmd pdf.qmd scan-calculations.Rmd _pre-render.R _post-render.R "$MNT_DIR"
 fi
-cd $MNT_DIR
+cd "$MNT_DIR"
 echo "." > city-dir.txt
-mkdir -p $MNT_DIR/01-user-input $MNT_DIR/02-process-output $MNT_DIR/03-render-output 
+mkdir -p 01-user-input 02-process-output 03-render-output 
 
 if [ "$COPYCODE" = true ]; then
     log "Copying reproduction code..."
-    mkdir -p $MNT_DIR/00-reproduction-code
-    rm -rf $MNT_DIR/00-reproduction-code/R $MNT_DIR/00-reproduction-code/scripts \
-        $MNT_DIR/00-reproduction-code/source $MNT_DIR/00-reproduction-code/index.qmd \
-        $MNT_DIR/00-reproduction-code/pdf.qmd
-    cp -r R scripts source index.qmd pdf.qmd $MNT_DIR/00-reproduction-code
-    echo ".." > $MNT_DIR/00-reproduction-code/city-dir.txt
+    mkdir -p 00-reproduction-code
+    rm -rf 00-reproduction-code/R 00-reproduction-code/scripts \
+        00-reproduction-code/source 00-reproduction-code/index.qmd \
+        00-reproduction-code/pdf.qmd 00-reproduction-code/scan-calculations.Rmd \
+        00-reproduction-code/_pre-render.R 00-reproduction-code/_post-render.R
+    cp -r R scripts source index.qmd pdf.qmd scan-calculations.Rmd _pre-render.R _post-render.R 00-reproduction-code
+    echo ".." > 00-reproduction-code/city-dir.txt
     if [ "$UPLOAD" = true ]; then
         log "Uploading reproduction code..."
-        gcloud storage cp -R $MNT_DIR/00-reproduction-code gs://crp-city-scan/$GCS_CITY_DIR
+        gcloud storage cp -R 00-reproduction-code gs://crp-city-scan/$GCS_CITY_DIR
     fi
 fi
 
@@ -263,7 +281,7 @@ if [ "$STATICMAPS" = true ]; then
     Rscript R/maps-static.R
     if [ "$UPLOAD" = true ]; then
         log "Uploading static maps..."
-        gcloud storage cp -R $MNT_DIR/03-render-output/maps/** gs://crp-city-scan/$GCS_CITY_DIR/03-render-output/maps/
+        gcloud storage cp -R 03-render-output/maps/** gs://crp-city-scan/$GCS_CITY_DIR/03-render-output/maps/
     fi
 fi
 
@@ -273,10 +291,10 @@ if [ "$CHARTS" = true ]; then
 
     Rscript -e "rmarkdown::render('scan-calculations.Rmd', output_file ='03-render-output/scan-calculations.html')"
     if [ "$UPLOAD" = true ]; then
-          gcloud storage cp $MNT_DIR/03-render-output/scan-calculations.html gs://crp-city-scan/$GCS_CITY_DIR/03-render-output/
+          gcloud storage cp 03-render-output/scan-calculations.html gs://crp-city-scan/$GCS_CITY_DIR/03-render-output/
     fi
     # if [ "$UPLOAD" = true ]; then
-        # gcloud storage cp -R $MNT_DIR/03-render-output/charts gs://crp-city-scan/$GCS_CITY_DIR/03-render-output
+        # gcloud storage cp -R 03-render-output/charts gs://crp-city-scan/$GCS_CITY_DIR/03-render-output
     # fi
 fi
 
@@ -285,12 +303,12 @@ if [ "$PDF" = true ]; then
     quarto render pdf.qmd --cache-refresh
     # Ideally, we'd convert SASS to CSS before build, but this seems safer
     # # Doesn't work on Google Cloud Run
-    # /opt/quarto/bin/tools/aarch64/dart-sass/sass source/custom.scss source/custom.css 
+    # /opt/quarto/bin/tools/aarch64/dart-sass/sass source/custom.scss source/custom.css
     Rscript R/pdf-prep.R pdf.html pdf.html source/custom.css
-    vivliostyle build pdf.html -o $MNT_DIR/03-render-output/print.pdf
+    vivliostyle build pdf.html -o 03-render-output/print.pdf
     # Do I want to copy pdf.html to a folder too?
     if [ "$UPLOAD" = true ]; then
-        gcloud storage cp -R $MNT_DIR/03-render-output/print.pdf gs://crp-city-scan/$GCS_CITY_DIR/03-render-output/print.pdf
+        gcloud storage cp -R 03-render-output/print.pdf gs://crp-city-scan/$GCS_CITY_DIR/03-render-output/print.pdf
     fi
 fi
 
@@ -301,10 +319,10 @@ if [ "$HTML" = true ]; then
     # Don't/can't move index.html, etc., to $MNT_DIR if $MNT_DIR is working dir
     ## Wait why wasn't this possible?
     ## Perhaps because any other files that are used don't also get moved
-    rm -rf $MNT_DIR/03-render-output/index_files
-    rm -rf $MNT_DIR/03-render-output/index_cache
-    mv -f index.html index_files index_cache $MNT_DIR/03-render-output/
+    rm -rf 03-render-output/index_files
+    rm -rf 03-render-output/index_cache
+    mv -f index.html index_files index_cache 03-render-output/
     if [ "$UPLOAD" = true ]; then
-        gcloud storage cp -R $MNT_DIR/03-render-output/index.html $MNT_DIR/03-render-output/index_files gs://crp-city-scan/$GCS_CITY_DIR/03-render-output/
+        gcloud storage cp -R 03-render-output/index.html 03-render-output/index_files gs://crp-city-scan/$GCS_CITY_DIR/03-render-output/
     fi
 fi

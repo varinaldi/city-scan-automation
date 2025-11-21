@@ -10,7 +10,7 @@ map_portions <- c(7, 2) # First number is map width, second is legend width
 
 # Load libraries and pre-process rasters
 source("R/setup.R", local = T)
-source("R/pre-mapping.R", local = T)
+source("R/pre-mapping.R", local = T) # will take t
 
 # Define map extent and zoom level adjustment
 static_map_bounds <- aspect_buffer(aoi, aspect_ratio, buffer_percent = 0.05)
@@ -82,6 +82,9 @@ source("R/map-elevation.R", local = T) # Could be standard if we wrote city-spec
 source("R/map-deforestation.R", local = T) # Could be standard if layers.yml included baseplot and source data had 2000 added
 source("R/map-flooding.R", local = T)
 source("R/map-historical-burnt-area.R", local = T)
+source("R/map-ghs-expansion.R", local = T)
+source("R/map-economic-activity-freq.R", local = T)
+source("R/map-economic-activity-kde.R", local = T)
 
 # Save plots -------------------------------------------------------------------
 # Switched to for loop because walk required too much memory; uncertain if helps

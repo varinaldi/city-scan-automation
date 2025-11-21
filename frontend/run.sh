@@ -28,6 +28,7 @@ COPYCODE=true
 # Additional operations default to off
 DOWNLOAD=false
 UPLOAD=false
+STREAM=false
 
 # Function for verbose logging
 log() {
@@ -91,6 +92,10 @@ while [[ $# -gt 0 ]]; do
         # Individual operation flags
         --download)
             DOWNLOAD=true
+            shift
+            ;;
+        --stream)
+            STREAM=true
             shift
             ;;
         --upload)
@@ -179,7 +184,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Check requirements based on selected operations
-if [ "$DOWNLOAD" = true ] || [ "$UPLOAD" = true ]; then
+if [ "$DOWNLOAD" = true ] || [ "$UPLOAD" = true ] || [ "$STREAM" = true ]; then
     check_gcs_object_variable
 fi
 
@@ -192,10 +197,10 @@ if [ -z "${CLOUD_RUN_EXECUTION:-}" ]; then
         gcloud config set project city-scan-gee-test
     fi
 
-# If not uploading, definitely need mountpoint. If uploading, check if user wants one.
-    if [ "$UPLOAD" = false ]; then
+# If not uploading and not streaming, definitely need mountpoint. If uploading, check if user wants one.
+    if [ "$UPLOAD" = false ] && [ "$STREAM" = false ]; then
         check_mount /home/mnt
-    elif [[ $- == *i* ]]; then
+    elif [ "$UPLOAD" = true ] && [[ $- == *i* ]]; then
         if ! mountpoint -q /home/mnt; then
             read -p "/home/mnt is not mounted. Do you want to proceed anyway? (y/n): " proceed
             if [ "$proceed" != "y" ]; then
@@ -220,6 +225,14 @@ log "Operations to perform:"
 if [ "$DOWNLOAD" = true ]; then
     log "Starting download..."
     gcloud storage ls gs://crp-city-scan/$GCS_CITY_DIR | grep '^gs://' | xargs -I {} gcloud storage cp -R {} mnt
+elif [ "$STREAM" = true ]; then
+    log "Streaming mode: Downloading config files (01-user-input/)..."
+    gcloud storage cp -R gs://crp-city-scan/$GCS_CITY_DIR/01-user-input mnt/ 2>/dev/null || log "Warning: Could not download 01-user-input directory"
+fi
+
+if [ "$DOWNLOAD" = true ] || [ "$UPLOAD" = true ] || [ "$STREAM" = true ]; then
+    export USE_GCS="true"
+    export SCAN_ID="$GCS_CITY_DIR"
 fi
 
 # Moving into mnt/ directory for ease of file paths... silly?
@@ -257,6 +270,11 @@ fi
 if [ "$CHARTS" = true ]; then
     log "Generating charts..."
     echo "FUTURELOG: Currently no code to generate charts."
+
+    Rscript -e "rmarkdown::render('scan-calculations.Rmd', output_file ='03-render-output/scan-calculations.html')"
+    if [ "$UPLOAD" = true ]; then
+          gcloud storage cp $MNT_DIR/03-render-output/scan-calculations.html gs://crp-city-scan/$GCS_CITY_DIR/03-render-output/
+    fi
     # if [ "$UPLOAD" = true ]; then
         # gcloud storage cp -R $MNT_DIR/03-render-output/charts gs://crp-city-scan/$GCS_CITY_DIR/03-render-output
     # fi

@@ -71,8 +71,29 @@ class CityDataComparator:
         files = os.listdir(directory)
         # Filter out system files
         files = [f for f in files if not f.startswith('.')]
+
+        # Check if CSV files have actual data (not just headers)
+        valid_files = []
+        for f in files:
+            file_path = os.path.join(directory, f)
+            if f.endswith('.csv'):
+                try:
+                    # Check if CSV has more than just header row
+                    with open(file_path, 'r') as csv_file:
+                        lines = csv_file.readlines()
+                        # Only include if file has header + at least one data row
+                        if len(lines) > 1:
+                            valid_files.append(f)
+                except Exception as e:
+                    # If we can't read it, skip it
+                    print(f"   ⚠️  Warning: Could not read {f}: {e}")
+                    continue
+            else:
+                # Non-CSV files are always included
+                valid_files.append(f)
+
         # Normalize filenames
-        normalized = {self.normalize_filename(f, city_name_l) for f in files}
+        normalized = {self.normalize_filename(f, city_name_l) for f in valid_files}
         return normalized
 
     def compare_directories(self):
@@ -415,7 +436,7 @@ class CityDataComparator:
             print(f"   ⏭️  Source missing: WSF evolution data")
             return False
 
-        flood_types = ['fluvial', 'pluvial', 'coastal', 'combined_flooding']
+        flood_types = ['fluvial', 'pluvial', 'coastal', 'comb']
         available_floods = [ft for ft in flood_types
                           if any(ft in f and f.endswith('_2020.tif')
                                 for f in os.listdir(self.spatial_dir))]
@@ -480,7 +501,7 @@ class CityDataComparator:
             print(f"   ⏭️  Source missing: Population data")
             return False
 
-        flood_types = ['fluvial', 'pluvial', 'coastal', 'combined_flooding']
+        flood_types = ['fluvial', 'pluvial', 'coastal', 'comb']
         available_floods = [ft for ft in flood_types
                           if any(ft in f and f.endswith('_2020.tif')
                                 for f in os.listdir(self.spatial_dir))]
@@ -548,7 +569,7 @@ class CityDataComparator:
             print(f"   ⏭️  Source missing: Road network data")
             return False
 
-        flood_types = ['fluvial', 'pluvial', 'coastal', 'combined_flooding']
+        flood_types = ['fluvial', 'pluvial', 'coastal', 'comb']
         available_floods = [ft for ft in flood_types
                           if any(ft in f and f.endswith('_2020_utm.tif')
                                 for f in os.listdir(self.spatial_dir))]
@@ -620,7 +641,7 @@ class CityDataComparator:
             print(f"   ⏭️  Source missing: OSM POI data")
             return False
 
-        flood_types = ['fluvial', 'pluvial', 'coastal', 'combined_flooding']
+        flood_types = ['fluvial', 'pluvial', 'coastal', 'comb']
         available_floods = [ft for ft in flood_types
                           if any(ft in f and f.endswith('_2020.tif')
                                 for f in os.listdir(self.spatial_dir))]

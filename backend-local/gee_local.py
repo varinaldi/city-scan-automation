@@ -75,31 +75,38 @@ def gee_forest(city_name_l, aoi_file):
     print("  Check https://code.earthengine.google.com/tasks for progress")
 
 def gee_ndvi(city_name_l, aoi_file, first_year, last_year):
-    """Export NDVI to Google Drive"""
+    """Export NDVI to Google Drive - MATCHES backend/gee_fun.py gee_ndxi"""
     print('Running gee_ndvi - exporting to Google Drive...')
 
     AOI = aoi_to_ee_geometry(aoi_file)
 
-    # Get Landsat 8 collection
-    l8 = ee.ImageCollection('LANDSAT/LC08/C02/T1_L2') \
+    # Cloud mask function for Sentinel-2 (from backend)
+    def maskS2clouds(image):
+        qa = image.select('QA60')
+        cloudBitMask = 1 << 10
+        cirrusBitMask = 1 << 11
+        mask = qa.bitwiseAnd(cloudBitMask).eq(0).And(qa.bitwiseAnd(cirrusBitMask).eq(0))
+        return image.updateMask(mask).divide(10000)
+
+    # Get Sentinel-2 collection (matching backend)
+    no_data_val = -9999
+    s2 = ee.ImageCollection('COPERNICUS/S2_HARMONIZED') \
         .filterBounds(AOI) \
-        .filterDate(f'{first_year}-01-01', f'{last_year+1}-01-01') \
-        .filter(ee.Filter.lt('CLOUD_COVER', 20))
+        .filterDate(f'{first_year}-06-01', f'{last_year}-09-01') \
+        .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 10)) \
+        .map(maskS2clouds)
 
-    # Calculate NDVI
-    def add_ndvi(image):
-        ndvi = image.normalizedDifference(['SR_B5', 'SR_B4']).rename('NDVI')
-        return image.addBands(ndvi)
+    s2_median = s2.median().clip(AOI).unmask(value=no_data_val, sameFootprint=False)
 
-    l8_ndvi = l8.map(add_ndvi)
-    ndvi_median = l8_ndvi.select('NDVI').median().clip(AOI)
+    # Calculate NDVI using Sentinel-2 bands (B8=NIR, B4=Red)
+    ndvi_median = s2_median.normalizedDifference(['B8', 'B4']).rename('NDVI')
 
     # Export - MATCHING layers.yml pattern: ndvi_season.*.tif$
     task = ee.batch.Export.image.toDrive(**{
         'image': ndvi_median,
         'description': f'{city_name_l}_ndvi_season',
         'region': AOI,
-        'scale': 30,
+        'scale': 10,  # Sentinel-2 resolution
         'folder': f'city-scan-outputs/{city_name_l}',
         'fileNamePrefix': f'{city_name_l}_ndvi_season',
         'maxPixels': 1e10,
@@ -139,26 +146,44 @@ def gee_landcover(city_name_l, aoi_file):
     print("  Check https://code.earthengine.google.com/tasks for progress")
 
 def gee_lst_summer(city_name_l, aoi_file, first_year, last_year):
-    """Export summer LST to Google Drive"""
+    """Export summer LST to Google Drive - MATCHES backend/gee_fun.py"""
     print('Running gee_lst_summer - exporting to Google Drive...')
 
     AOI = aoi_to_ee_geometry(aoi_file)
 
-    # Get MODIS LST (simplified - using all months, not filtered by season)
-    lst = ee.ImageCollection('MODIS/061/MOD11A2') \
+    # Use Landsat 8 (matching backend exactly)
+    landsat = ee.ImageCollection("LANDSAT/LC08/C02/T1_L2")
+
+    # Cloud mask function (from backend)
+    def maskL457sr(image):
+        qaMask = image.select('QA_PIXEL').bitwiseAnd(int('11111', 2)).eq(0)
+        saturationMask = image.select('QA_RADSAT').eq(0)
+        # Apply scaling factors to thermal band
+        thermalBand = image.select('ST_B10').multiply(0.00341802).add(149.0)
+        return image.addBands(thermalBand, None, True).updateMask(qaMask).updateMask(saturationMask)
+
+    # Summer months (simplified - using Jun-Aug)
+    date_filter = ee.Filter.calendarRange(6, 8, 'month')
+
+    # Process: filter, mask, calculate mean LST in Celsius
+    no_data_val = -9999
+    lst_mean = landsat \
         .filterBounds(AOI) \
-        .filterDate(f'{first_year}-06-01', f'{last_year}-09-01') \
-        .select('LST_Day_1km')
+        .filterDate(f'{first_year}-01-01', f'{last_year+1}-01-01') \
+        .filter(date_filter) \
+        .map(maskL457sr) \
+        .select('ST_B10') \
+        .mean() \
+        .add(-273.15) \
+        .clip(AOI) \
+        .unmask(value=no_data_val, sameFootprint=False)
 
-    # Calculate mean LST in Celsius
-    lst_mean = lst.mean().multiply(0.02).subtract(273.15).clip(AOI)
-
-    # Export - MATCHING layers.yml pattern: summer.*.tif$
+    # Export
     task = ee.batch.Export.image.toDrive(**{
         'image': lst_mean,
         'description': f'{city_name_l}_summer',
         'region': AOI,
-        'scale': 1000,
+        'scale': 100,  # Landsat resolution
         'folder': f'city-scan-outputs/{city_name_l}',
         'fileNamePrefix': f'{city_name_l}_summer',
         'maxPixels': 1e10,
@@ -171,26 +196,44 @@ def gee_lst_summer(city_name_l, aoi_file, first_year, last_year):
     print("  Check https://code.earthengine.google.com/tasks for progress")
 
 def gee_lst_winter(city_name_l, aoi_file, first_year, last_year):
-    """Export winter LST to Google Drive"""
+    """Export winter LST to Google Drive - MATCHES backend/gee_fun.py"""
     print('Running gee_lst_winter - exporting to Google Drive...')
 
     AOI = aoi_to_ee_geometry(aoi_file)
 
-    # Get MODIS LST
-    lst = ee.ImageCollection('MODIS/061/MOD11A2') \
+    # Use Landsat 8 (matching backend exactly)
+    landsat = ee.ImageCollection("LANDSAT/LC08/C02/T1_L2")
+
+    # Cloud mask function (from backend)
+    def maskL457sr(image):
+        qaMask = image.select('QA_PIXEL').bitwiseAnd(int('11111', 2)).eq(0)
+        saturationMask = image.select('QA_RADSAT').eq(0)
+        # Apply scaling factors to thermal band
+        thermalBand = image.select('ST_B10').multiply(0.00341802).add(149.0)
+        return image.addBands(thermalBand, None, True).updateMask(qaMask).updateMask(saturationMask)
+
+    # Winter months (simplified - using Dec-Feb)
+    date_filter = ee.Filter.calendarRange(12, 2, 'month')
+
+    # Process: filter, mask, calculate mean LST in Celsius
+    no_data_val = -9999
+    lst_mean = landsat \
         .filterBounds(AOI) \
-        .filterDate(f'{first_year}-12-01', f'{last_year}-03-01') \
-        .select('LST_Day_1km')
+        .filterDate(f'{first_year}-01-01', f'{last_year+1}-01-01') \
+        .filter(date_filter) \
+        .map(maskL457sr) \
+        .select('ST_B10') \
+        .mean() \
+        .add(-273.15) \
+        .clip(AOI) \
+        .unmask(value=no_data_val, sameFootprint=False)
 
-    # Calculate mean LST in Celsius
-    lst_mean = lst.mean().multiply(0.02).subtract(273.15).clip(AOI)
-
-    # Export - MATCHING layers.yml pattern: winter.*.tif$ (if it exists)
+    # Export
     task = ee.batch.Export.image.toDrive(**{
         'image': lst_mean,
         'description': f'{city_name_l}_winter',
         'region': AOI,
-        'scale': 1000,
+        'scale': 100,  # Landsat resolution
         'folder': f'city-scan-outputs/{city_name_l}',
         'fileNamePrefix': f'{city_name_l}_winter',
         'maxPixels': 1e10,
@@ -203,24 +246,31 @@ def gee_lst_winter(city_name_l, aoi_file, first_year, last_year):
     print("  Check https://code.earthengine.google.com/tasks for progress")
 
 def gee_ndmi(city_name_l, aoi_file, first_year, last_year):
-    """Export NDMI to Google Drive"""
+    """Export NDMI to Google Drive - MATCHES backend/gee_fun.py gee_ndxi"""
     print('Running gee_ndmi - exporting to Google Drive...')
 
     AOI = aoi_to_ee_geometry(aoi_file)
 
-    # Get Landsat 8 collection
-    l8 = ee.ImageCollection('LANDSAT/LC08/C02/T1_L2') \
+    # Cloud mask function for Sentinel-2 (from backend)
+    def maskS2clouds(image):
+        qa = image.select('QA60')
+        cloudBitMask = 1 << 10
+        cirrusBitMask = 1 << 11
+        mask = qa.bitwiseAnd(cloudBitMask).eq(0).And(qa.bitwiseAnd(cirrusBitMask).eq(0))
+        return image.updateMask(mask).divide(10000)
+
+    # Get Sentinel-2 collection (matching backend)
+    no_data_val = -9999
+    s2 = ee.ImageCollection('COPERNICUS/S2_HARMONIZED') \
         .filterBounds(AOI) \
-        .filterDate(f'{first_year}-01-01', f'{last_year+1}-01-01') \
-        .filter(ee.Filter.lt('CLOUD_COVER', 20))
+        .filterDate(f'{first_year}-06-01', f'{last_year}-09-01') \
+        .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 10)) \
+        .map(maskS2clouds)
 
-    # Calculate NDMI
-    def add_ndmi(image):
-        ndmi = image.normalizedDifference(['SR_B5', 'SR_B6']).rename('NDMI')
-        return image.addBands(ndmi)
+    s2_median = s2.median().clip(AOI).unmask(value=no_data_val, sameFootprint=False)
 
-    l8_ndmi = l8.map(add_ndmi)
-    ndmi_median = l8_ndmi.select('NDMI').median().clip(AOI)
+    # Calculate NDMI using Sentinel-2 bands (B8=NIR, B11=SWIR)
+    ndmi_median = s2_median.normalizedDifference(['B8', 'B11']).rename('NDMI')
 
     # Export - MATCHING layers.yml pattern: ndmi_season.*.tif$
     task = ee.batch.Export.image.toDrive(**{

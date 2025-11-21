@@ -1,7 +1,16 @@
-city_name: Diourbel
-AOI_shp_name: senegal_diourbel
-country_name: Senegal
-prev_run_date: 2025-10
+# city basic info (no need for country name)
+city_name: 'Kedougou'
+
+# optional: AOI shapefile name
+# If no AOI shapefile is provided, an AOI will automatically be identified from
+# the UCDB dataset, OSM, or a 5-km buffer around the city centroid
+AOI_shp_name: 'senegal_kedougou'
+
+# optional: use the directory from a previous run by specifying the year and month in the format of yyyy-mm
+# default value is null
+prev_run_date: ~
+
+# accessibility analysis parameters
 osm_query:
   schools:
     amenity:

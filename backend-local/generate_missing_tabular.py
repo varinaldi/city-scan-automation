@@ -162,7 +162,7 @@ def generate_flood_stats(city_name_l, process_output_dir):
     tabular_dir = os.path.join(process_output_dir, 'tabular')
 
     # Check for flood files
-    flood_types = ['fluvial', 'pluvial', 'coastal', 'combined_flooding']
+    flood_types = ['fluvial', 'pluvial', 'coastal', 'comb']
     available_floods = []
 
     for ft in flood_types:
@@ -322,9 +322,6 @@ def generate_flood_road_stats(city_name_l, spatial_dir, tabular_dir, flood_types
             print(f"      ⚠️  No roads found in {city_name_l}_major_roads.gpkg")
             return
 
-        # Get UTM CRS from roads
-        utm_crs = roads.crs
-
         for ft in flood_types:
             flood_files = [f for f in os.listdir(spatial_dir)
                           if ft in f and f.endswith('_2020_utm.tif')]
@@ -337,6 +334,10 @@ def generate_flood_road_stats(city_name_l, spatial_dir, tabular_dir, flood_types
                 with rasterio.open(flood_file) as flood_src:
                     flood_data = flood_src.read(1)
                     flood_transform = flood_src.transform
+                    utm_crs = flood_src.crs  # Get UTM CRS from flood raster
+
+                    # Convert roads to UTM CRS
+                    roads_utm = roads.to_crs(utm_crs)
 
                     # Create flood zone polygons
                     from rasterio.features import shapes
@@ -350,9 +351,9 @@ def generate_flood_road_stats(city_name_l, spatial_dir, tabular_dir, flood_types
                     )
 
                     # Clip roads to flood zones
-                    clipped = gpd.overlay(roads, flood_zones, how='intersection')
+                    clipped = gpd.overlay(roads_utm, flood_zones, how='intersection')
 
-                    total_length = roads.length.sum()
+                    total_length = roads_utm.length.sum()
                     flooded_length = clipped.length.sum()
                     pct = (flooded_length / total_length * 100) if total_length > 0 else 0
 
@@ -374,6 +375,8 @@ def generate_flood_road_stats(city_name_l, spatial_dir, tabular_dir, flood_types
 def generate_flood_osm_stats(city_name_l, spatial_dir, tabular_dir, flood_types):
     """Calculate OSM POI exposure to flooding"""
     print(f"   📍 Calculating OSM flood exposure...")
+
+    from rasterio.transform import rowcol
 
     # Check for OSM files
     osm_types = ['health', 'schools', 'fire', 'police']
@@ -410,10 +413,8 @@ def generate_flood_osm_stats(city_name_l, spatial_dir, tabular_dir, flood_types)
                         # Check each POI
                         in_flood = 0
                         for idx, row in osm.iterrows():
-                            # Get pixel coordinates
-                            py, px = flood_transform * (row.geometry.x, row.geometry.y)
-                            row_idx = int((py - flood_transform[5]) / flood_transform[4])
-                            col_idx = int((px - flood_transform[2]) / flood_transform[0])
+                            # Get pixel coordinates using correct rasterio method
+                            row_idx, col_idx = rowcol(flood_transform, row.geometry.x, row.geometry.y)
 
                             # Check if in bounds and flooded
                             if (0 <= row_idx < flood_data.shape[0] and

@@ -15,6 +15,7 @@ fi
 # Check for --docker and --native flags, and remove them from arguments
 RUN_DOCKER=0
 RUN_NATIVE=0
+STREAM_MODE=0
 DOCKER_FLAGS=()
 for arg in "$@"; do
   case "$arg" in
@@ -23,6 +24,9 @@ for arg in "$@"; do
       ;;
     --native)
       RUN_NATIVE=1
+      ;;
+    --stream)
+      STREAM_MODE=1
       ;;
     *)
       DOCKER_FLAGS+=("$arg")
@@ -39,39 +43,82 @@ BRANCH="main"
 
 # Shallow clone the repository and download city data --------------------------
 
-# # If directory does not exist, clone the repository
+# # If directory does not exist, clone the repository OR copy from local frontend/
 shopt -s dotglob nullglob
 if [ ! -d "$CITY_DIR" ]; then
   mkdir -p "$CITY_DIR"
-  git clone -b "$BRANCH" --filter=blob:none "$REPO" "$CITY_DIR/temp-repo"
-  echo "Copying files from the cloned repository to the city directory..."
-  for item in R scripts source index.qmd pdf.qmd; do
-    cp -r "$CITY_DIR/temp-repo/frontend/$item" "$CITY_DIR"
-  done
-else 
-# If the directory exists, ask if the user wants to overwrite it with a new clone
-  echo "City directory already exists: $CITY_DIR"
-  read -p "Folder may or may not have code files. Do you want to clone and possibly overwrite the repository contents with a new clone? (y/n): " overwrite_choice
-  if [[ "$overwrite_choice" = "y" ]]; then
-    rm -rf "$CITY_DIR/temp-repo"
+
+  # In streaming mode, prefer local frontend/ if it exists, otherwise clone
+  if [[ $STREAM_MODE -eq 1 ]]; then
+    if [ -d "frontend" ]; then
+      echo "Streaming mode: Copying files from local frontend/ directory..."
+      for item in R scripts source index.qmd pdf.qmd scan-calculations.Rmd; do
+        if [ -e "frontend/$item" ]; then
+          cp -r "frontend/$item" "$CITY_DIR/"
+        fi
+      done
+    else
+      echo "Streaming mode: Local frontend/ not found, cloning from repository..."
+      git clone -b "$BRANCH" --filter=blob:none "$REPO" "$CITY_DIR/temp-repo"
+      echo "Copying files from the cloned repository to the city directory..."
+      for item in R scripts source index.qmd pdf.qmd scan-calculations.Rmd; do
+        cp -r "$CITY_DIR/temp-repo/frontend/$item" "$CITY_DIR"
+      done
+    fi
+  else
     git clone -b "$BRANCH" --filter=blob:none "$REPO" "$CITY_DIR/temp-repo"
     echo "Copying files from the cloned repository to the city directory..."
-    for item in R scripts source index.qmd pdf.qmd; do
+    for item in R scripts source index.qmd pdf.qmd scan-calculations.Rmd; do
       cp -r "$CITY_DIR/temp-repo/frontend/$item" "$CITY_DIR"
     done
+  fi
+else
+# If the directory exists, decide whether to overwrite code files
+  echo "City directory already exists: $CITY_DIR"
+
+  # In streaming mode, don't overwrite R files - use existing local versions
+  if [[ $STREAM_MODE -eq 1 ]]; then
+    echo "Streaming mode: Using existing R code files, not overwriting from repo."
   else
-    echo "Not overwriting the existing city directory code files. Continuing to download city data..."
+    read -p "Folder may or may not have code files. Do you want to clone and possibly overwrite the repository contents with a new clone? (y/n): " overwrite_choice
+    if [[ "$overwrite_choice" = "y" ]]; then
+      rm -rf "$CITY_DIR/temp-repo"
+      git clone -b "$BRANCH" --filter=blob:none "$REPO" "$CITY_DIR/temp-repo"
+      echo "Copying files from the cloned repository to the city directory..."
+      for item in R scripts source index.qmd pdf.qmd scan-calculations.Rmd; do
+        cp -r "$CITY_DIR/temp-repo/frontend/$item" "$CITY_DIR"
+      done
+    else
+      echo "Not overwriting the existing city directory code files."
+    fi
   fi
 fi
-shopt -u dotglob nullglob
-rm -rf $CITY_DIR/temp-repo
 
-# Download the city data from Google Cloud Storage
-if ! gcloud storage ls "gs://crp-city-scan/$GCS_CITY_DIR" > /dev/null 2>&1; then
-  echo "Error: gs://crp-city-scan/$GCS_CITY_DIR does not exist or you do not have permission. (Try `gcloud auth login`?) Exiting."
-  exit 1
+if [[ $STREAM_MODE -eq 0 ]]; then
+
+  shopt -u dotglob nullglob
+  rm -rf $CITY_DIR/temp-repo
+
+  # Download the city data from Google Cloud Storage
+  if ! gcloud storage ls "gs://crp-city-scan/$GCS_CITY_DIR" > /dev/null 2>&1; then
+    echo "Error: gs://crp-city-scan/$GCS_CITY_DIR does not exist or you do not have permission. (Try `gcloud auth login`?) Exiting."
+    exit 1
+  fi
+  gcloud storage ls gs://crp-city-scan/$GCS_CITY_DIR | grep '^gs://' | grep -v '/00-reproduction-code/' | xargs -I {} gcloud storage cp -R {} "$CITY_DIR"
+
+else
+  # Streaming mode: Download only config files (01-user-input)
+  shopt -u dotglob nullglob
+  rm -rf $CITY_DIR/temp-repo
+
+  echo "Streaming mode: Downloading config files (01-user-input/)..."
+  if ! gcloud storage ls "gs://crp-city-scan/$GCS_CITY_DIR" > /dev/null 2>&1; then
+    echo "Error: gs://crp-city-scan/$GCS_CITY_DIR does not exist or you do not have permission. (Try `gcloud auth login`?) Exiting."
+    exit 1
+  fi
+  gcloud storage cp -R "gs://crp-city-scan/$GCS_CITY_DIR/01-user-input" "$CITY_DIR/" 2>/dev/null || echo "Warning: Could not download 01-user-input directory"
+
 fi
-gcloud storage ls gs://crp-city-scan/$GCS_CITY_DIR | grep '^gs://' | grep -v '/00-reproduction-code/' | xargs -I {} gcloud storage cp -R {} "$CITY_DIR"
 
 # Write city-dir.txt to tell the R scripts where to work from ------------------
 echo "." > "$CITY_DIR/city-dir.txt"
@@ -101,11 +148,30 @@ if [[ $RUN_NATIVE -eq 1 ]]; then
   ORIGINAL_DIR=$(pwd)
   cd "$CITY_DIR"
   trap 'cd "$ORIGINAL_DIR"' EXIT
-  Rscript R/maps-static.R || {
-    echo "Error: Failed to run R script for static maps."
-    exit 1
-  }
+
+  if [[ $STREAM_MODE -eq 1 ]]; then
+    USE_GCS=true SCAN_ID="$GCS_CITY_DIR" Rscript R/maps-static.R || {
+      echo "Error: Failed to run R script for static maps in streaming mode."
+      exit 1
+    }
+  else
+    Rscript R/maps-static.R || {
+      echo "Error: Failed to run R script for static maps."
+      exit 1
+    }
+  fi
+
   echo "Static maps generated successfully."
+
+  # Generate scan-calculations (only in streaming mode)
+  if [[ $STREAM_MODE -eq 1 ]]; then
+    echo "Generating scan-calculations..."
+    USE_GCS=true SCAN_ID="$GCS_CITY_DIR" Rscript -e "rmarkdown::render('scan-calculations.Rmd', output_file='03-render-output/scan-calculations.html')" || {
+      echo "Error: Failed to render scan-calculations in streaming mode."
+      exit 1
+    }
+    echo "Scan-calculations generated successfully."
+  fi
   # trap - EXIT
 fi
 

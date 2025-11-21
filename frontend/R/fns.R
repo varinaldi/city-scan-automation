@@ -1,30 +1,46 @@
 # Map Functions ----------------------------------------------------------------
 fuzzy_read <- function(dir, fuzzy_string, FUN = NULL, path = T, convert_to_vect = F, ...) {
-  file <- list.files(dir) %>% str_subset(fuzzy_string) #%>%
-  if (length(file) > 1) warning(paste("Too many", fuzzy_string, "files in", dir))
-  if (length(file) < 1) {
-    file <- list.files(dir, recursive = T) %>% str_subset(fuzzy_string)
+    file <- list.files(dir, full.names = FALSE) %>% str_subset(fuzzy_string)
+
     if (length(file) > 1) warning(paste("Too many", fuzzy_string, "files in", dir))
-    if (length(file) < 1) warning(paste("No", fuzzy_string, "file in", dir))
-  }
-  if (length(file) == 1) {
-    if (is.null(FUN)) {
-      FUN <- if (tolower(str_sub(file, -4, -1)) == ".tif") rast else vect
+    if (length(file) < 1) {
+      file <- list.files(dir, recursive = T, full.names = FALSE) %>% str_subset(fuzzy_string)
+      if (length(file) > 1 && any(grepl("\\.shp$", file, ignore.case = TRUE))) {
+        file <- file[grepl("\\.shp$", file, ignore.case = TRUE)]
+      }
+      if (length(file) > 1) warning(paste("Too many", fuzzy_string, "files in", dir))
+      if (length(file) < 1) warning(paste("No", fuzzy_string, "file in", dir))
     }
-    if (!path) {
-      content <- suppressMessages(FUN(dir, file, ...))
-    } else {
+
+    if (length(file) == 1) {
+      if (is.null(FUN)) {
+        FUN <- if (tolower(str_sub(file, -4, -1)) == ".tif") rast else vect
+      }
+
       file_path <- file.path(dir, file)
-      content <- suppressMessages(FUN(file_path, ...))
+
+      # Try reading normally, if fails try with /vsigs/ for GCS
+      content <- tryCatch({
+        suppressMessages(FUN(file_path, ...))
+      }, error = function(e) {
+        if (exists("USE_GCS") && USE_GCS) {
+          # Try with /vsigs/ prefix
+          path_clean <- gsub("/+$", "", dir)
+          gcs_path <- paste0("/vsigs/", GCS_BUCKET, "/", scan_id, "/", path_clean, "/", file)
+          suppressMessages(FUN(gcs_path, ...))
+        } else {
+          stop(e)
+        }
+      })
+
+      if (convert_to_vect && class(content)[1] %in% c("SpatRaster", "RasterLayer")) {
+        content <- rast_as_vect(content)
+      }
+      return(content)
+    } else {
+      return(NA)
     }
-    if (convert_to_vect && class(content)[1] %in% c("SpatRaster", "RasterLayer")) {
-      content <- rast_as_vect(content)
-    }
-    return(content)
-  } else {
-    return(NA)
   }
-}
 
 rast_as_vect <- function(x, digits = 8, ...) {
   if (class(x) == "SpatVector") return(x)
@@ -351,9 +367,10 @@ plot_static_layer <- function(
     scale_linewidth_manual(values = c("Secondary" = 0.25, "Primary" = 1), guide = "none")
   if (plot_aoi) p <- p + geom_spatvector(data = aoi, color = aoi_stroke$color, fill = NA, linetype = "solid", linewidth = aoi_stroke$linewidth)
   if (plot_wards) {
-    p <- p + geom_spatvector(data = wards, color = aoi_stroke$color, fill = NA, linetype = "solid", linewidth = .25)
-    if (exists("ward_labels")) p <- p +
-      geom_spatvector_text(data = ward_labels, aes(label = WARD_NO), size = 2, fontface = "bold")
+    p <- p + geom_spatvector(data = wards, color = aoi_stroke$color, fill = NA, linetype = "solid", linewidth = .25) 
+
+    if (exists("ward_labels") && exists("ward_label_column")) p <- p + geom_text_repel(data =ward_labels, aes(label = ward_label_column, geometry = geometry),stat = "sf_coordinates", size = 2, fontface = "bold") 
+  
   }
   p <- p + coord_3857_bounds(static_map_bounds)
   return(p)
@@ -949,11 +966,44 @@ paste_and <- function(v) {
   }
 }
 
+paste_bold <- function(x) {
+  # Check if it looks like a list of items (commas/and between words, not number formatting)
+  # This pattern detects number formatting like "3,603,026"
+  has_number_format <- grepl("\\d{1,3}(,\\d{3})+", x)
+  has_list_pattern <- grepl(",| and ", x) && grepl("[a-zA-Z]", x)
+
+  if (has_list_pattern && !has_number_format) {
+    # Split by comma and " and " only if it's a word list, not a formatted number
+    parts <- strsplit(x, ",| and ")[[1]]
+    parts_bold <- paste0("<b>", trimws(parts), "</b>")
+    n_commas <- length(gregexpr(",", x)[[1]])
+
+    if (n_commas > 0 && grepl(" and ", x)) {
+      # Has both commas and "and"
+      paste(paste(head(parts_bold, -1), collapse = ", "), "and", tail(parts_bold, 1))
+    } else if (n_commas > 0) {
+      # Only commas
+      paste(parts_bold, collapse = ", ")
+    } else {
+      # Only "and"
+      paste(parts_bold, collapse = " and ")
+    }
+  } else {
+    # Simple case: no list pattern or has number formatting, just bold everything
+    paste0("<b>", x, "</b>")
+  }
+}
+
 duplicated2way <- duplicated_all <- function(x) {
   duplicated(x) | duplicated(x, fromLast = T)
 }
 
 tolatin <- function(x) stringi::stri_trans_general(x, id = "Latin-ASCII")
+
+normalize <- function(x, na.rm = T) {
+  return((x - min(x, na.rm = na.rm)) /(max(x, na.rm = na.rm)-min(x, na.rm = na.rm)))
+}
+
 
 ggdonut <- function(data, category_column, quantities_column, colors, title) {
   data <- as.data.frame(data) # tibble does weird things with data frame, not fixing now

@@ -127,7 +127,7 @@ This will trigger the
 
 
 Need tor further discuss on this to make sure that native will work, or merge to include scan-calculations.Rmd in the main upstream branch.
-<br>
+
 
 **Benchmark Cities** The code is setup that manual benchmark cities and countries are set from city-inputs.yml. As of now, these variables are not available in the most if not all city-inputs.yml in GCS. So when running with --stream, the benchmark cities will not be generated unless added to city-inputs.yml in local 01-user-input/ directory to include benchmark cities and rerun scan-calculation.Rmd. 
 

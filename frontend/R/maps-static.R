@@ -1,16 +1,24 @@
 # Generating City Scan Maps
 if ("frontend" %in% list.files()) setwd("frontend")
 
+# WARNING: Some raster plotting breaks with terra 1.8+, when reprojected, such
+# as to EPSG: 3857. It results in the following error. Would upgrading tidyterra
+# also solve this?
+# Caused by error:
+# ! [spatSample] at least one of 'values', 'cells', or 'xy' must be TRUE; or 'as.points' must be TRUE 
+# 2: No shared levels found between `names(values)` of the manual scale and the data's fill values.
+
 # Set static map visualization parameters
 layer_alpha <- 0.7
 map_width <- 8.77 # Width of the map itself, excluding legend
 map_height <- 7.55
 aspect_ratio <- map_width / map_height
 map_portions <- c(7, 2) # First number is map width, second is legend width
+include_captions <- FALSE
 
 # Load libraries and pre-process rasters
 source("R/setup.R", local = T)
-source("R/pre-mapping.R", local = T) # will take t
+source("R/pre-mapping.R", local = T)
 
 # Define map extent and zoom level adjustment
 static_map_bounds <- aspect_buffer(aoi, aspect_ratio, buffer_percent = 0.05)
@@ -24,7 +32,8 @@ plots <- list()
 # Plot AOI & wards -------------------------------------------------------------
 plots$aoi <- plot_static_layer(aoi_only = T, plot_aoi = T, plot_wards = !is.null(wards),
   expansion = 1.5, zoom_adj = zoom_adjustment, aoi_stroke = list(color = "yellow", linewidth = 0.4),
-  baseplot = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}.jpg")
+  baseplot = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}.jpg",
+  captions = include_captions)
 # if inherits(wards, "SpatVector") {
 #   ward_labels <- site_labels(wards, simplify = F)
 #   plots$wards <- plot_static_layer(aoi_only = T, plot_aoi = F, plot_wards = T) +
@@ -67,6 +76,10 @@ unlist(lapply(layer_params, \(x) x$fuzzy_string)) %>%
     tryCatch_named(yaml_key, {
       data <- fuzzy_read(spatial_dir, fuzzy_string) %>%
         vectorize_if_coarse()
+      if (nrow(data) == 0) {
+        message(paste("No data for:", yaml_key))
+        return(NULL)
+      }
       plot <- plot_static_layer(
         data = data, yaml_key = yaml_key,
         plot_aoi = T, plot_wards = !is.null(wards), zoom_adj = zoom_adjustment)
@@ -76,7 +89,7 @@ unlist(lapply(layer_params, \(x) x$fuzzy_string)) %>%
   }) %>% unlist() -> plot_log
 
 # Non-standard static plots ----------------------------------------------------
-
+source("R/map-isochrones.R", local = T) 
 source("R/map-schools-health-proximity.R", local = T) # Could be standard if layers.yml included baseplot # nolint: line_length_linter.
 source("R/map-elevation.R", local = T) # Could be standard if we wrote city-specific breakpoints to layers.yml
 source("R/map-deforestation.R", local = T) # Could be standard if layers.yml included baseplot and source data had 2000 added
@@ -91,7 +104,7 @@ source("R/map-economic-activity-kde.R", local = T)
 # For Algeria, reduced time from 1,100 seconds to 1,000 seconds
 for (name in names(plots)) {
   save_plot(plots[[name]], filename = glue("{name}.png"), directory = styled_maps_dir,
-    map_height = map_height, map_width = map_width, dpi = 200, rel_widths = map_portions)
+    map_height = map_height + ifelse(include_captions, .2, 0), map_width = map_width, dpi = 200, rel_widths = map_portions)
 }
 
 # See which layers weren't successfully mapped

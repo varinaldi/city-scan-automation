@@ -51,14 +51,14 @@ if [ ! -d "$CITY_DIR" ]; then
   # In streaming mode, prefer local frontend/ if it exists, otherwise clone
   if [[ $STREAM_MODE -eq 1 ]]; then
     if [ -d "frontend" ]; then
-      echo "Streaming mode: Copying files from local frontend/ directory..."
+      echo "Streaming mode: Copying files from frontend/ directory..."
       for item in R scripts source index.qmd pdf.qmd scan-calculations.Rmd; do
         if [ -e "frontend/$item" ]; then
           cp -r "frontend/$item" "$CITY_DIR/"
         fi
       done
     else
-      echo "Streaming mode: Local frontend/ not found, cloning from repository..."
+      echo "Streaming mode:  frontend/ not found, cloning from repository..."
       git clone -b "$BRANCH" --filter=blob:none "$REPO" "$CITY_DIR/temp-repo"
       echo "Copying files from the cloned repository to the city directory..."
       for item in R scripts source index.qmd pdf.qmd scan-calculations.Rmd; do
@@ -73,24 +73,24 @@ if [ ! -d "$CITY_DIR" ]; then
     done
   fi
 else
-# If the directory exists, decide whether to overwrite code files
+  # If the directory exists, ask user whether to sync R code from local frontend/
+  # - "y" copies from frontend/ to mnt/$SCAN_ID/ (applies local changes)
+  # - "n" uses existing R code in mnt/$SCAN_ID/ as-is
   echo "City directory already exists: $CITY_DIR"
 
-  # In streaming mode, don't overwrite R files - use existing local versions
-  if [[ $STREAM_MODE -eq 1 ]]; then
-    echo "Streaming mode: Using existing R code files, not overwriting from repo."
+  echo "  - 'y' = Copy R code from frontend/"
+  echo "  - 'n' = Use existing R code in this folder"
+  read -p "Update R code from frontend/? (y/n): " overwrite_choice
+  if [[ "$overwrite_choice" = "y" ]]; then
+    echo "Copying R code from frontend/ to city directory..."
+    for item in R scripts source index.qmd pdf.qmd scan-calculations.Rmd; do
+      if [ -e "frontend/$item" ]; then
+        cp -r "frontend/$item" "$CITY_DIR/"
+      fi
+    done
+    echo "R code updated from local frontend/."
   else
-    read -p "Folder may or may not have code files. Do you want to clone and possibly overwrite the repository contents with a new clone? (y/n): " overwrite_choice
-    if [[ "$overwrite_choice" = "y" ]]; then
-      rm -rf "$CITY_DIR/temp-repo"
-      git clone -b "$BRANCH" --filter=blob:none "$REPO" "$CITY_DIR/temp-repo"
-      echo "Copying files from the cloned repository to the city directory..."
-      for item in R scripts source index.qmd pdf.qmd scan-calculations.Rmd; do
-        cp -r "$CITY_DIR/temp-repo/frontend/$item" "$CITY_DIR"
-      done
-    else
-      echo "Not overwriting the existing city directory code files."
-    fi
+    echo "Using existing R code in $CITY_DIR."
   fi
 fi
 

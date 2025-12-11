@@ -1005,6 +1005,16 @@ paste_and <- function(v) {
 }
 
 paste_bold <- function(x) {
+  # Handle NA/NULL input
+  if (is.null(x) || length(x) == 0 || all(is.na(x))) return("<b>NA</b>")
+
+  # Handle vector input - collapse to comma-separated string
+  if (length(x) > 1) x <- paste(x, collapse = ", ")
+
+  # Convert to character if needed
+  x <- as.character(x)
+  if (is.na(x) || x == "") return("<b>NA</b>")
+
   # Check if it looks like a list of items (commas/and between words, not number formatting)
   # This pattern detects number formatting like "3,603,026"
   has_number_format <- grepl("\\d{1,3}(,\\d{3})+", x)
@@ -1169,4 +1179,23 @@ zoom_on_extent <- function(p, extent_vect, aspect_ratio, buffer_percent = 0.05, 
   (p + theme(legend.position = "none") +
     coord_3857_bounds(bounds)) %>%
     change_zoom(get_zoom_level(bounds) + zoom_adj)
+}
+
+
+get_built_extent <- function(urban_mask) {
+    # Apply opening morphological operation to remove thin lines (roads)
+    kernel <- matrix(1, 5, 5) 
+    eroded <- focal(urban_mask, w = kernel, fun = "min", na.rm = TRUE)
+    # Then dilate
+    opened <- focal(eroded, w = kernel, fun = "max", na.rm = TRUE)
+
+    # Now get extent of remaining urban area
+    urban_cells <- cells(opened, 1)[[1]]
+    urban_coords <- xyFromCell(opened, urban_cells)
+    urban_extent <- ext(
+        min(urban_coords[,1]), max(urban_coords[,1]),
+        min(urban_coords[,2]), max(urban_coords[,2])
+    )
+
+    return(urban_extent)
 }

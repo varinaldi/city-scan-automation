@@ -3,5 +3,5 @@ tryCatch_named("deforest", {
   titles <- unlist(layer_params$deforest[c("title", "title_fr")])
   subtitles <- unlist(layer_params$deforest[c("subtitle", "subtitle_fr")])
     plots$forest_deforest <- plot_static_layer(deforest, "deforest", baseplot = plots$forest)
-  }
+  # }
 })

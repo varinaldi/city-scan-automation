@@ -4,13 +4,14 @@ output:
     df_print: paged
   html_notebook: default
 ---
-
+```{r initiate-message}
+message("\n=== Running Scan-Calculation and Generating Charts ===\n")
+```
 #### Setup
 ```{r setup-configuration, echo = F, message = F, warning = F, results = 'hide'}
 knitr::opts_chunk$set(echo = F, results = "asis")
 
-# source("R/setup.R")
-source("R/pre-charting.R")
+source("R/setup.R")
 source("R/fns.R")
 source("https://raw.githubusercontent.com/compoundrisk/monitor/databricks/src/fns/helpers.R")
 
@@ -42,8 +43,6 @@ print_text <- function(x, linebreaks = 2) {
 }
 
 
-
-
 # ```{r, echo = F}
 # This chunk is separate from the setup chunk above because we don't want
 # the message suppressed 
@@ -63,6 +62,10 @@ print_text <- function(x, linebreaks = 2) {
 # }
 
 # message("To fill data-sharing/02-TIFs and data-sharing/03-analysis-inputs you will need to download and rename files from city_scan2. This is not yet a necessary step for all cities.")
+```
+
+```{r pre-charting, echo = F, message= F, warning=F, results = 'hide'}  
+source("R/pre-charting.R")
 ```
 
 ##### _User Input Variables_
@@ -438,6 +441,61 @@ if (!exists('pop_dist_group_wp')) print_text(paste_bold("No WorldPop age distrib
   print_text(paste("elderly (60+):", elderly$Percentage %>% {scales::label_percent()(.)}))
   print_text(paste("reproductive_age, percent of women (15-50):", reproductive_age$Sexed_Percent %>% {scales::label_percent()(.)}))
   print_text(paste("sex_ratio:", round(sex_ratio, 2), "males to 100 females"))
+}
+
+
+```
+
+```{r population-ridge, echo = F, message= F, warning=F}
+
+librarian::shelf(ggridges)
+
+if (!exists("wpop_df")) {
+  print_text(paste_bold("No population raster data available"))
+} else{ 
+  # Calculate x-axis limit (cap at 99th percentile)
+  x_max <- quantile(wpop_df$pop, 0.99)
+
+  # Create ridge plot with quantile coloring
+  p_density <- wpop_df %>%
+    ggplot(aes(x = pop, y = 1, fill = factor(stat(quantile)))) +
+    stat_density_ridges(
+      geom = "density_ridges_gradient",
+      calc_ecdf = TRUE,
+      quantiles = 1:4/5,
+      quantile_lines = FALSE,
+      alpha = 0.6,
+      scale = 0.9
+    ) +
+    scale_x_continuous(
+      breaks = seq(0, ceiling(x_max/10)*10, by = max(10, ceiling(x_max/100)*10)),
+      minor_breaks = seq(0, ceiling(x_max/10)*10, by = max(5, ceiling(x_max/200)*10))
+    ) +
+    scale_fill_manual(
+      name = "Percentile",
+      values = c('#ECEB72', '#D4BE62', '#BD9252', '#A56542', '#8E3933'),
+      labels = c("0-20th", "20-40th", "40-60th", "60-80th", "80-100th")
+    ) +
+    labs(x = "Population density (people/hectare)") +
+    theme_minimal() +
+    theme(
+      axis.title.y = element_blank(),
+      axis.text.y = element_blank(),
+      axis.ticks.y = element_blank(),
+      legend.position = "bottom",
+      panel.grid.major = element_line(linewidth = .125, color = "dark gray"),
+      panel.grid.minor = element_line(linewidth = .125, linetype = 2, color = "dark gray")
+    )
+
+  # Save plot
+  ggsave(
+    filename = file.path(charts_dir, "population_density_distribution.png"),
+    plot = p_density,
+    width = 8,
+    height = 4,
+    dpi = 300
+  )
+  
 }
 
 

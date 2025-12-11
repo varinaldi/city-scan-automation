@@ -1,61 +1,4 @@
 ---------------------------------------------------
-# See which local files are older than online GCS files
-recent_gcs_files <- system(
-  "gcloud storage ls -l 'gs://crp-city-scan/2025-08-philippines-*/02-process-output/spatial/'",
-  intern = TRUE
-)
-gcs_files <- recent_gcs_files %>%
-  trimws() %>%
-   str_split_fixed("  \\s*", n = 3) %>%
-   as_tibble(.name_repair = \(x) c("no", "gcs_time", "gcs_path")) %>%
-   mutate(
-    gcs_time = as.POSIXct(gcs_time, format = "%Y-%m-%dT%H:%M:%S", tz = "UTC"),
-    gcs_time = lubridate::with_tz(gcs_time, "America/New_York"),
-    folder = str_extract(gcs_path, "2025-\\d\\d-[^/]+"),
-    file = basename(gcs_path)) %>%
-    filter(!is.na(gcs_time))
-local_files <- list.files("mnt", recursive = TRUE, full.names = TRUE) %>%
-  str_subset("/spatial/") %>%
-  tibble(
-    local_path = ., folder = str_extract(., "2025-\\d\\d-[^/]+"), file = basename(.),
-    local_mtime = lubridate::force_tz(file.mtime(.), "America/New_York"))
-files_comp <- full_join(local_files, gcs_files, by = c("folder", "file")) %>%
-  filter(str_detect(folder, "2025-08"))
- 
-files_comp %>% filter(is.na(local_mtime)) %>%
-  count(folder) %>%
-  arrange(desc(n))
-files_comp %>% filter(gcs_time > local_mtime) %>%
-  count(folder) %>%
-  arrange(desc(n))
- 
-files_comp %>% filter(gcs_time > local_mtime) %>%
-  mutate(
-    city = str_extract(folder, "(?<=2025-0\\d-philippines-)[^/]*"),
-    filestring = str_replace(file, city, "")) %>%
-  count(filestring) %>%
-  arrange(desc(n))
- 
-# Download files that are newer (or only) online
-files_comp %>% filter(is.na(local_mtime) | gcs_time > local_mtime) %>%
-  # Ignore national maps, at least for now
-  filter(folder %ni% c("2025-08-philippines-luzon", "2025-08-philippines-mindanao", "2025-08-philippines-visayas")) # %>%
-  # filter(!str_detect(file, "sez"))
-start <- Sys.time()
-files_comp %>% filter(is.na(local_mtime) | gcs_time > local_mtime) %>%
-  # Ignore national maps, at least for now
-  filter(folder %ni% c("2025-08-philippines-luzon", "2025-08-philippines-mindanao", "2025-08-philippines-visayas")) %>%
-  # filter(!str_detect(file, "sez")) %>%
-  group_by(folder) %>%
-  mutate(destination = file.path("mnt", folder, "02-process-output/spatial")) %>%
-  summarize(n = n(), files_concat = paste(glue("gs://crp-city-scan/{folder}/02-process-output/spatial/{file}"), collapse = " "), destination = destination[1]) %>%
-  mutate(cmd = glue("gcloud storage cp {files_concat} {destination}")) %>%
-  pull(cmd) %>%
-  parallel::mclapply(\(x) system(x))
-Sys.time() - start
-
-
-
 notes - interactive ask which data to use 
 
 how to make legend text dynamic 
@@ -65,17 +8,35 @@ fuzzy_read() - breaking up into different things
 city_inputs & menu.yml 
 see any problem with combining them both - in backend and frontend
 
-new container should always have setup
-
-inlcude population plots and rwi 
-
-built up area with ghs  
-
-AOI area suggetion 
-
-ojs - two differetn folderss one for ojs python one for R (comes from backend) or just one folder with clean subfolder 
-
 locally -> replicable -> when delivering, inlcude code not only data and outputs. 
 
+
+new container should always have setup
+
+Senegal request
+--------------------------------------------------- 
+new datasets from Senegal 
+
+air quality by month / over the year
+
+traffic dataset - https://login.microsoftonline.com/31a2fec0-266b-4c67-b56e-2796d8f59c36/oauth2/v2.0/authorize?response_type=id_token&redirect_uri=https%3A%2F%2Fdocs.datapartnership.org%2F.auth%2Flogin%2Faad%2Fcallback&client_id=f11fafe9-f842-43e2-9ead-5688bff5ea31&scope=openid+profile+email&response_mode=form_post&nonce=21a03c1e9aaa4de0ad30b433e7050df2_20251210190959&state=redir%3D%252Fpartners%252Fwaze%252Fnotebooks%252Fwaze-for-cities-jams.html
+
+
+Todos: 
+---------------------------------------------------
+> done - AOI area suggetion                                      
+> done - BM Cities suggestions - income level  - https://datahelpdesk.worldbank.org/knowledgebase/articles/906519-world-bank-country-and-lending-groups
+
+> whats going on inlcude population plots and rwi                           
+
+built up area update with GHS - or update with WSF tracker data - wait ( tecnically its already there but wait if wsf is better)
+ojs - two different folders one for ojs python one for R (comes from backend) or just one folder with clean subfolder 
+    - putting in scan-calculations side by side with R ojs
+
+
+Toask: 
+---------------------------------------------------
+Adding GHS expansion to GEE (?)
+economic activity data ( i guess this is for later once the infra is good. )
 
 

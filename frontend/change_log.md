@@ -2,6 +2,25 @@
 
 Internal notes only. For reference when updating codebase and documnentation.
 
+---
+
+## 2025-12-09: Local code sync prompt for existing folders
+
+When running `frontend.sh` on an existing city folder (in `mnt/`), it now prompts:
+
+```
+City directory already exists: /path/to/mnt/$SCAN_ID
+Do you want to update R code from local frontend/ folder? (y/n):
+```
+
+- **y** → Copies R code from local `frontend/` folder to the city folder, overwriting existing R code. Use this when you've made changes to `frontend/R/` and want to apply them.
+- **n** → Uses existing R code in `mnt/$SCAN_ID/` folder as-is. Use this when you want to keep any modifications made directly in the city folder.
+
+This replaces the previous behavior where:
+- `--stream` mode never updated existing folders
+- Non-stream mode would clone from GitHub instead of using local code
+
+---
 
 ## Changes to frontend.sh (scripts/frontend.sh):
 

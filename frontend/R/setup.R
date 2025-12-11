@@ -8,7 +8,7 @@
 # 5. Load city parameters
 # 6. Read AOI & wards
 
-message("\nStarting Setup")
+message("\n=== Starting Setup ===")
 
 # 1. Load packages -------------------------------------------------------------
 # Install packages from CRAN using librarian
@@ -38,6 +38,8 @@ librarian::shelf(quiet = T,
   ggtext,
   plotly, 
   cowplot,
+  ggpackets,
+  ggridges,
 
   # Spatial
   sf,
@@ -118,7 +120,7 @@ message("\nInitializing for ", scan_id)
 invisible(NULL)
 
 # If USE GCS, authenticate and use gcs-overrides
-print(paste('USE GCS:', USE_GCS))
+message(paste('USE GCS:', USE_GCS))
 
 if(length(list.files(spatial_dir)) < 20) {
   USE_GCS <- TRUE

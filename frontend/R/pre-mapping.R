@@ -249,13 +249,46 @@ if (!file.exists(file.path(spatial_dir, "burnt-area-density.tif"))) {
 }
 
 
+# Pop edit 
+if (!file.exists(file.path(spatial_dir, "pop_2025-edit.tif"))) {
+  pop_2025 <- fuzzy_read(spatial_dir, "pop_2025\\.tif")
+  if (inherits(pop_2025, "SpatRaster")) {
+    values(pop_2025)[values(pop_2025) == 0] <- NA
+    NAflag(pop_2025) <- NA
+    writeRaster(pop_2025, file.path(spatial_dir, "pop_2025-edit.tif"), overwrite = T)
+  }
 
-ndvi <- fuzzy_read(spatial_dir, "ndvi.seaso")
-if (inherits(ndvi, "SpatRaster")) {
-  writeRaster(filter(ndvi, NDVI >= .18), file.path(spatial_dir, "vegetation-edit.tif"), overwrite = T)
-  veg_binary <- mutate(ndvi, NDVI = NDVI >= .18) + 0
-  values(veg_binary)[values(veg_binary) == 0] <- NA
-  writeRaster(veg_binary, file.path(spatial_dir, "vegetation-binary-edit.tif"), overwrite = T)
+} else {
+  message("pop_2025-edit.tif already exists, skipping...")
 }
 
+
+# built over time edit 
+if (!file.exists(file.path(spatial_dir, "built_2030-edit.tif"))) {
+  built_2030 <- fuzzy_read(spatial_dir, "built_over_time\\.tif$")
+  if (inherits(built_2030, "SpatRaster")) {
+    built_2030 <- ifel(built_2030 == 2030, 2030, NA)
+    NAflag(built_2030) <- NA
+    writeRaster(built_2030, file.path(spatial_dir, "built_2030-edit.tif"), overwrite = T)
+  }
+
+} else {
+  message("built_2030-edit.tif already exists, skipping...")
+}
+
+
+if (!file.exists(file.path(spatial_dir, "vegetation-edit.tif"))) {
+  ndvi <- fuzzy_read(spatial_dir, "ndvi.seaso")
+  if (inherits(ndvi, "SpatRaster")) {
+    writeRaster(filter(ndvi, NDVI >= .18), file.path(spatial_dir, "vegetation-edit.tif"), overwrite = T)
+    veg_binary <- mutate(ndvi, NDVI = NDVI >= .18) + 0
+    values(veg_binary)[values(veg_binary) == 0] <- NA
+    writeRaster(veg_binary, file.path(spatial_dir, "vegetation-binary-edit.tif"), overwrite = T)
+  }
+} else {
+  message("vegetation-edit.tif already exists, skipping...")
+}
+
+
+## done
 message("Pre-mapping processing complete.")

@@ -118,6 +118,10 @@ else
   fi
   gcloud storage cp -R "gs://crp-city-scan/$GCS_CITY_DIR/01-user-input" "$CITY_DIR/" 2>/dev/null || echo "Warning: Could not download 01-user-input directory"
 
+  # Also download images from 02-process-output (static files needed for rendering)
+  mkdir -p "$CITY_DIR/02-process-output"
+  gcloud storage cp -R "gs://crp-city-scan/$GCS_CITY_DIR/02-process-output/images" "$CITY_DIR/02-process-output/" 2>/dev/null || echo "Warning: Could not download images directory"
+
 fi
 
 # Write city-dir.txt to tell the R scripts where to work from ------------------

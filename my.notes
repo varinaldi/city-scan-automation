@@ -17,7 +17,7 @@ Senegal request
 --------------------------------------------------- 
 new datasets from Senegal 
 
-air quality by month / over the year
+air quality by month / over the year ( Ben taking care of this)
 
 traffic dataset - https://login.microsoftonline.com/31a2fec0-266b-4c67-b56e-2796d8f59c36/oauth2/v2.0/authorize?response_type=id_token&redirect_uri=https%3A%2F%2Fdocs.datapartnership.org%2F.auth%2Flogin%2Faad%2Fcallback&client_id=f11fafe9-f842-43e2-9ead-5688bff5ea31&scope=openid+profile+email&response_mode=form_post&nonce=21a03c1e9aaa4de0ad30b433e7050df2_20251210190959&state=redir%3D%252Fpartners%252Fwaze%252Fnotebooks%252Fwaze-for-cities-jams.html
 
@@ -27,15 +27,17 @@ Todos:
 > done - AOI area suggetion                                      
 > done - BM Cities suggestions - income level  - https://datahelpdesk.worldbank.org/knowledgebase/articles/906519-world-bank-country-and-lending-groups
 
-> whats going on inlcude population plots and rwi                           
+/> havent implement RWI, should ask - inlcude population plots and rwi                           
 
-built up area update with GHS - or update with WSF tracker data - wait ( tecnically its already there but wait if wsf is better)
-ojs - two different folders one for ojs python one for R (comes from backend) or just one folder with clean subfolder 
+x> built up area update with GHS - or update with WSF tracker data - wait ( tecnically its already there but wait if wsf is better)
+
+x> ojs - two different folders one for ojs python one for R (comes from backend) or just one folder with clean subfolder 
     - putting in scan-calculations side by side with R ojs
 
 
 Toask: 
 ---------------------------------------------------
+How should we plot the RWI data ?
 Adding GHS expansion to GEE (?)
 economic activity data ( i guess this is for later once the infra is good. )
 

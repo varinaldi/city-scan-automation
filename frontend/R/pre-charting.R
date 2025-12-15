@@ -32,11 +32,16 @@ pop_manual <- tryCatch({readr::read_csv("./manual-data-entry/pop.csv", col_types
 pop_ghs <- tryCatch({get_ghs_pop_growth(city, country, aoi)}, error = function(e) tibble(Group = city))
 
 # Population raster (worldpop) for ridges plot
-wpop_raster <- fuzzy_read(spatial_dir, "population.*.tif$")
-wpop_df <- as_tibble(wpop_raster) %>%
+wpop_df <- fuzzy_read(spatial_dir, "population.*.tif$") %>%
+  as_tibble() %>%
   rename(pop = 1) %>%
   filter(!is.na(pop), pop > 0)
-  
+ 
+wpop_growth <- tryCatch(read.csv(str_subset(list.files(tabular_dir, full.names = T), "worldpop_2015_2030.csv")) %>% mutate(Group = city, Location = city) %>% rename_with(str_to_title), error = function(e) tibble(Group = city, Location = city))
+
+
+
+
 # Check Population Data availability ---------------------------------------------------------------
  if (in_oxford) {
 

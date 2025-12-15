@@ -44,7 +44,7 @@ if (exists("USE_GCS") && USE_GCS) {
 
 
 # Override list.files
-list.files <- function(path = ".", pattern = NULL, full.names = FALSE, recursive = FALSE, ...) {
+list.files <- function(path = ".", pattern = NULL, all.files = FALSE, full.names = FALSE, recursive = FALSE, ...) {
 
   # Get local files
   local_path <- if (exists("city_dir") && city_dir != ".") {
@@ -53,7 +53,7 @@ list.files <- function(path = ".", pattern = NULL, full.names = FALSE, recursive
     path
     }
 
-  local_files <- list.files_orig(local_path, pattern, full.names, recursive, ...)
+  local_files <- list.files_orig(local_path, pattern, all.files, full.names, recursive, ...)
 
   # Get GCS scan-specific files
   path_clean <- gsub("/+$", "", path)

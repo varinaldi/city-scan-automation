@@ -29,7 +29,8 @@ librarian::shelf(quiet = T,
   units,
   dplyr,
   zoo,
-  
+  lubridate,
+
   # Plots
   ggplot2, # 3.5 or higher
   ggrepel,

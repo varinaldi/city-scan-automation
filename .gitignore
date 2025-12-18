@@ -203,3 +203,4 @@ backend/cache/*
 # GitHub Wiki
 city-scan-automation.wiki.git
 .Rproj.user
+my.notes

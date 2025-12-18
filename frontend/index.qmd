@@ -6,7 +6,7 @@ editor: source
 execute:
   echo: false
   output: false
-  cache: true
+  cache: false
 engine: knitr
 ---
 
@@ -15,9 +15,18 @@ engine: knitr
 ```{r}
 #| include: false
 #| label: prerender
+source('R/setup.R')
+
+# Run clean-tabular.R if processed folder doesn't exist (needed for OJS plots)
+# processed_dir <- file.path(output_dir, "tabular", "processed")
+# if (!dir.exists(processed_dir) || length(list.files(processed_dir)) == 0) {
+#   source('R/clean-tabular.R')
+# }
+
 source('R/maps-web.R')
 cover_image <- fuzzy_read(file.path(output_dir, "maps"), "^aoi.png$", paste)
 ```
+
 
 ---
 title: "`r paste(city, country, sep = ', ')`"
@@ -38,6 +47,26 @@ slide_texts <- unlist(slide_texts, recursive = F) %>%
 ```
 
 :::
+
+```{ojs}
+//| label: ojs-plots-setup
+import { setD3, setWidth, setHeightRatio, setCity, setCountry, plot_pga, plot_pgp, plot_pas, plot_pas_pyramid, plot_age, plot_dependency, plot_rwi_area, plot_uba_area, plot_ubaa, plot_ubap, plot_lc, plot_uddm, plot_pv_area, plot_pv_alt, plot_pv_d, plot_pv, plot_aq, plot_summer_area, plot_ndvi_area, plot_fe, plot_fu, plot_pu, plot_cu, plot_comb, plot_e, plot_s, plot_ls_area, plot_l_area, plot_fwi, plot_fwi_d } from "./ojs/plots.js"
+import { loadData } from "./ojs/dataloader.js"
+
+textColumn = d3.select('.text-column').node();
+columnWidth = textColumn.getBoundingClientRect().width * .95;
+
+plotsReady = {
+  setD3(d3);
+  setWidth(typeof columnWidth !== 'undefined' ? columnWidth : width * 0.45);
+  setHeightRatio(1.25);
+  setCity("Nouakchott");
+  setCountry("Mauritania");
+  return true;
+}
+
+d = plotsReady ? loadData() : null
+```
 
 ::: topbar
 # {{< meta title >}}
@@ -75,13 +104,19 @@ City Scan
 `r month.name[lubridate::month(Sys.Date())]` `r lubridate::year(Sys.Date())`
 
 ::: donors
-![GFDRR](https://upload.wikimedia.org/wikipedia/commons/f/fe/GFDRR_Primary_Logo_BW-Shade-nobg.png)
+![GFDRR](source/donors/CRP_GFDRR_Logo.png)
 
-![World Bank](https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/The_World_Bank_logo.svg/624px-The_World_Bank_logo.svg.png)
+![World Bank](source/donors/WB%20Logo.png)
 
-![Austrian Federal Ministry of Finance](https://www.bmf.gv.at/dam/jcr:b259928e-ef89-43c8-9bf3-4d2dae928bcd/BMF_Logo_srgb_EN.png)
+![Austrian Federal Ministry of Finance](source/donors/Austria%20BMF%20Logo.png)
 
-![Swiss Confederation Federal Department of Economic Affairs State Secretariat for Economic Affairs SECO](https://biotrade-asia.com/wp-content/uploads/2022/05/Logo-Swiss.png)
+![Swiss Confederation Federal Department of Economic Affairs State Secretariat for Economic Affairs SECO](source/donors/SECO%20Logo.png)
+
+![Gates Foundation](source/donors/Gates%20Foundation%20Logo%20-%20Horizontal.png)
+
+![MAECI](source/donors/MAECI-logo-horizontal.png)
+
+![AICS](source/donors/AICS%20Logo.png)
 :::
 
 :::
@@ -129,35 +164,73 @@ print_slide_text(slide_texts$basic_city_info)
 
 ```{r}
 #| output: asis
-# For map layer to continue to show, all text column content must be in same cell
-fill_slide_content("population")
-plots_file <- fuzzy_read(charts_dir, "oxford-pop-growth.png", paste)
-if (!is.na(plots_file)) {
-  cat("#### Population Growth\n") 
-  cat(glue('<img style="max-width:95%" src="{plots_file}">\n\n\n'))
-  print_slide_text(slide_texts$population_growth)
-}
-plots_file <- fuzzy_read(charts_dir, "density-scatter", paste)
+# fill_slide_content("population")
+cat("### Population Density\n")
+cat('<div class="map-list" data-layers="Population density"></div>\n')
+```
+
+#### Population Growth
+
+```{ojs}
+//| output: true
+plot_pga(d.pg)
+```
+
+```{r}
+#| output: asis
+print_slide_text(slide_texts$population_growth)
+```
+
+```{ojs}
+//| output: true
+plot_pgp(d.pg)
+```
+
+
+```{r}
+#| output: asis
+plots_file <- fuzzy_read(charts_dir, "oxford-pop-density-scatter", paste)
 if (!is.na(plots_file)) {
   cat("#### Population Density\n") 
   cat(glue('<img style="max-width:95%" src="{plots_file}">\n\n\n'))
   print_slide_text(slide_texts$population_density_chart)
 }
+```
 
-plots_file <- fuzzy_read(charts_dir, "\\?\\?\\?", paste)
+#### Population Distribution by Age
+```{r}
+#| output: asis
+plots_file <- fuzzy_read(charts_dir, "oxford-age-structure-area", paste)
 if (!is.na(plots_file)) {
   cat("#### Population Distribution by Age\n") 
   cat(glue('<img style="max-width:95%" src="{plots_file}">\n\n\n'))
   print_slide_text(slide_texts$population_density_chart)
 }
-
-plots_file <- fuzzy_read(charts_dir, "age-sex", paste)
-if (!is.na(plots_file)) {
-  cat("#### Population Distribution by Age & Sex\n") 
-  cat(glue('<img style="max-width:95%" src="{plots_file}">\n\n\n'))
-  print_slide_text(slide_texts$population_distribution_age_sex)
-}
 ```
+
+```{ojs}
+//| output: true
+plot_age(d.pas)
+```
+
+
+```{ojs}
+//| output: true
+plot_dependency(d.pas)
+```
+#### Population Distribution by Age & Sex
+
+```{ojs}
+//| output: true
+plot_pas_pyramid(d.pas)
+```
+
+
+```{r}
+#| output: asis
+print_slide_text(slide_texts$population_distribution_age_sex)
+```
+
 
 ```{r}
 #| output: asis
@@ -166,8 +239,15 @@ fill_slide_content("rwi")
 
 ## Economic Activity
 
+```{ojs}
+//| output: true
+plot_rwi_area(d.rwi_area)
+```
+
 ```{r}
 #| output: asis
+print_slide_text(slide_texts$rwi)
+
 fill_slide_content("economic_activity")
 ```
 
@@ -220,9 +300,15 @@ if (!is.na(plots_file)) {
 
 ## Built Form
 
-```{r}
-#| output: asis
-fill_slide_content("wsf")
+<!-- ```{r}
+# #| output: asis
+# fill_slide_content("wsf")
+# ``` -->
+
+### URBAN EXTENT AND CHANGE
+```{ojs}
+//| output: true
+plot_uba_area(d.uba_area)
 ```
 
 ```{r}
@@ -235,10 +321,25 @@ fill_slide_content("wsf_tracker")
 fill_slide_content("impervious")
 ```
 
-```{r}
-#| output: asis
-fill_slide_content("land_cover")
+### Urban Built-up (Absolute)
+```{ojs}
+//| output: true
+plot_ubaa(d.uba)
 ```
+
+### Urban Built-up (Percent)
+```{ojs}
+//| output: true
+plot_ubap(d.uba)
+```
+
+
+### LAND COVER
+```{ojs}
+//| output: true
+plot_lc(d.lc)
+```
+
 
 ```{r}
 #| output: asis
@@ -252,25 +353,43 @@ fill_slide_content("health_zones", slide_text = slide_texts$health_proximity)
 
 ## Climate Conditions
 
-```{r}
-#| output: asis
-fill_slide_content("solar")
+### Solar Photovoltaic Potential
+```{ojs}
+//| output: true
+plot_pv_area(d.pv_area)
 ```
 
-```{r}
-#| output: asis
-fill_slide_content("air_quality")
+### Photovoltaic Potential (Daily)
+```{ojs}
+//| output: true
+plot_pv_d(d.pv)
 ```
 
-```{r}
-#| output: asis
-fill_slide_content("summer_lst")
+### Photovoltaic Potential
+```{ojs}
+//| output: true
+plot_pv(d.pv)
 ```
 
-```{r}
-#| output: asis
-fill_slide_content("vegetation")
+
+### Air Quality
+```{ojs}
+//| output: true
+plot_aq(d.aq_area)
 ```
+
+### Summer Land Surface Temperature
+```{ojs}
+//| output: true
+plot_summer_area(d.summer_area)
+```
+
+### NDVI (Vegetation Index)
+```{ojs}
+//| output: true
+plot_ndvi_area(d.ndvi_area)
+```
+
 
 ```{r}
 #| output: asis
@@ -280,7 +399,6 @@ fill_slide_content("forest", "deforest")
 
 ## Risk Identification
 
-<!-- All the flooding -->
 ```{r}
 #| output: asis
 fill_slide_content("fluvial", "infrastructure", slide_text = slide_texts$flooding_infrastructure_fluvial)
@@ -301,24 +419,47 @@ fill_slide_content("coastal", "infrastructure", slide_text = slide_texts$floodin
 fill_slide_content("combined_flooding", "infrastructure", slide_text = slide_texts$flooding_infrastructure_combined)
 ```
 
+### Urban Built-Up Area Exposed to River Flooding
+```{ojs}
+//| output: true
+plot_fu(d.fu)
+```
 ```{r}
 #| output: asis
-fill_slide_content("fluvial", "wsf", slide_text = slide_texts$flooding_builtup_fluvial)
+print_slide_text(slide_texts$flooding_builtup_fluvial)
+```
+
+### Urban Built-Up Area Exposed to Rainwater Flooding
+```{ojs}
+//| output: true
+plot_pu(d.pu)
 ```
 
 ```{r}
 #| output: asis
-fill_slide_content("pluvial", "wsf", slide_text = slide_texts$flooding_builtup_pluvial)
+print_slide_text(slide_texts$flooding_builtup_pluvial)
+```
+
+### Urban Built-Up Area Exposed to Coastal Flooding
+```{ojs}
+//| output: true
+plot_cu(d.cu)
 ```
 
 ```{r}
 #| output: asis
-fill_slide_content("coastal", "wsf", slide_text = slide_texts$flooding_builtup_coastal)
+print_slide_text(slide_texts$flooding_builtup_coastal)
+```
+
+### Urban Built-Up Area Exposed to River, Rainwater or Coastal Flooding
+```{ojs}
+//| output: true
+plot_comb(d.comb, d.pu, d.fu, d.cu)
 ```
 
 ```{r}
 #| output: asis
-fill_slide_content("combined_flooding", "wsf", slide_text = slide_texts$flooding_builtup_combined)
+print_slide_text(slide_texts$flooding_builtup_combined)
 ```
 
 ```{r}
@@ -343,17 +484,35 @@ fill_slide_content("combined_flooding", "population", slide_text = slide_texts$f
 
 ```{r}
 #| output: asis
-fill_slide_content("elevation")
+# fill_slide_content("elevation")
+```
+
+### Elevation
+```{ojs}
+//| output: true
+plot_e(d.e)
 ```
 
 ```{r}
 #| output: asis
-fill_slide_content("slope")
+# fill_slide_content("slope")
+```
+
+### Slope
+```{ojs}
+//| output: true
+plot_s(d.s)
 ```
 
 ```{r}
 #| output: asis
-fill_slide_content("landslides")
+# fill_slide_content("landslides")
+```
+
+### Landslide Risk (Area)
+```{ojs}
+//| output: true
+plot_ls_area(d.ls_area)
 ```
 
 ```{r}
@@ -367,7 +526,13 @@ if (!is.na(plots_file)) {
 
 ```{r}
 #| output: asis
-fill_slide_content("liquefaction")
+# fill_slide_content("liquefaction")
+```
+
+### Liquefaction Risk (Area)
+```{ojs}
+//| output: true
+plot_l_area(d.l_area)
 ```
 
 ```{r}
@@ -376,9 +541,23 @@ fill_slide_content("roads")
 ```
 
 ```{r}
-#| output: asis
-fill_slide_content("burnable")
+# #| output: asis
+# fill_slide_content("burnable")
 ```
+
+### Fire Weather Index
+```{ojs}
+//| output: true
+plot_fwi(d.fwi)
+```
+
+### Fire Weather Index (Daily)
+```{ojs}
+//| output: true
+plot_fwi_d(d.fwi)
+```
+
+
 
 ```{r}
 #| output: asis

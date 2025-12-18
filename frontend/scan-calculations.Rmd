@@ -509,7 +509,7 @@ if (!exists("wpop_df")) {
       axis.ticks.y = element_blank(),
       legend.position = "bottom",
       panel.grid.major = element_line(linewidth = .125, color = "dark gray"),
-      panel.grid.minor = element_line(linewidth = .125, linetype = 2, color = "dark gray")
+      panel.grid.minor = element_blank()
     )
 
   ggplot2:::print.ggplot(p_density)
@@ -1362,7 +1362,7 @@ if (!exists('pufu') && !exists('comb') ) print_text(paste_bold('No Combined floo
 ```{r flood-events, echo = F, message= F, warning=F, fig.width=12}
 # Download flood archive files (can comment this out to use local file)
 
-if (!exists('flood_archive')) print_text(paste_bold('No flood archive data available')) else {
+if (!exists('flood_archive') || nrow(flood_archive) == 0) print_text(paste_bold('No flood archive data available')) else {
   print_text("Map of floods")
   ggplot(flood_archive) +
     geom_sf(aes(fill = DEAD)) +
@@ -1438,7 +1438,7 @@ if (!exists('flood_archive')) print_text(paste_bold('No flood archive data avail
 ## Earthquakes
 ```{r earthquake-events, echo = F, message= F, warning=F, fig.width=12}
 
-if (!exists('eq')) print_text(paste_bold('No earthquake data available')) else {
+if (!exists('eq') || nrow(eq) == 0) print_text(paste_bold('No earthquake data available')) else {
 
   damages <- c("0" = "None",
               "1" = "Limited",
@@ -1464,6 +1464,10 @@ if (!exists('eq')) print_text(paste_bold('No earthquake data available')) else {
         intensity >= 10 |
         !is.na(tsunamiEventId)) &
         distance < units::set_units(500, km))
+
+  if (nrow(eq_near) == 0) {
+    print_text(paste_bold('No significant earthquakes found within 500 km'))
+  } else {
 
   eq_text <- eq_near %>%
     mutate(
@@ -1539,6 +1543,7 @@ if (!exists('eq')) print_text(paste_bold('No earthquake data available')) else {
           width = 15, height = 4.36, units = "in", dpi = "print")
 
   tryCatch(ggplot2:::print.ggplot(eq_plot), error = \(e) warning(paste("Window may be too small for earthquake plot.", e)))
+  }
 }
 
 

@@ -31,6 +31,16 @@ pop_manual <- tryCatch({readr::read_csv("./manual-data-entry/pop.csv", col_types
 # GHS population data
 pop_ghs <- tryCatch({get_ghs_pop_growth(city, country, aoi)}, error = function(e) tibble(Group = city))
 
+# Population raster (worldpop) for ridges plot
+wpop_df <- fuzzy_read(spatial_dir, "population.*.tif$") %>%
+  as_tibble() %>%
+  rename(pop = 1) %>%
+  filter(!is.na(pop), pop > 0)
+ 
+wpop_growth <- tryCatch(read.csv(str_subset(list.files(tabular_dir, full.names = T), "worldpop_2015_2030.csv")) %>% mutate(Group = city, Location = city) %>% rename_with(str_to_title), error = function(e) tibble(Group = city, Location = city))
+
+
+
 
 # Check Population Data availability ---------------------------------------------------------------
  if (in_oxford) {
@@ -60,11 +70,40 @@ pop_ghs <- tryCatch({get_ghs_pop_growth(city, country, aoi)}, error = function(e
     }
   }
 
+# Benchmark cities if empty ---------------------------------------------------------------
+# Auto-detect benchmark countries if not specified
+if (is.null(nearby_countries_string) || nearby_countries_string == "") {
+  tryCatch({
+    # Load economic classification
+    econ_class <- read_csv("source/countries_economies_classification.csv")
 
-city_params$nearby_countries
+    # Find focus country's region and income group
+    focus_row <- econ_class %>%
+      filter(Economy == country | str_detect(Economy, fixed(country)))
+
+    if (nrow(focus_row) > 0) {
+      focus_region <- focus_row$Region[1]
+      focus_income <- focus_row$`Income group`[1]
+
+      # Get countries with same region AND income group
+      similar_countries <- econ_class %>%
+        filter(Region == focus_region,
+                `Income group` == focus_income,
+                Economy != country) %>%
+        pull(Economy)
+
+      if (length(similar_countries) > 0) {
+        nearby_countries_string <- paste(tolower(similar_countries), collapse = "|")
+        message(glue("Auto-detected similar countries ({focus_region}, {focus_income}):
+{paste(similar_countries, collapse = ', ')}"))
+      }
+    }
+  }, error = function(e) {
+    message(glue("Could not auto-detect similar countries: {e$message}"))
+  })
+}
+
 # Benchmark city selection -------------------------------------------------------------------------
-
-
 
 nearby_cities <- if (is.null(nearby_countries_string)) NULL else {
     oxford_locations %>%
@@ -174,9 +213,9 @@ pop_longitude <- pop_longitude %>%
   distinct(Location, Year, Population, .keep_all = T) 
 
 
-print('pop_longitude - Ready')
-print(pop_longitude %>% names())
-print(pop_longitude %>% head(2))
+# message('pop_longitude - Ready')
+# print(pop_longitude %>% names())
+# print(pop_longitude %>% head(2))
 
 # Indicators selection &  helpers  -----------------------------------------------------------------------
 countries <- oxford$Country %>% unique()

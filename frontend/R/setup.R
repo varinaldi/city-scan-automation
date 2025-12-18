@@ -8,7 +8,7 @@
 # 5. Load city parameters
 # 6. Read AOI & wards
 
-message("\nStarting Setup")
+message("\n=== Starting Setup ===")
 
 # 1. Load packages -------------------------------------------------------------
 # Install packages from CRAN using librarian
@@ -29,7 +29,8 @@ librarian::shelf(quiet = T,
   units,
   dplyr,
   zoo,
-  
+  lubridate,
+
   # Plots
   ggplot2, # 3.5 or higher
   ggrepel,
@@ -38,6 +39,8 @@ librarian::shelf(quiet = T,
   ggtext,
   plotly, 
   cowplot,
+  ggpackets,
+  ggridges,
 
   # Spatial
   sf,
@@ -119,7 +122,7 @@ message("\nInitializing for ", scan_id)
 invisible(NULL)
 
 # If USE GCS, authenticate and use gcs-overrides
-print(paste('USE GCS:', USE_GCS))
+message(paste('USE GCS:', USE_GCS))
 
 if(length(list.files(spatial_dir)) < 20) {
   USE_GCS <- TRUE
@@ -153,6 +156,7 @@ layer_params <- read_yaml(layer_params_file)
 city_params <- read_yaml(file.path(user_input_dir, "city_inputs.yml"))
 city <- str_to_title(city_params$city_name)
 message(glue("City set to {city} (City directory: {city_dir})"))
+message(glue("City set to {city} (City directory: {city_dir})"))
 city_string <- tolower(city) %>% stringr::str_replace_all(" ", "-")
 country <- str_to_title(city_params$country_name)
 
@@ -164,11 +168,15 @@ if (length(country) == 0 && is.list(basic_info)) country <- basic_info$country
 
 
 # 6. Read AOI & wards ----------------------------------------------------------
+message("\nReading AOI and wards data...")
 # Defining layer because of bug where AOI always includes South Jakarta shapefile;
 # ideally would not need to specify like this, for greater flexibility
 aoi <- fuzzy_read(user_input_dir, "AOI", layer = city_params$AOI_shp_name) %>%
   project("epsg:4326")
+message("AOI Ready!")
+
 wards <- tryCatch(fuzzy_read(user_input_dir, "wards") %>% project("epsg:4326"), error = \(e) NULL)
 
 writeVector(aoi, file.path(fgb_dir, "aoi.fgb"), overwrite = T, filetype = "FlatGeobuf") 
 
+message("Setup complete.\n")

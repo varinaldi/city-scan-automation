@@ -56,6 +56,36 @@ if (!file.exists(file.path(spatial_dir, "edges-edit.gpkg"))) {
   message("edges-edit.gpkg already exists, skipping...")
 }
 
+# Isochrones arrive as overlapping polygons; this function erases the overlaps.
+# It is more robust than the combine_*_zones functions below, but designed for
+# isochrones built by Daniel for the Philippines and does not match the backend
+# output
+erase_isochrone_overlaps <- function(x) {
+  zones <- fuzzy_read(spatial_dir, paste0(x, "_isochrone"))
+  if (!"distance" %in% names(zones)) return(NULL)
+  layer_distances <- layer_params[[paste0(x, "_zones")]]$breaks
+  # browser()
+  zones <- filter(zones, distance %in% layer_distances)
+  if (nrow(zones) == 0) {
+    warning(paste("No zones for", x, "of distances specified in layers.yml"))
+    return(NULL)
+  }
+  # If multiple distances have the same zone, the erase output gets inverted.
+  # We remove the duplicate zones that have the longer distance
+  zones <- zones %>% arrange(distance) %>%
+    distinct(geometry, .keep_all = T) %>%
+    arrange(desc(distance))
+  if (any(!is.valid(zones))) zones <- makeValid(zones)
+  # Using the sequential version of erase often caused geometries with no attribute data
+  zones <- seq_along(zones) %>%
+    map(\(i) {
+      if (nrow(zones[i + 1]) == 0) return(zones[i,])
+      erase(zones[i,], zones[i+1,])
+    }) %>% reduce(rbind)
+  writeVector(zones, filename = file.path(spatial_dir, paste0(x, "-journeys.gpkg")), overwrite = T)
+}
+# ******** flag above for further questions. ********
+
 # Combine school zones
 combine_school_zones <- function() {
   schools_800 <- fuzzy_read(spatial_dir, "schools_800m(?=.shp$|.gpkg$|$)", FUN = vect) %>% tryCatch(error = \(e) {return(NULL)})
@@ -194,6 +224,26 @@ if (!file.exists(file.path(spatial_dir, "burnt-area-density.tif"))) {
     historical_fire_density <- density_rast(historical_fire_data, n = 200, aoi = aoi)
     writeRaster(historical_fire_density, file.path(spatial_dir, "burnt-area-density.tif"), overwrite = T)
   }
+
+  adjust_deforstation_years <- function() {
+  deforest <- fuzzy_read(spatial_dir, "deforestation.tif$", rast)
+  if (inherits(deforest, c("SpatRaster"))) {
+      vals <- na.omit(values(deforest))
+      if (all(vals %in% 1:99)) {
+        values(deforest) <- values(deforest) + 2000
+        writeRaster(deforest, file.path(spatial_dir, "deforestation-edit.tif"), overwrite = T)
+        return(NULL)
+      }
+      if (all(vals > 2000) | length(vals) == 0) {
+        writeRaster(deforest, file.path(spatial_dir, "deforestation-edit.tif"), overwrite = T)
+        return(NULL)
+      }
+      stop("Deforestation raster has values both in 1-99 and above 2000; please fix source data")
+    }
+  }
+  adjust_deforstation_years()
+
+
 } else {
   message("burnt-area-density.tif already exists, skipping...")
 }
@@ -224,4 +274,47 @@ if (inherits(ndvi, "SpatRaster")) {
   writeRaster(veg_binary, file.path(spatial_dir, "vegetation-binary-edit.tif"), overwrite = T)
 }
 
+
+# Pop edit 
+if (!file.exists(file.path(spatial_dir, "pop_2025-edit.tif"))) {
+  pop_2025 <- fuzzy_read(spatial_dir, "pop_2025\\.tif")
+  if (inherits(pop_2025, "SpatRaster")) {
+    values(pop_2025)[values(pop_2025) == 0] <- NA
+    NAflag(pop_2025) <- NA
+    writeRaster(pop_2025, file.path(spatial_dir, "pop_2025-edit.tif"), overwrite = T)
+  }
+
+} else {
+  message("pop_2025-edit.tif already exists, skipping...")
+}
+
+
+# built over time edit 
+if (!file.exists(file.path(spatial_dir, "built_2030-edit.tif"))) {
+  built_2030 <- fuzzy_read(spatial_dir, "built_over_time\\.tif$")
+  if (inherits(built_2030, "SpatRaster")) {
+    built_2030 <- ifel(built_2030 == 2030, 2030, NA)
+    NAflag(built_2030) <- NA
+    writeRaster(built_2030, file.path(spatial_dir, "built_2030-edit.tif"), overwrite = T)
+  }
+
+} else {
+  message("built_2030-edit.tif already exists, skipping...")
+}
+
+
+if (!file.exists(file.path(spatial_dir, "vegetation-edit.tif"))) {
+  ndvi <- fuzzy_read(spatial_dir, "ndvi.seaso")
+  if (inherits(ndvi, "SpatRaster")) {
+    writeRaster(filter(ndvi, NDVI >= .18), file.path(spatial_dir, "vegetation-edit.tif"), overwrite = T)
+    veg_binary <- mutate(ndvi, NDVI = NDVI >= .18) + 0
+    values(veg_binary)[values(veg_binary) == 0] <- NA
+    writeRaster(veg_binary, file.path(spatial_dir, "vegetation-binary-edit.tif"), overwrite = T)
+  }
+} else {
+  message("vegetation-edit.tif already exists, skipping...")
+}
+
+
+## done
 message("Pre-mapping processing complete.")

@@ -125,10 +125,8 @@ if (!is.null(plots$roads)) plots$roads <- plots$roads +
 
 # Remove grey background, add titles, remove scale bar and north arrow
 for (name in names(plots)) {
-  if (name != "scale_bar") {
-    plots[[name]]$layers <- plots[[name]]$layers %>%
-      discard(\(x) inherits(x$geom, c("GeomNorthArrow", "GeomScaleBar")))
-  }
+  plots[[name]]$layers <- plots[[name]]$layers %>%
+    discard(\(x) inherits(x$geom, c("GeomNorthArrow", "GeomScaleBar")))
   if (name == "vector") next
   if (name == "aerial") next
   title <- paste(c(
@@ -150,66 +148,11 @@ for (name in names(plots)) {
 # Save plots -------------------------------------------------------------------
 transparencies_dir <- file.path(output_dir, "transparent-maps")
 if (!dir.exists(transparencies_dir)) dir.create(transparencies_dir)
-plots %>%
+plots %>% 
+  # keep_at(~ str_subset(.x, "luvial|coastal|combined")) %>%
+  # keep_at(~ str_subset(.x, "aerial|vector")) %>%
   walk2(names(.), \(plot, name) {
   # if (name != "aoi") return(NULL)
   save_plot(plot, filename = glue("{name}.png"), directory = transparencies_dir,
     map_height = map_height + .3, map_width = map_width, dpi = 200, rel_widths = map_portions)
-  })
-
-# Save columns of legends by themselves ----------------------------------------
-
-# First, create fake flood plot that combines fluvial, pluvial, and coastal flood legend titles
-# This would be quicker if we didn't use actual flood data, but works fine
-flood_types <- c("fluvial", "pluvial", "coastal")
-found_flood_type <- flood_types[which(flood_types %in% names(plots))[1]]
-packets$sample_flood <- if (is.na(found_flood_type)) { NULL } else {
-  plot_static_layer(
-    fuzzy_read(spatial_dir, layer_params[[found_flood_type]]$fuzzy_string),
-    found_flood_type, packet = T,
-    title = "Flood probability
-Probabilité d'inondation",
-    subtitle = "Probability of a flood event of 15 centimeters or more within a 3-arc-second area in a given year
-Probabilité d'un événement d'inondation de 15 centimètres ou plus dans une zone de 3 secondes d'arc au cours d’une année donnée")
-}
-
-# First column
-print("Starting first legend column")
-(
-  ggplot() +
-    packets$forest + guides(fill = guide_legend(order = 1, theme = theme(legend.title = element_blank(), legend.text = element_text(hjust = 0))), color = guide_legend(order = 1, theme = theme(legend.text = element_text(hjust = 0)))) +
-    packets$deforest + guides(fill = guide_colorsteps(order = 2)) + guides(color = guide_colorsteps(order = 2)) +
-    packets$vegetation + guides(fill = guide_legend(order = 3)) + guides(color = guide_legend(order = 3)) +
-    packets$sample_flood + guides(fill = guide_legend(order = 4)) + guides(color = guide_legend(order = 4)) +
-    packets$landslide + guides(fill = guide_legend(order = 5)) + guides(color = guide_legend(order = 5)) +
-    theme(
-      panel.background = element_rect(fill = "white"),
-      legend.box.margin = margin(0, 0, 0, 0, unit = "pt"),
-      legend.box.spacing = unit(0, "pt"),
-      legend.justification = c("left", "top"))
-  ) %>%
-  get_plot_component("guide-box-right") %>%
-  ggsave(
-    filename = file.path(transparencies_dir, glue("legend-col1.png")),
-    height = map_height + 1, width = 2.3, dpi = 300)
-
-# Second column
-print("Starting second legend column")
-( 
-  ggplot() + 
-    packets$population + guides(fill = guide_colorsteps(order = 3)) + guides(color = guide_colorsteps(order = 3)) +
-    packets$economic_activity + guides(fill = guide_colorsteps(order = 4)) + guides(color = guide_colorsteps(order = 2)) +
-    packets$school_points +
-      guides(color = guide_legend(order = 5, theme = theme(legend.text = element_text(hjust = 0)))) +
-    packets$health_points + guides(color = guide_legend(order = 6, theme = theme(legend.text = element_text(hjust = 0)))) +
-    packets$ghsl + guides(fill = guide_legend(order = 7, theme = theme(legend.text = element_text(hjust = 0))), color = guide_legend(order = 7, theme = theme(legend.text = element_text(hjust = 0)))) +
-    theme(
-      panel.background = element_rect(fill = "white"),
-      legend.box.margin = margin(0, 0, 0, 0, unit = "pt"),
-      legend.box.spacing = unit(0, "pt"),
-      legend.justification = c("left", "top"))
-  ) %>%
-  get_plot_component("guide-box-right") %>%
-  ggsave(
-    filename = file.path(transparencies_dir, glue("legend-col2.png")),
-    height = map_height + 1, width = 2.3, dpi = 300)
+})

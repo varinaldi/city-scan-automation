@@ -44,7 +44,7 @@ if (exists("USE_GCS") && USE_GCS) {
 
 
 # Override list.files
-list.files <- function(path = ".", pattern = NULL, full.names = FALSE, recursive = FALSE, ...) {
+list.files <- function(path = ".", pattern = NULL, all.files = FALSE, full.names = FALSE, recursive = FALSE, ...) {
 
   # Get local files
   local_path <- if (exists("city_dir") && city_dir != ".") {
@@ -53,7 +53,7 @@ list.files <- function(path = ".", pattern = NULL, full.names = FALSE, recursive
     path
     }
 
-  local_files <- list.files_orig(local_path, pattern, full.names, recursive, ...)
+  local_files <- list.files_orig(local_path, pattern, all.files, full.names, recursive, ...)
 
   # Get GCS scan-specific files
   path_clean <- gsub("/+$", "", path)
@@ -233,8 +233,8 @@ rast <- function(x, ...) {
     return(rast_orig(x, ...))
   }
 
-  # Try original first
-  result <- tryCatch(rast_orig(x, ...), error = function(e) NULL)
+  # Try original first (suppress warnings for missing local files)
+  result <- suppressWarnings(tryCatch(rast_orig(x, ...), error = function(e) NULL))
   if (!is.null(result)) return(result)
 
   # If failed and USE_GCS is enabled, try /vsigs/ paths
@@ -269,8 +269,8 @@ vect <- function(x, ...) {
     return(vect_orig(x, ...))
   }
 
-  # Try original first
-  result <- tryCatch(vect_orig(x, ...), error = function(e) NULL)
+  # Try original first (suppress warnings for missing local files)
+  result <- suppressWarnings(tryCatch(vect_orig(x, ...), error = function(e) NULL))
   if (!is.null(result)) return(result)
 
   # If failed and USE_GCS is enabled, try /vsigs/ paths
@@ -305,8 +305,8 @@ read_sf <- function(dsn, ...) {
     return(read_sf_orig(dsn, ...))
   }
 
-  # Try original first
-  result <- tryCatch(read_sf_orig(dsn, ...), error = function(e) NULL)
+  # Try original first (suppress warnings for missing local files)
+  result <- suppressWarnings(tryCatch(read_sf_orig(dsn, ...), error = function(e) NULL))
   if (!is.null(result)) return(result)
 
   # If failed and USE_GCS is enabled, try /vsigs/ paths
@@ -317,7 +317,7 @@ read_sf <- function(dsn, ...) {
       gcs_path <- gsub("//", "/", gcs_path)
       if (gcs_path %in% gcs_file_lookup) {
         vsigs_path <- paste0("/vsigs/", GCS_BUCKET, "/", gcs_path)
-        result <- tryCatch(read_sf_orig(vsigs_path, ...), error = function(e) NULL)
+        result <- suppressWarnings(tryCatch(read_sf_orig(vsigs_path, ...), error = function(e) NULL))
         if (!is.null(result)) return(result)
       }
     }
@@ -341,8 +341,8 @@ st_read <- function(dsn, ...) {
     return(st_read_orig(dsn, ...))
   }
 
-  # Try original first
-  result <- tryCatch(st_read_orig(dsn, ...), error = function(e) NULL)
+  # Try original first (suppress warnings for missing local files)
+  result <- suppressWarnings(tryCatch(st_read_orig(dsn, ...), error = function(e) NULL))
   if (!is.null(result)) return(result)
 
   # If failed and USE_GCS is enabled, try /vsigs/ paths

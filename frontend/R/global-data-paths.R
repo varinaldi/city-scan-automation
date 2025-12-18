@@ -15,8 +15,12 @@ if (USE_GCS && exists(GLOBAL_DATA_BUCKET)) {
     flood_archive_file <- "flood-archive"
     cyclone_archive_file <- "IBTrACS-tropical-cyclones"
 
-    pv_path <- "World_PVOUT_GISdata_LTAm_AvgDailyTotals_GlobalSolarAtlas-v2_AAIGRID/"
+    # pv_path <- "World_PVOUT_GISdata_LTAm_AvgDailyTotals_GlobalSolarAtlas-v2_AAIGRID/"
+    pv_path <- "globalsolar/PVOUT-monthly.tif"
+    
     fwi_directory <- "NASA FWI/"
+
+    wb_counties <- "wb_countries_admin0_10m/WB_countries_Admin0_10m.shp"
 
     } else {
 
@@ -34,6 +38,8 @@ if (USE_GCS && exists(GLOBAL_DATA_BUCKET)) {
     pv_path <- paste0(local_materials, "/World_PVOUT_GISdata_LTAm_AvgDailyTotals_GlobalSolarAtlas-v2_AAIGRID.nosync/")
 
     fwi_directory <- paste0(local_materials, "wildfire-exploration.nosync/source-data.nosync/nasa-fwi/")
+
+    wb_counties <- file.path(local_materials, "WB_countries_Admin0_10m.shp")
 
 
 }

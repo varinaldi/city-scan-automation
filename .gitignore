@@ -204,3 +204,4 @@ backend/cache/*
 city-scan-automation.wiki.git
 .Rproj.user
 my.notes
+!frontend/source/*.csv

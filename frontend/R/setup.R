@@ -166,6 +166,15 @@ nearby_countries_string <- city_params$nearby_countries
 basic_info <- fuzzy_read(tabular_dir, "basic_info.yml", read_yaml)
 if (length(country) == 0 && is.list(basic_info)) country <- basic_info$country
 
+# Fallback: extract country from scan_id (e.g., "2025-12-senegal-mbacke" -> "Senegal")
+if (length(country) == 0 && exists("scan_id")) {
+  country <- scan_id %>%
+    str_remove("^\\d{4}-\\d{2}-") %>%
+    str_remove(paste0("-", city_string, "$")) %>%
+    str_replace_all("-", " ") %>%
+    str_to_title()
+  message(glue("Country extracted from scan_id: {country}"))
+}
 
 # 6. Read AOI & wards ----------------------------------------------------------
 message("\nReading AOI and wards data...")

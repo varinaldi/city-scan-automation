@@ -32,10 +32,12 @@ pop_manual <- tryCatch({readr::read_csv("./manual-data-entry/pop.csv", col_types
 pop_ghs <- tryCatch({get_ghs_pop_growth(city, country, aoi)}, error = function(e) tibble(Group = city))
 
 # Population raster (worldpop) for ridges plot
-wpop_df <- fuzzy_read(spatial_dir, "population.*.tif$") %>%
-  as_tibble() %>%
-  rename(pop = 1) %>%
-  filter(!is.na(pop), pop > 0)
+tryCatch({
+  wpop_df <- fuzzy_read(spatial_dir, "population.*.tif$") %>%
+    as_tibble() %>%
+    rename(pop = 1) %>%
+    filter(!is.na(pop), pop > 0)
+}, error = function(e) message("wpop_df not available"))
  
 wpop_growth <- tryCatch(read.csv(str_subset(list.files(tabular_dir, full.names = T), "worldpop_2015_2030.csv")) %>% mutate(Group = city, Location = city) %>% rename_with(str_to_title), error = function(e) tibble(Group = city, Location = city))
 
@@ -585,28 +587,33 @@ if (length(wsf_tracker_file) > 0)  {
 }
     
 # Landcover ----------------------------------------------------------------------------------
-lc <- read_csv(str_subset(list.files(tabular_dir, full = T), "lc.csv"), col_types = "cd") %>%
-  rename(`Land Cover` = `Land Cover Type`, Count = `Pixel Count`) %>%
-  # remove_missing(na.rm = T) %>%
-  filter(!is.na(`Land Cover`)) %>%
-  mutate(Percent = Count/sum(Count)) %>%
-  arrange(desc(Percent))  %>% 
-  mutate(`Land Cover` = factor(`Land Cover`, levels = `Land Cover`)) %>%
-  mutate(Percent = round(Percent, 4))
+tryCatch({
+  lc <- read_csv(str_subset(list.files(tabular_dir, full = T), "lc.csv"), col_types = "cd") %>%
+    rename(`Land Cover` = `Land Cover Type`, Count = `Pixel Count`) %>%
+    filter(!is.na(`Land Cover`)) %>%
+    mutate(Percent = Count/sum(Count)) %>%
+    arrange(desc(Percent)) %>%
+    mutate(`Land Cover` = factor(`Land Cover`, levels = `Land Cover`)) %>%
+    mutate(Percent = round(Percent, 4))
+}, error = function(e) message("lc not available"))
 
 # Elevation ----------------------------------------------------------------------------------
-elevation <- read_csv(str_subset(list.files(tabular_dir, full = T), "elevation.csv"), col_types = "cd") %>%
-        subset(!is.na(Bin)) %>%
-        mutate(Elevation = as.numeric(str_replace(Bin, "-.*", "")),
-                Bin = factor(Bin, levels = Bin),
-                percent = Count/sum(Count))
-# Slope ----------------------------------------------------------------------------------
+tryCatch({
+  elevation <- read_csv(str_subset(list.files(tabular_dir, full = T), "elevation.csv"), col_types = "cd") %>%
+    subset(!is.na(Bin)) %>%
+    mutate(Elevation = as.numeric(str_replace(Bin, "-.*", "")),
+           Bin = factor(Bin, levels = Bin),
+           percent = Count/sum(Count))
+}, error = function(e) message("elevation not available"))
 
-slope <- read_csv(str_subset(list.files(tabular_dir, full = T), "slope.csv"), col_types = "cd") %>%
+# Slope ----------------------------------------------------------------------------------
+tryCatch({
+  slope <- read_csv(str_subset(list.files(tabular_dir, full = T), "slope.csv"), col_types = "cd") %>%
     subset(!is.na(Bin)) %>%
     mutate(Slope = as.numeric(str_replace(Bin, "[-+].*", "")),
-            Bin = factor(Bin, levels = Bin),
-            percent = Count/sum(Count))
+           Bin = factor(Bin, levels = Bin),
+           percent = Count/sum(Count))
+}, error = function(e) message("slope not available"))
 
 
 
@@ -683,12 +690,15 @@ flood_string <- function(flood_type) {
 }
 
 # Flood WSF ------------------------------------------------------------------
-flood_file <- str_subset(list.files(tabular_dir, full.names = T), "flood_wsf.csv")
-wsf_flood <- full_join(select(wsf, -starts_with("growth")), read_csv(flood_file), by = c("Year" = "year")) %>%
-  rename(combined_2020 = comb_2020)
+tryCatch({
+  flood_file <- str_subset(list.files(tabular_dir, full.names = T), "flood_wsf.csv")
+  wsf_flood <- full_join(select(wsf, -starts_with("growth")), read_csv(flood_file), by = c("Year" = "year")) %>%
+    rename(combined_2020 = comb_2020)
+}, error = function(e) message("wsf_flood not available"))
 
 # Gather Flood Data ------------------------------------------------------------------
 gather_flood_data <- function(flood_type) {
+  if (!exists("wsf_flood")) return(NULL)
   df <- select(wsf_flood, Year, uba_km2, uba_km2_exposed = contains(flood_type))
   if ("uba_km2_exposed" %ni% names(df)) {
     no_data_df <- tibble(Year = wsf$Year, uba_km2_exposed = 0)
@@ -726,23 +736,23 @@ flood_pop_area <- function(flood_type) {
   } else "Pop flood file not found or empty"
 }
 
-# Fluvial ----------------------------------------------------------------------------------
-fu <- gather_flood_data("fluvial")
-
-# Pluvial ----------------------------------------------------------------------------------
-pu <- gather_flood_data("pluvial")
-
-# Coastal ----------------------------------------------------------------------------------
-cu <- gather_flood_data("coastal")
-
-# Combined ----------------------------------------------------------------------------------
-comb <- gather_flood_data("combined")
-pufu <- bind_rows(
-    if (any(fu$uba_km2_exposed > 0)) fu %>% mutate(type = "River") else NULL,
-    if (any(pu$uba_km2_exposed > 0)) pu %>% mutate(type = "Rainwater") else NULL,
-    if (any(cu$uba_km2_exposed > 0)) cu %>% mutate(type = "Coastal") else NULL,
-    comb %>% mutate(type = "Combined")) %>%
-  mutate(type = factor(type, levels = c("Combined", "River", "Rainwater", "Coastal")))
+# Flood data - only create if wsf_flood exists
+if (exists("wsf_flood")) {
+  # Fluvial
+  fu <- gather_flood_data("fluvial")
+  # Pluvial
+  pu <- gather_flood_data("pluvial")
+  # Coastal
+  cu <- gather_flood_data("coastal")
+  # Combined
+  comb <- gather_flood_data("combined")
+  pufu <- bind_rows(
+      if (any(fu$uba_km2_exposed > 0)) fu %>% mutate(type = "River") else NULL,
+      if (any(pu$uba_km2_exposed > 0)) pu %>% mutate(type = "Rainwater") else NULL,
+      if (any(cu$uba_km2_exposed > 0)) cu %>% mutate(type = "Coastal") else NULL,
+      comb %>% mutate(type = "Combined")) %>%
+    mutate(type = factor(type, levels = c("Combined", "River", "Rainwater", "Coastal")))
+}
 
 # Flood Events ----------------------------------------------------------------------------------
 
@@ -842,6 +852,8 @@ monthly_pv <- rast("/vsigs/city-scan-global-data/globalsolar/PVOUT-monthly.tif")
 
 
 
-fwi_file <- str_subset(list.files(tabular_dir, full = T), "fwi")
-fwi <- read_csv(fwi_file, col_types = "dd")
+tryCatch({
+  fwi_file <- str_subset(list.files(tabular_dir, full = T), "fwi")
+  fwi <- read_csv(fwi_file, col_types = "dd")
+}, error = function(e) message("fwi not available"))
 # PLOT CHECKS

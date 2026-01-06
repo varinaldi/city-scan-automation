@@ -12,10 +12,11 @@ else
   shift
 fi
 
-# Check for --docker and --native flags, and remove them from arguments
+# Check for --docker, --native, --stream, --local flags
 RUN_DOCKER=0
 RUN_NATIVE=0
 STREAM_MODE=0
+USE_LOCAL=0
 DOCKER_FLAGS=()
 for arg in "$@"; do
   case "$arg" in
@@ -33,6 +34,9 @@ for arg in "$@"; do
       ;;
     --stream)
       STREAM_MODE=1
+      ;;
+    --local)
+      USE_LOCAL=1
       ;;
     *)
       DOCKER_FLAGS+=("$arg")
@@ -54,47 +58,88 @@ shopt -s dotglob nullglob
 if [ ! -d "$CITY_DIR" ]; then
   mkdir -p "$CITY_DIR"
 
-  # In streaming mode, prefer local frontend/ if it exists, otherwise clone
-  if [[ $STREAM_MODE -eq 1 ]]; then
+  # Determine frontend source
+  if [[ $USE_LOCAL -eq 1 ]]; then
     if [ -d "frontend" ]; then
-      echo "Streaming mode: Copying files from frontend/ directory..."
+      FRONTEND_SOURCE="local"
+    else
+      echo "Error: --local specified but frontend/ directory not found."
+      exit 1
+    fi
+  elif [ -d "frontend" ]; then
+    # No flag, local exists - prompt
+    read -p "local frontend/ folder exists, use local frontend/? (y/n): " use_local
+    if [[ "$use_local" == "y" ]]; then
+      FRONTEND_SOURCE="local"
+    else
+      FRONTEND_SOURCE="upstream"
+    fi
+  else
+    # No local frontend, use upstream
+    FRONTEND_SOURCE="upstream"
+  fi
+
+  # Copy frontend files
+  if [[ "$FRONTEND_SOURCE" == "local" ]]; then
+    echo "Copying files from local frontend/ directory..."
+    for item in R scripts source index.qmd pdf.qmd scan-calculations.Rmd; do
+      if [ -e "frontend/$item" ]; then
+        cp -r "frontend/$item" "$CITY_DIR/"
+      fi
+    done
+  else
+    echo "Cloning frontend from upstream repository..."
+    git clone -b "$BRANCH" --filter=blob:none "$REPO" "$CITY_DIR/temp-repo"
+    for item in R scripts source index.qmd pdf.qmd scan-calculations.Rmd; do
+      if [ -e "$CITY_DIR/temp-repo/frontend/$item" ]; then
+        cp -r "$CITY_DIR/temp-repo/frontend/$item" "$CITY_DIR/"
+      fi
+    done
+  fi
+else
+  # City directory already exists
+  echo "City directory already exists: $CITY_DIR"
+
+  # Determine frontend source first (same logic as new dir)
+  if [[ $USE_LOCAL -eq 1 ]]; then
+    if [ -d "frontend" ]; then
+      FRONTEND_SOURCE="local"
+    else
+      echo "Error: --local specified but frontend/ directory not found."
+      exit 1
+    fi
+  elif [ -d "frontend" ]; then
+    read -p "local frontend/ folder exists, use local frontend/? (y/n): " use_local
+    if [[ "$use_local" == "y" ]]; then
+      FRONTEND_SOURCE="local"
+    else
+      FRONTEND_SOURCE="upstream"
+    fi
+  else
+    FRONTEND_SOURCE="upstream"
+  fi
+
+  # Ask if want to update
+  read -p "Update R code from $FRONTEND_SOURCE? (y/n): " update_choice
+  if [[ "$update_choice" == "y" ]]; then
+    if [[ "$FRONTEND_SOURCE" == "local" ]]; then
+      echo "Copying R code from local frontend/..."
       for item in R scripts source index.qmd pdf.qmd scan-calculations.Rmd; do
         if [ -e "frontend/$item" ]; then
           cp -r "frontend/$item" "$CITY_DIR/"
         fi
       done
     else
-      echo "Streaming mode:  frontend/ not found, cloning from repository..."
+      echo "Cloning frontend from upstream..."
+      rm -rf "$CITY_DIR/temp-repo"
       git clone -b "$BRANCH" --filter=blob:none "$REPO" "$CITY_DIR/temp-repo"
-      echo "Copying files from the cloned repository to the city directory..."
       for item in R scripts source index.qmd pdf.qmd scan-calculations.Rmd; do
-        cp -r "$CITY_DIR/temp-repo/frontend/$item" "$CITY_DIR"
+        if [ -e "$CITY_DIR/temp-repo/frontend/$item" ]; then
+          cp -r "$CITY_DIR/temp-repo/frontend/$item" "$CITY_DIR/"
+        fi
       done
+      rm -rf "$CITY_DIR/temp-repo"
     fi
-  else
-    git clone -b "$BRANCH" --filter=blob:none "$REPO" "$CITY_DIR/temp-repo"
-    echo "Copying files from the cloned repository to the city directory..."
-    for item in R scripts source index.qmd pdf.qmd scan-calculations.Rmd; do
-      cp -r "$CITY_DIR/temp-repo/frontend/$item" "$CITY_DIR"
-    done
-  fi
-else
-  # If the directory exists, ask user whether to sync R code from local frontend/
-  # - "y" copies from frontend/ to mnt/$SCAN_ID/ (applies local changes)
-  # - "n" uses existing R code in mnt/$SCAN_ID/ as-is
-  echo "City directory already exists: $CITY_DIR"
-
-  echo "  - 'y' = Copy R code from frontend/"
-  echo "  - 'n' = Use existing R code in this folder"
-  read -p "Update R code from frontend/? (y/n): " overwrite_choice
-  if [[ "$overwrite_choice" = "y" ]]; then
-    echo "Copying R code from frontend/ to city directory..."
-    for item in R scripts source index.qmd pdf.qmd scan-calculations.Rmd; do
-      if [ -e "frontend/$item" ]; then
-        cp -r "frontend/$item" "$CITY_DIR/"
-      fi
-    done
-    echo "R code updated from local frontend/."
   else
     echo "Using existing R code in $CITY_DIR."
   fi
@@ -177,15 +222,20 @@ if [[ $RUN_NATIVE -eq 1 ]]; then
 
   echo "Static maps generated successfully."
 
-  # Generate scan-calculations (only in streaming mode)
+  # Generate scan-calculations
+  echo "Generating scan-calculations..."
   if [[ $STREAM_MODE -eq 1 ]]; then
-    echo "Generating scan-calculations..."
     USE_GCS=true SCAN_ID="$GCS_CITY_DIR" Rscript -e "rmarkdown::render('scan-calculations.Rmd', output_file='03-render-output/scan-calculations.html')" || {
-      echo "Error: Failed to render scan-calculations in streaming mode."
+      echo "Error: Failed to render scan-calculations."
       exit 1
     }
-    echo "Scan-calculations generated successfully."
+  else
+    Rscript -e "rmarkdown::render('scan-calculations.Rmd', output_file='03-render-output/scan-calculations.html')" || {
+      echo "Error: Failed to render scan-calculations."
+      exit 1
+    }
   fi
+  echo "Scan-calculations generated successfully."
   # trap - EXIT
 fi
 

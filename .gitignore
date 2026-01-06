@@ -204,4 +204,8 @@ backend/cache/*
 city-scan-automation.wiki.git
 
 # local notes
-*.notes
+*.notesbuilding-tiles/
+gcs-user-input/
+frontend/city-dir.txt
+my.notes
+backend-local/

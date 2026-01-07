@@ -313,7 +313,7 @@ writeVector(v_styled, fgb_path, overwrite = T, filetype = "FlatGeobuf")
 plot_static_layer <- function(
     data, yaml_key, baseplot = NULL, static_map_bounds, zoom_adj = 0,
     expansion, aoi_stroke = list(color = "grey30", linewidth = 0.4),
-    plot_aoi = T, aoi_only = F, plot_wards = F, plot_roads = F, captions = F, packet = F, packet = F, ...) {
+    plot_aoi = T, aoi_only = F, plot_wards = F, plot_roads = F, captions = F, packet = F, ...) {
   if (aoi_only) {
     layer <- NULL
   } else { 

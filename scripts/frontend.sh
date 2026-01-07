@@ -120,10 +120,10 @@ else
   fi
 
   # Ask if want to update
-  read -p "Update R code from $FRONTEND_SOURCE? (y/n): " update_choice
+  read -p "Update scripts from $FRONTEND_SOURCE? (y/n): " update_choice
   if [[ "$update_choice" == "y" ]]; then
     if [[ "$FRONTEND_SOURCE" == "local" ]]; then
-      echo "Copying R code from local frontend/..."
+      echo "Copying scripts from local frontend/..."
       for item in R scripts source index.qmd pdf.qmd scan-calculations.Rmd; do
         if [ -e "frontend/$item" ]; then
           cp -r "frontend/$item" "$CITY_DIR/"
@@ -141,7 +141,7 @@ else
       rm -rf "$CITY_DIR/temp-repo"
     fi
   else
-    echo "Using existing R code in $CITY_DIR."
+    echo "Using existing scripts in $CITY_DIR."
   fi
 fi
 
@@ -150,13 +150,10 @@ if [[ $STREAM_MODE -eq 0 ]]; then
   shopt -u dotglob nullglob
   rm -rf $CITY_DIR/temp-repo
 
-# Download the city data from Google Cloud Storage
-if [[ $DOWNLOAD_GCS -eq 0 ]]; then
-  echo "--no-gcs flag detected. Skipping download of city data from Google Cloud Storage."
-else
+  # Download the city data from Google Cloud Storage
   echo "Downloading city data from gs://crp-city-scan/$GCS_CITY_DIR to $CITY_DIR ..."
   if ! gcloud storage ls "gs://crp-city-scan/$GCS_CITY_DIR" > /dev/null 2>&1; then
-    echo "Error: gs://crp-city-scan/$GCS_CITY_DIR does not exist or you do not have permission. (Try `gcloud auth login`?) Exiting."
+    echo "Error: gs://crp-city-scan/$GCS_CITY_DIR does not exist or you do not have permission. (Try \`gcloud auth login\`?) Exiting."
     exit 1
   fi
   gcloud storage ls gs://crp-city-scan/$GCS_CITY_DIR | grep '^gs://' | grep -v '/00-reproduction-code/' | xargs -I {} gcloud storage cp -R {} "$CITY_DIR"
@@ -168,7 +165,7 @@ else
 
   echo "Streaming mode: Downloading config files (01-user-input/)..."
   if ! gcloud storage ls "gs://crp-city-scan/$GCS_CITY_DIR" > /dev/null 2>&1; then
-    echo "Error: gs://crp-city-scan/$GCS_CITY_DIR does not exist or you do not have permission. (Try `gcloud auth login`?) Exiting."
+    echo "Error: gs://crp-city-scan/$GCS_CITY_DIR does not exist or you do not have permission. (Try \`gcloud auth login\`?) Exiting."
     exit 1
   fi
   gcloud storage cp -R "gs://crp-city-scan/$GCS_CITY_DIR/01-user-input" "$CITY_DIR/" 2>/dev/null || echo "Warning: Could not download 01-user-input directory"

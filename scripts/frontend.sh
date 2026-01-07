@@ -12,20 +12,13 @@ else
   shift
 fi
 
-# Check for --docker, --native, --stream, --local flags
+# Check for --docker and --native flags, and remove them from arguments
 RUN_DOCKER=0
 RUN_NATIVE=0
 STREAM_MODE=0
-USE_LOCAL=0
 DOCKER_FLAGS=()
 for arg in "$@"; do
   case "$arg" in
-    --no-gcs)
-      DOWNLOAD_GCS=0
-      ;;
-    --branch=*)
-      BRANCH="${arg#*=}"
-      ;;
     --docker)
       RUN_DOCKER=1
       ;;
@@ -34,9 +27,6 @@ for arg in "$@"; do
       ;;
     --stream)
       STREAM_MODE=1
-      ;;
-    --local)
-      USE_LOCAL=1
       ;;
     *)
       DOCKER_FLAGS+=("$arg")
@@ -58,90 +48,49 @@ shopt -s dotglob nullglob
 if [ ! -d "$CITY_DIR" ]; then
   mkdir -p "$CITY_DIR"
 
-  # Determine frontend source
-  if [[ $USE_LOCAL -eq 1 ]]; then
+  # In streaming mode, prefer local frontend/ if it exists, otherwise clone
+  if [[ $STREAM_MODE -eq 1 ]]; then
     if [ -d "frontend" ]; then
-      FRONTEND_SOURCE="local"
-    else
-      echo "Error: --local specified but frontend/ directory not found."
-      exit 1
-    fi
-  elif [ -d "frontend" ]; then
-    # No flag, local exists - prompt
-    read -p "local frontend/ folder exists, use local frontend/? (y/n): " use_local
-    if [[ "$use_local" == "y" ]]; then
-      FRONTEND_SOURCE="local"
-    else
-      FRONTEND_SOURCE="upstream"
-    fi
-  else
-    # No local frontend, use upstream
-    FRONTEND_SOURCE="upstream"
-  fi
-
-  # Copy frontend files
-  if [[ "$FRONTEND_SOURCE" == "local" ]]; then
-    echo "Copying files from local frontend/ directory..."
-    for item in R scripts source index.qmd pdf.qmd scan-calculations.Rmd; do
-      if [ -e "frontend/$item" ]; then
-        cp -r "frontend/$item" "$CITY_DIR/"
-      fi
-    done
-  else
-    echo "Cloning frontend from upstream repository..."
-    git clone -b "$BRANCH" --filter=blob:none "$REPO" "$CITY_DIR/temp-repo"
-    for item in R scripts source index.qmd pdf.qmd scan-calculations.Rmd; do
-      if [ -e "$CITY_DIR/temp-repo/frontend/$item" ]; then
-        cp -r "$CITY_DIR/temp-repo/frontend/$item" "$CITY_DIR/"
-      fi
-    done
-  fi
-else
-  # City directory already exists
-  echo "City directory already exists: $CITY_DIR"
-
-  # Determine frontend source first (same logic as new dir)
-  if [[ $USE_LOCAL -eq 1 ]]; then
-    if [ -d "frontend" ]; then
-      FRONTEND_SOURCE="local"
-    else
-      echo "Error: --local specified but frontend/ directory not found."
-      exit 1
-    fi
-  elif [ -d "frontend" ]; then
-    read -p "local frontend/ folder exists, use local frontend/? (y/n): " use_local
-    if [[ "$use_local" == "y" ]]; then
-      FRONTEND_SOURCE="local"
-    else
-      FRONTEND_SOURCE="upstream"
-    fi
-  else
-    FRONTEND_SOURCE="upstream"
-  fi
-
-  # Ask if want to update
-  read -p "Update scripts from $FRONTEND_SOURCE? (y/n): " update_choice
-  if [[ "$update_choice" == "y" ]]; then
-    if [[ "$FRONTEND_SOURCE" == "local" ]]; then
-      echo "Copying scripts from local frontend/..."
+      echo "Streaming mode: Copying files from frontend/ directory..."
       for item in R scripts source index.qmd pdf.qmd scan-calculations.Rmd; do
         if [ -e "frontend/$item" ]; then
           cp -r "frontend/$item" "$CITY_DIR/"
         fi
       done
     else
-      echo "Cloning frontend from upstream..."
-      rm -rf "$CITY_DIR/temp-repo"
+      echo "Streaming mode:  frontend/ not found, cloning from repository..."
       git clone -b "$BRANCH" --filter=blob:none "$REPO" "$CITY_DIR/temp-repo"
+      echo "Copying files from the cloned repository to the city directory..."
       for item in R scripts source index.qmd pdf.qmd scan-calculations.Rmd; do
-        if [ -e "$CITY_DIR/temp-repo/frontend/$item" ]; then
-          cp -r "$CITY_DIR/temp-repo/frontend/$item" "$CITY_DIR/"
-        fi
+        cp -r "$CITY_DIR/temp-repo/frontend/$item" "$CITY_DIR"
       done
-      rm -rf "$CITY_DIR/temp-repo"
     fi
   else
-    echo "Using existing scripts in $CITY_DIR."
+    git clone -b "$BRANCH" --filter=blob:none "$REPO" "$CITY_DIR/temp-repo"
+    echo "Copying files from the cloned repository to the city directory..."
+    for item in R scripts source index.qmd pdf.qmd scan-calculations.Rmd; do
+      cp -r "$CITY_DIR/temp-repo/frontend/$item" "$CITY_DIR"
+    done
+  fi
+else
+  # If the directory exists, ask user whether to sync R code from local frontend/
+  # - "y" copies from frontend/ to mnt/$SCAN_ID/ (applies local changes)
+  # - "n" uses existing R code in mnt/$SCAN_ID/ as-is
+  echo "City directory already exists: $CITY_DIR"
+
+  echo "  - 'y' = Copy R code from frontend/"
+  echo "  - 'n' = Use existing R code in this folder"
+  read -p "Update R code from frontend/? (y/n): " overwrite_choice
+  if [[ "$overwrite_choice" = "y" ]]; then
+    echo "Copying R code from frontend/ to city directory..."
+    for item in R scripts source index.qmd pdf.qmd scan-calculations.Rmd; do
+      if [ -e "frontend/$item" ]; then
+        cp -r "frontend/$item" "$CITY_DIR/"
+      fi
+    done
+    echo "R code updated from local frontend/."
+  else
+    echo "Using existing R code in $CITY_DIR."
   fi
 fi
 
@@ -151,9 +100,8 @@ if [[ $STREAM_MODE -eq 0 ]]; then
   rm -rf $CITY_DIR/temp-repo
 
   # Download the city data from Google Cloud Storage
-  echo "Downloading city data from gs://crp-city-scan/$GCS_CITY_DIR to $CITY_DIR ..."
   if ! gcloud storage ls "gs://crp-city-scan/$GCS_CITY_DIR" > /dev/null 2>&1; then
-    echo "Error: gs://crp-city-scan/$GCS_CITY_DIR does not exist or you do not have permission. (Try \`gcloud auth login\`?) Exiting."
+    echo "Error: gs://crp-city-scan/$GCS_CITY_DIR does not exist or you do not have permission. (Try `gcloud auth login`?) Exiting."
     exit 1
   fi
   gcloud storage ls gs://crp-city-scan/$GCS_CITY_DIR | grep '^gs://' | grep -v '/00-reproduction-code/' | xargs -I {} gcloud storage cp -R {} "$CITY_DIR"
@@ -165,7 +113,7 @@ else
 
   echo "Streaming mode: Downloading config files (01-user-input/)..."
   if ! gcloud storage ls "gs://crp-city-scan/$GCS_CITY_DIR" > /dev/null 2>&1; then
-    echo "Error: gs://crp-city-scan/$GCS_CITY_DIR does not exist or you do not have permission. (Try \`gcloud auth login\`?) Exiting."
+    echo "Error: gs://crp-city-scan/$GCS_CITY_DIR does not exist or you do not have permission. (Try `gcloud auth login`?) Exiting."
     exit 1
   fi
   gcloud storage cp -R "gs://crp-city-scan/$GCS_CITY_DIR/01-user-input" "$CITY_DIR/" 2>/dev/null || echo "Warning: Could not download 01-user-input directory"
@@ -219,20 +167,15 @@ if [[ $RUN_NATIVE -eq 1 ]]; then
 
   echo "Static maps generated successfully."
 
-  # Generate scan-calculations
-  echo "Generating scan-calculations..."
+  # Generate scan-calculations (only in streaming mode)
   if [[ $STREAM_MODE -eq 1 ]]; then
+    echo "Generating scan-calculations..."
     USE_GCS=true SCAN_ID="$GCS_CITY_DIR" Rscript -e "rmarkdown::render('scan-calculations.Rmd', output_file='03-render-output/scan-calculations.html')" || {
-      echo "Error: Failed to render scan-calculations."
+      echo "Error: Failed to render scan-calculations in streaming mode."
       exit 1
     }
-  else
-    Rscript -e "rmarkdown::render('scan-calculations.Rmd', output_file='03-render-output/scan-calculations.html')" || {
-      echo "Error: Failed to render scan-calculations."
-      exit 1
-    }
+    echo "Scan-calculations generated successfully."
   fi
-  echo "Scan-calculations generated successfully."
   # trap - EXIT
 fi
 

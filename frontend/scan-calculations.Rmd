@@ -12,7 +12,7 @@ output:
 ```{r setup-configuration, echo = F, message = F, warning = F, results = 'hide'}
 knitr::opts_chunk$set(echo = F, results = "asis")
 
-# USE_GCS <<- TRUE ## use this if running scan directly from folder and steam data from gcs
+# USE_GCS <- TRUE ## use this if running scan directly from folder and steam data from gcs
 source("R/setup.R")
 source("R/fns.R")
 source("https://raw.githubusercontent.com/compoundrisk/monitor/databricks/src/fns/helpers.R")
@@ -133,7 +133,7 @@ if (in_oxford) {
                     # ". Is one of these an alternate name or spelling for ", city, "?"
                     ))
 
-  print_text(paste( "Using", paste_bold(pop_source), "for",  paste_bold(city), "Total Population:", paste_bold(scales::label_comma()(pop)) ) )
+  print_text(paste( "Using", paste_bold(pop_source), "for",  paste_bold(city), "Total Population:", paste_bold(scales::label_comma()(pop * 1000)) ) )
 
 }
 
@@ -402,7 +402,7 @@ Reproductive age is percentage of female population that is of reproductive age
 ```{r worldpop-age-groups, echo = F, message= F, warning=F}
 # WorldPop Age Groups
 
-if (!exists('pop_dist_group_wp') || is.null(pop_dist_group_wp) || nrow(pop_dist_group_wp) == 0) print_text(paste_bold("No WorldPop age distribution file available")) else {
+if (!exists('pop_dist_group_wp')) print_text(paste_bold("No WorldPop age distribution file available")) else {
   
   # Print WorldPop age-sex distribution table (OUTPUT)
   print_paged_df(pop_dist_group_wp)
@@ -474,9 +474,9 @@ if (!exists('pop_dist_group_wp') || is.null(pop_dist_group_wp) || nrow(pop_dist_
 
 librarian::shelf(ggridges)
 
-if (!exists("wpop_df") || is.null(wpop_df) || nrow(wpop_df) == 0) {
+if (!exists("wpop_df")) {
   print_text(paste_bold("No population raster data available"))
-} else { 
+} else{ 
   # Calculate x-axis limit (cap at 99th percentile)
   x_max <- quantile(wpop_df$pop, 0.99)
 
@@ -938,7 +938,7 @@ if (in_oxford && exists("incomes")) {
 ### Urban built-up area
 ```{r urban-built, echo = F, message= F, warning=F}
 
-if (!exists('wsf') || is.null(wsf) || nrow(wsf) == 0) print_text(paste_bold("No WSF file available")) else {
+if (!exists('wsf')) print_text(paste_bold("No WSF file available")) else {
   # Urban built-up area ----
   if (str_detect(wsf_file, "xlsx$")) wsf <- read_xlsx(wsf_file, sheet = "WSF")
   if (str_detect(wsf_file, "csv$")) wsf <- read_csv(wsf_file, col_types = "dd")
@@ -979,7 +979,7 @@ if (!exists('wsf') || is.null(wsf) || nrow(wsf) == 0) print_text(paste_bold("No 
 
 ```{r wsf-tracker, echo = F, message= F, warning=F}
 
-if (!exists('wsf_tracker') || is.null(wsf_tracker) || nrow(wsf_tracker) == 0) print_text(paste_bold("No WSF tracker file available")) else {
+if (!exists('wsf_tracker')) print_text(paste_bold("No WSF tracker file available")) else {
   # Urban built-up area ----
   if (str_detect(wsf_tracker_file, "xlsx$")) wsf_tracker <- read_xlsx(wsf_tracker_file, sheet = "WSF")
   if (str_detect(wsf_tracker_file, "csv$")) wsf_tracker <- read_csv(wsf_tracker_file, col_types = "cdd")
@@ -1020,7 +1020,7 @@ if (!exists('wsf_tracker') || is.null(wsf_tracker) || nrow(wsf_tracker) == 0) pr
 ### Landcover
 ```{r landcover, echo = F, message= F, warning=F}
 
-if (!exists('lc') || is.null(lc) || nrow(lc) == 0) print_text(paste_bold("No Landcover file available")) else {
+if (!exists('lc')) print_text(paste_bold("No Landcover file available")) else {
 
   print_paged_df(lc)
 # lc %>% arrange(desc(Percent)) %>% View()
@@ -1115,7 +1115,7 @@ if (!exists('lc') || is.null(lc) || nrow(lc) == 0) print_text(paste_bold("No Lan
 ```{r elevation-donut, echo = F, message= F, warning=F}
 
 
-if (!exists('elevation') || is.null(elevation) || nrow(elevation) == 0) print_text(paste_bold("No Elevation file available")) else {
+if (!exists('elevation')) print_text(paste_bold("No Elevation file available")) else {
 
   # elevation2 %>%
   #   ggplot() +
@@ -1197,7 +1197,7 @@ if (!exists('elevation') || is.null(elevation) || nrow(elevation) == 0) print_te
 ### Slope
 ```{r slope-donut, echo = F, message= F, warning=F}
 
-if (!exists('slope') || is.null(slope) || nrow(slope) == 0) print_text(paste_bold("No Slope file available")) else {
+if (!exists('slope')) print_text(paste_bold("No Slope file available")) else {
 
   slope_names <- arrange(slope, Slope)$Bin
   slope_colors <- c(
@@ -1223,7 +1223,7 @@ if (!exists('slope') || is.null(slope) || nrow(slope) == 0) print_text(paste_bol
 
 ```{r fluvial-flood, echo = F, message= F, warning=F}
 
-if (!exists('fu') || is.null(fu) || nrow(fu) == 0) print_text(paste_bold('No Fluvial flood data available')) else {
+if (!exists('fu')) print_text(paste_bold('No Fluvial flood data available')) else {
   
   fu_plot <- fu %>%
     ggplot() +
@@ -1260,7 +1260,7 @@ print_text(flood_string("fluvial"))
 ### Pluvial
 ```{r pluvial-flood, echo = F, message= F, warning=F}
 
-if (!exists('pu') || is.null(pu) || nrow(pu) == 0) print_text(paste_bold('No Pluvial flood data available')) else {
+if (!exists('pu')) print_text(paste_bold('No Pluvial flood data available')) else {
   
   pu_plot <- pu %>%
     ggplot +
@@ -1292,7 +1292,7 @@ if (!exists('pu') || is.null(pu) || nrow(pu) == 0) print_text(paste_bold('No Plu
 
 ### Coastal
 ```{r coastal-flood, echo = F, message= F, warning=F}
-if (!exists('cu') || is.null(cu) || nrow(cu) == 0) print_text(paste_bold('No Coastal flood data available')) else {
+if (!exists('cu')) print_text(paste_bold('No Coastal flood data available')) else {
 
   cu_plot <- cu %>%
     ggplot() +
@@ -1323,7 +1323,7 @@ if (!exists('cu') || is.null(cu) || nrow(cu) == 0) print_text(paste_bold('No Coa
 ### Combined Fluvial, Pluvial & Coastal
 ```{r combined-flood, echo = F, message= F, warning=F}
 
-if ((!exists('pufu') || is.null(pufu) || nrow(pufu) == 0) && (!exists('comb') || is.null(comb) || nrow(comb) == 0)) print_text(paste_bold('No Combined flood data available')) else {
+if (!exists('pufu') && !exists('comb') ) print_text(paste_bold('No Combined flood data available')) else {
 
   pufu_plot <- pufu %>%
     ggplot(aes(x = Year, y = uba_km2_exposed, color = type)) +
@@ -1634,7 +1634,7 @@ if (!exists('cyclones_near') || nrow(cyclones_near) == 0) {
 ## Photovoltaic Potential (PV)
 ```{r}
 
-if (!exists('monthly_pv') || is.null(monthly_pv) || nrow(monthly_pv) == 0) print_text(paste_bold('No PV data available')) else {
+if (!exists('monthly_pv')) print_text(paste_bold('No PV data available')) else {
   monthly_pv %>% print_paged_df()
 
   pv_plot <- monthly_pv %>%
@@ -1669,7 +1669,7 @@ if (!exists('monthly_pv') || is.null(monthly_pv) || nrow(monthly_pv) == 0) print
 month_starts <- cumsum(c("Jan" = 31, "Feb" = 28, "Mar"= 31, "Apr" = 30, "May" = 31, "Jun" = 30,
   "Jul" = 31, "Aug" = 31, "Sep"= 30, "Oct" = 31, "Nov" = 30, "Dec" = 31)/7) - 31/7
 
-if (!exists('fwi') || is.null(fwi) || nrow(fwi) == 0) print_text(paste_bold('No FWI data available')) else {
+if (!exists('fwi')) print_text(paste_bold('No FWI data available')) else {
   
   fwi_plot <- ggplot(fwi, aes(x = week - 1, y = pctile_95)) +
     geom_line() +
@@ -1690,35 +1690,36 @@ if (!exists('fwi') || is.null(fwi) || nrow(fwi) == 0) print_text(paste_bold('No 
         width = 4, height = 3.5, units = "in", dpi = "print")
 }
 
+knitr::knit_exit()
+
 ```
 
-## Output Check
-```{r output-check, echo = F, message= F, warning=F}
-slide_list <- read_csv("source/slide-list.csv", col_types = "cccddcc")
+## Plots Check
+```{r}
+# This checks which maps are missing. I could do the same for plots, but would need to be at end of document
+slide_list <- read_csv("slide-list.csv", col_types = "cccddcc")
+plots <- list.files("03-render-output/plots")
+# occasional_maps <- filter(slide_list, filename %in% plots & conditions == "occasional" & type == "map")
+# 
+# if (nrow(occasional_maps > 0)) {
+#   print("These maps exist. Make sure they are included in the InDesign.")
+#   print(occasional_maps %>% select(slide, filename, warning_text))
+# }
 
-# Check maps
-maps <- list.files("03-render-output/maps", pattern = "\\.png$")
-missing_maps <- filter(slide_list, filename %ni% maps & type == "map") %>%
-  filter(conditions != "none") %>%
-  filter(!str_starts(filename, "map_"))
-
-# Check plots
-plots <- list.files("03-render-output/plots", pattern = "\\.png$")
 missing_plots <- filter(slide_list, filename %ni% plots & type == "plot") %>%
   filter(conditions != "none")
-
-# Print results
-if (nrow(missing_maps) > 0) {
-  print_text(paste_bold("Missing Maps:"))
-  print_paged_df(missing_maps %>% select(slide, filename, warning_text, data_sources))
-}
+# Use the following to make a warning instead of printing a table
+# mutate(
+#   slide_number = paste(section, section_order, sep = "."),
+#   # gap = 27 - nchar(filename),
+#   slide = leading_zeros(substr(slide, 1, 10), length = 10, filler = " ", trailing = T),
+#   filename = leading_zeros(filename, length = 28, filler = " ", trailing = T),
+#   warning_message = paste0(slide, ": ", filename, warning_text),
+#   .keep = "none")
+# warning(paste0("missing maps:\n", paste(missing_maps$warning_message, collapse = "\n")))
 
 if (nrow(missing_plots) > 0) {
-  print_text(paste_bold("Missing Plots:"))
-  print_paged_df(missing_plots %>% select(slide, filename, warning_text, data_sources))
-}
-
-if (nrow(missing_maps) == 0 && nrow(missing_plots) == 0) {
-  print_text("All expected maps and plots are present.")
+  print_text("The following plots have not been made. Why not?")
+  print_paged_df(missing_plots %>% select(slide, filename, warning_text))
 }
 ```

@@ -15,7 +15,7 @@ export async function loadData() {
 
   const [pg, pas, rwi_area, uba, uba_area, lc, pug, pv, pv_area,
          aq_area, summer_area, ndvi_area, fu, pu, cu, comb,
-         e, s, ls_area, l_area, fwi] = await Promise.all([
+         e, s, ls_area, l_area, fwi, uba_tracker] = await Promise.all([
     loadCSV(basePath + "pg.csv"),
     loadCSV(basePath + "pas.csv"),
     loadCSV(basePath + "rwi_area.csv"),
@@ -36,10 +36,11 @@ export async function loadData() {
     loadCSV(basePath + "s.csv"),
     loadCSV(basePath + "ls_area.csv"),
     loadCSV(basePath + "l_area.csv"),
-    loadCSV(basePath + "fwi.csv")
+    loadCSV(basePath + "fwi.csv"),
+    loadCSV(basePath + "uba_tracker.csv")
   ]);
 
   const fe = [{begin_year: 1995, begin_month: 9, DISPLACED: 95000, severity: "Large event", line1: "SEPTEMBER 1995", line2: "95,000 displaced", line3: ""}];
 
-  return {pg, pas, rwi_area, uba, uba_area, lc, pug, pv, pv_area, aq_area, summer_area, ndvi_area, fu, pu, cu, comb, e, s, ls_area, l_area, fwi, fe};
+  return {pg, pas, rwi_area, uba, uba_area, lc, pug, pv, pv_area, aq_area, summer_area, ndvi_area, fu, pu, cu, comb, e, s, ls_area, l_area, fwi, fe, uba_tracker};
 }

@@ -195,8 +195,9 @@ create_layer_function <- function(data, yaml_key = NULL, params = NULL, color_sc
   #   )
   # }
 
-v <- data %>%
-  as.polygons(digits = 4)
+if (inherits(data, "SpatRaster")) v <- as.polygons(data, digits = 4)
+if (inherits(data, "SpatVector")) v <- data
+
 v_styled <- v %>%
   rename(value = 1) %>%
   mutate(
@@ -718,11 +719,38 @@ read_md <- function(file) {
     section_list <- sapply(c(unique(section_df$slide)), function(s) {
       if (s == "empty") return (NULL)
       slide_text <- filter(section_df, slide == s)$text
-      # if (str_detect(slide_text[1], "^\\s*$")) {
-      #   slide_text <- slide_text[-1]
-      # }
-      # return(list(takeaways = slide_text))
-      return(list(takeaways = slide_text))
+
+      # Parse :::footnote blocks
+      footnote_start <- which(str_detect(slide_text, "^:::footnote"))
+      footnote_end <- which(str_detect(slide_text, "^:::$"))
+
+      if (length(footnote_start) > 0 && length(footnote_end) > 0) {
+        footnote_lines <- c()
+        takeaway_lines <- slide_text
+
+        # Process each footnote block (in reverse to maintain indices)
+        for (i in rev(seq_along(footnote_start))) {
+          start_idx <- footnote_start[i]
+          end_idx <- footnote_end[footnote_end > start_idx][1]
+          if (!is.na(end_idx)) {
+            if (end_idx > start_idx + 1) {
+              footnote_lines <- c(slide_text[(start_idx + 1):(end_idx - 1)], footnote_lines)
+            }
+            takeaway_lines <- takeaway_lines[-c(start_idx:end_idx)]
+          }
+        }
+
+        # Clean up empty lines
+        while (length(takeaway_lines) > 0 && takeaway_lines[1] == "") takeaway_lines <- takeaway_lines[-1]
+        while (length(takeaway_lines) > 0 && tail(takeaway_lines, 1) == "") takeaway_lines <- head(takeaway_lines, -1)
+
+        return(list(
+          takeaways = if (length(takeaway_lines) > 0) takeaway_lines else NULL,
+          footnote = if (length(footnote_lines) > 0) paste(footnote_lines, collapse = " ") else NULL
+        ))
+      } else {
+        return(list(takeaways = slide_text))
+      }
     }, simplify = F)
     return(section_list)
   }, simplify = F)

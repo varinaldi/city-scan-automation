@@ -17,7 +17,7 @@ source('R/setup.R')
 ```{ojs}
 d3 = require("d3@7")
 
-import { setD3, setWidth, setCity, setCountry, plot_pga, plot_pgp, plot_pas, plot_pas_pyramid, plot_age, plot_dependency, plot_rwi_area, plot_uba_area, plot_ubaa, plot_ubap, plot_lc, plot_uddm, plot_pv_area, plot_pv_alt, plot_pv_d, plot_pv, plot_aq, plot_summer_area, plot_ndvi_area, plot_fe, plot_fu, plot_pu, plot_cu, plot_comb, plot_e, plot_s, plot_ls_area, plot_l_area, plot_fwi, plot_fwi_d } from "./ojs/plots.js"
+import { setD3, setWidth, setCity, setCountry, plot_pga, plot_pgp, plot_pas, plot_pas_pyramid, plot_age, plot_dependency, plot_rwi_area, plot_uba_area, plot_ubaa, plot_ubap, plot_uba_tracker, plot_lc, plot_uddm, plot_pv_area, plot_pv_alt, plot_pv_d, plot_pv, plot_aq, plot_summer_area, plot_ndvi_area, plot_fe, plot_fu, plot_pu, plot_cu, plot_comb, plot_e, plot_s, plot_ls_area, plot_l_area, plot_fwi, plot_fwi_d } from "./ojs/plots.js"
 
 setD3(d3)
 setWidth(width)
@@ -81,6 +81,11 @@ plot_ubaa(d.uba)
 ### Urban Built-up (Percent)
 ```{ojs}
 plot_ubap(d.uba)
+```
+
+### Urban Built-up Tracker (WSF Evolution)
+```{ojs}
+plot_uba_tracker(d.uba_tracker)
 ```
 
 ### Land Cover

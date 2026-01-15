@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
 echo "======================================"
 echo " Cityscan Bootstrap (Python Runtime)"
@@ -7,8 +7,12 @@ echo "======================================"
 
 OS="$(uname -s)"
 
+if grep -qi microsoft /proc/version 2>/dev/null; then
+    OS="WSL"
+fi
+
 ###########################################
-# macOS
+# OS detection & dependencies
 ###########################################
 if [[ "$OS" == "Darwin" ]]; then
     echo "Detected macOS"
@@ -19,35 +23,32 @@ if [[ "$OS" == "Darwin" ]]; then
     fi
 
     echo "Installing system dependencies..."
-    brew install \
-        pyenv \
-        openssl \
-        readline \
-        sqlite3 \
-        xz \
-        zlib \
-        tcl-tk
+    brew install pyenv openssl readline sqlite3 xz zlib tcl-tk
 
-###########################################
-# Linux (Ubuntu/Debian)
-###########################################
 elif [[ "$OS" == "Linux" ]]; then
     echo "Detected Linux"
 
     sudo apt update
     sudo apt install -y \
-        build-essential \
-        curl \
-        git \
-        libssl-dev \
-        zlib1g-dev \
-        libbz2-dev \
-        libreadline-dev \
-        libsqlite3-dev \
-        libffi-dev \
-        liblzma-dev \
-        tk-dev \
-        pyenv
+        build-essential curl git \
+        libssl-dev zlib1g-dev libbz2-dev \
+        libreadline-dev libsqlite3-dev \
+        libffi-dev liblzma-dev tk-dev pyenv
+
+elif [[ "$OS" == "WSL" ]]; then
+    echo "Detected Windows (WSL)"
+
+    sudo apt update
+    sudo apt install -y \
+        build-essential curl git \
+        libssl-dev zlib1g-dev libbz2-dev \
+        libreadline-dev libsqlite3-dev \
+        libffi-dev liblzma-dev tk-dev
+
+    if ! command -v pyenv &>/dev/null; then
+        echo "Installing pyenv..."
+        curl https://pyenv.run | bash
+    fi
 
 else
     echo "Unsupported OS: $OS"
@@ -55,10 +56,11 @@ else
 fi
 
 ###########################################
-# pyenv setup
+# pyenv initialization
 ###########################################
 if ! command -v pyenv &>/dev/null; then
-    echo "ERROR: pyenv installation failed."
+    echo "ERROR: pyenv not found in PATH."
+    echo "Restart your terminal and re-run: bash bootstrap.sh"
     exit 1
 fi
 

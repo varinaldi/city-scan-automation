@@ -199,6 +199,7 @@ backend/fathom_aws_credentials.yml
 backend/menu.yml
 backend/global_inputs.yml
 backend/cache/*
+outputs/
 
 # GitHub Wiki
-city-scan-automation.wiki.git
+city-scan-automation.wiki.gitoutputs/

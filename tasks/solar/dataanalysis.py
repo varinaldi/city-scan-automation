@@ -239,13 +239,11 @@ def plot_solar_seasonality(
 
     if ratio > 2.5:
         solar_text = (
-            "Solar seasonality is high, but solar energy remains available "
-            "throughout the year."
+            "Solar seasonality is high, but solar energy remains available throughout the year."
         )
     else:
         solar_text = (
-            "Solar seasonality is low to moderate, with relatively consistent "
-            "solar availability across months."
+            "Solar seasonality is low to moderate, making solar energy available in only some of the months"
         )
 
     yaml_path = os.path.join(output_dir, "tabular", f"{city_name}_solar.yml")

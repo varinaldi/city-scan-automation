@@ -1,47 +1,30 @@
 # Map Functions ----------------------------------------------------------------
 fuzzy_read <- function(dir, fuzzy_string, FUN = NULL, path = T, convert_to_vect = F, ...) {
-    file <- list.files(dir, full.names = FALSE) %>% str_subset(fuzzy_string)
-
+  file <- list.files(dir) %>% str_subset(fuzzy_string) #%>%
+  if (length(file) > 1) warning(paste("Too many", fuzzy_string, "files in", dir))
+  if (length(file) < 1) {
+    file <- list.files(dir, recursive = T) %>% str_subset(fuzzy_string)
     if (length(file) > 1) warning(paste("Too many", fuzzy_string, "files in", dir))
-    if (length(file) < 1) {
-      file <- list.files(dir, recursive = T, full.names = FALSE) %>% str_subset(fuzzy_string)
-      if (length(file) > 1 && any(grepl("\\.shp$", file, ignore.case = TRUE))) {
-        file <- file[grepl("\\.shp$", file, ignore.case = TRUE)]
-      }
-      if (length(file) > 1) warning(paste("Too many", fuzzy_string, "files in", dir))
-      if (length(file) < 1) warning(paste("No", fuzzy_string, "file in", dir))
-    }
-    if (length(file) == 1) {
-      if (is.null(FUN)) {
-        FUN <- if (tolower(str_sub(file, -4, -1)) == ".tif") rast else vect
-      }
-      if (!path) {
-      content <- suppressMessages(FUN(dir, file, ...))
-      } else {
-        file_path <- file.path(dir, file)
-
-        # Try reading normally, if fails try with /vsigs/ for GCS
-        content <- tryCatch({
-          suppressMessages(FUN(file_path, ...))
-        }, error = function(e) {
-          if (exists("USE_GCS") && USE_GCS) {
-            # Try with /vsigs/ prefix
-            path_clean <- gsub("/+$", "", dir)
-            gcs_path <- paste0("/vsigs/", GCS_BUCKET, "/", scan_id, "/", path_clean, "/", file)
-            suppressMessages(FUN(gcs_path, ...))
-          } else {
-            stop(e)
-          }
-      })
-      }
-    if (convert_to_vect && class(content)[1] %in% c("SpatRaster", "RasterLayer")) {
-        content <- rast_as_vect(content)
-      }
-      return(content)
-    } else {
-      return(NA)
-    }
+    if (length(file) < 1) warning(paste("No", fuzzy_string, "file in", dir))
   }
+  if (length(file) == 1) {
+    if (is.null(FUN)) {
+      FUN <- if (tolower(str_sub(file, -4, -1)) == ".tif") rast else vect
+    }
+    if (!path) {
+      content <- suppressMessages(FUN(dir, file, ...))
+    } else {
+      file_path <- file.path(dir, file)
+      content <- suppressMessages(FUN(file_path, ...))
+    }
+    if (convert_to_vect && class(content)[1] %in% c("SpatRaster", "RasterLayer")) {
+      content <- rast_as_vect(content)
+    }
+    return(content)
+  } else {
+    return(NA)
+  }
+}
 
 rast_as_vect <- function(x, digits = 8, ...) {
   if (class(x) == "SpatVector") return(x)
@@ -283,7 +266,7 @@ writeVector(v_styled, fgb_path, overwrite = T, filetype = "FlatGeobuf")
       # pal = if (is.null(params$labels) | is.null(params$breaks)) color_scale else NULL,
       pal = if (diff(lengths(list(params$labels, params$breaks))) == 1) NULL else color_scale,
       # colors = if (is.null(params$labels) | is.null(params$breaks)) NULL else if (diff(lengths(list(params$labels, params$breaks))) == 1) color_scale(head(params$breaks, -1)) else color_scale(params$breaks),
-      colors = if (diff(lengths(list(params$labels, params$breaks))) == 1) color_scale(head(params$breaks, -1)) else NULL,
+      colors = if (diff(lengths(list(params$labels, params$breaks))) == 1) color_scale(tail(params$breaks, -1)) else NULL,
       opacity = legend_opacity,
       # bins = params$bins,
       # bins = 3,  # legend color ramp does not render if there are too many bins
@@ -370,21 +353,21 @@ plot_static_layer <- function(
       layer +
       theme_custom()
   } else {
-  # Plot geom and scales on baseplot
-  baseplot <- if (is.null(baseplot) || identical(baseplot, "vector")) {
-    ggplot() +
-      geom_spatvector(data = static_map_bounds, fill = NA, color = NA) +
-      annotation_map_tile(type = "cartolight", zoom = get_zoom_level(static_map_bounds) + zoom_adj, progress = "none")
-  } else if (is.character(baseplot)) {
-    ggplot() +
-      geom_spatvector(data = static_map_bounds, fill = NA, color = NA) +
-      annotation_map_tile(type = baseplot, zoom = get_zoom_level(static_map_bounds) + zoom_adj, progress = "none")
-  } else { baseplot + ggnewscale::new_scale_fill() }
-  p <- baseplot +
-    layer + 
-    annotation_north_arrow(style = north_arrow_minimal, location = "br", height = unit(1, "cm")) +
-    annotation_scale(style = "ticks", aes(unit_category = "metric", width_hint = 0.33), height = unit(0.25, "cm")) +        
-    theme_custom()
+    # Plot geom and scales on baseplot
+    baseplot <- if (is.null(baseplot) || identical(baseplot, "vector")) {
+      ggplot() +
+        geom_spatvector(data = static_map_bounds, fill = NA, color = NA) +
+        annotation_map_tile(type = "cartolight", zoom = get_zoom_level(static_map_bounds) + zoom_adj, progress = "none")
+    } else if (is.character(baseplot)) {
+      ggplot() +
+        geom_spatvector(data = static_map_bounds, fill = NA, color = NA) +
+        annotation_map_tile(type = baseplot, zoom = get_zoom_level(static_map_bounds) + zoom_adj, progress = "none")
+    } else { baseplot + ggnewscale::new_scale_fill() }
+    p <- baseplot +
+      layer + 
+      annotation_north_arrow(style = north_arrow_minimal, location = "br", height = unit(1, "cm")) +
+      annotation_scale(style = "ticks", aes(unit_category = "metric", width_hint = 0.33), height = unit(0.25, "cm")) +        
+      theme_custom()
   }
   if (captions) p <- p + theme(legend.box.margin = margin(0, 0, 18, 12, unit = "pt"), plot.caption = element_text(hjust = 0, size = 8, color = "grey40"))
   if (plot_roads) p <- p +
@@ -392,11 +375,9 @@ plot_static_layer <- function(
     scale_linewidth_manual(values = c("Secondary" = 0.25, "Primary" = 1), guide = "none")
   if (plot_aoi) p <- p + geom_spatvector(data = aoi, color = aoi_stroke$color, fill = NA, linetype = "solid", linewidth = aoi_stroke$linewidth)
   if (plot_wards) {
-    p <- p + geom_spatvector(data = wards, color = aoi_stroke$color, fill = NA, linetype = "solid", linewidth = .25) 
-
-    if (exists("ward_labels") && exists("ward_label_column")) p <- p + 
-      geom_text_repel(data =ward_labels, aes(label = ward_label_column, geometry = geometry),stat = "sf_coordinates", size = 2, fontface = "bold") 
-  
+    p <- p + geom_spatvector(data = wards, color = aoi_stroke$color, fill = NA, linetype = "solid", linewidth = .25)
+    if (exists("ward_labels")) p <- p +
+      geom_spatvector_text(data = ward_labels, aes(label = WARD_NO), size = 2, fontface = "bold")
   }
   p <- p + coord_3857_bounds(static_map_bounds)
   return(p)
@@ -628,10 +609,10 @@ create_color_scale <- function(domain, palette, center = NULL, bins = 5, reverse
     alpha = T)
   # if (!is.null(breaks)) bins <- length(breaks)
   if (!is.null(factor) && factor) {
-      color_scale <- rlang::inject(colorFactor(
-        !!!args,
-        levels = levels,
-        ordered = TRUE))
+    color_scale <- rlang::inject(colorFactor(
+      !!!args,
+      levels = levels,
+      ordered = TRUE))
   } else if (bins == 0) {
     color_scale <- rlang::inject(colorNumeric(
       # Why did I find it necessary to use colorRamp previously? For setting "linear"?
@@ -644,6 +625,7 @@ create_color_scale <- function(domain, palette, center = NULL, bins = 5, reverse
       bins = if (!is.null(breaks)) breaks else bins,
       # Might want to turn pretty back on
       pretty = FALSE,
+      right = TRUE, # Important for matching ggplot2 scale_fill_stepsn
       reverse = reverse))       
   }
   return(color_scale)
@@ -661,7 +643,7 @@ label_maker <- function(x, levels = NULL, labels = NULL, suffix = NULL) {
     x <- paste0(x, suffix)
   }
   return(x)
-  }
+}
 
 add_aoi <- function(map, data = aoi, color = 'black', weight = 2, fill = F, dashArray = '12', ...) {
   addPolygons(map, data = data, color = color, weight = weight, fill = fill, dashArray = dashArray, ...)
@@ -749,7 +731,7 @@ read_md <- function(file) {
           footnote = if (length(footnote_lines) > 0) paste(footnote_lines, collapse = " ") else NULL
         ))
       } else {
-        return(list(takeaways = slide_text))
+      return(list(takeaways = slide_text))
       }
     }, simplify = F)
     return(section_list)
@@ -1037,54 +1019,11 @@ paste_and <- function(v) {
   }
 }
 
-paste_bold <- function(x) {
-  # Handle NA/NULL input
-  if (is.null(x) || length(x) == 0 || all(is.na(x))) return("<b>NA</b>")
-
-  # Handle vector input - collapse to comma-separated string
-  if (length(x) > 1) x <- paste(x, collapse = ", ")
-
-  # Convert to character if needed
-  x <- as.character(x)
-  if (is.na(x) || x == "") return("<b>NA</b>")
-
-  # Check if it looks like a list of items (commas/and between words, not number formatting)
-  # This pattern detects number formatting like "3,603,026"
-  has_number_format <- grepl("\\d{1,3}(,\\d{3})+", x)
-  has_list_pattern <- grepl(",| and ", x) && grepl("[a-zA-Z]", x)
-
-  if (has_list_pattern && !has_number_format) {
-    # Split by comma and " and " only if it's a word list, not a formatted number
-    parts <- strsplit(x, ",| and ")[[1]]
-    parts_bold <- paste0("<b>", trimws(parts), "</b>")
-    n_commas <- length(gregexpr(",", x)[[1]])
-
-    if (n_commas > 0 && grepl(" and ", x)) {
-      # Has both commas and "and"
-      paste(paste(head(parts_bold, -1), collapse = ", "), "and", tail(parts_bold, 1))
-    } else if (n_commas > 0) {
-      # Only commas
-      paste(parts_bold, collapse = ", ")
-    } else {
-      # Only "and"
-      paste(parts_bold, collapse = " and ")
-    }
-  } else {
-    # Simple case: no list pattern or has number formatting, just bold everything
-    paste0("<b>", x, "</b>")
-  }
-}
-
 duplicated2way <- duplicated_all <- function(x) {
   duplicated(x) | duplicated(x, fromLast = T)
 }
 
 tolatin <- function(x) stringi::stri_trans_general(x, id = "Latin-ASCII")
-
-normalize <- function(x, na.rm = T) {
-  return((x - min(x, na.rm = na.rm)) /(max(x, na.rm = na.rm)-min(x, na.rm = na.rm)))
-}
-
 
 ggdonut <- function(data, category_column, quantities_column, colors, title) {
   data <- as.data.frame(data) # tibble does weird things with data frame, not fixing now
@@ -1130,7 +1069,6 @@ prepare_html <- \(in_file, out_file, css_file) {
   library(rvest)
   library(xml2)
   pdf <- read_html(in_file)
-  # browser()
   stylesheet_nodes <- html_elements(pdf, "link[rel=stylesheet]")
   xml_attr(stylesheet_nodes[1], "href") <- css_file
   xml2::xml_remove(stylesheet_nodes[-1])
@@ -1171,10 +1109,11 @@ density_rast <- \(points, n = 100, aoi = NULL) {
   rast(scales::rescale((density$z)), crs = crs, extent = density_extent)
 }
 
-tryCatch_named <- \(name, expr) {
+tryCatch_named <- \(name, expr, browse = F) {
   tryCatch(expr, error = \(e) {
     message(paste("Failure:", name))
     warning(glue("Error on {name}: {e}"))
+    if (browse) browser()
   })
 }
 
@@ -1212,23 +1151,4 @@ zoom_on_extent <- function(p, extent_vect, aspect_ratio, buffer_percent = 0.05, 
   (p + theme(legend.position = "none") +
     coord_3857_bounds(bounds)) %>%
     change_zoom(get_zoom_level(bounds) + zoom_adj)
-}
-
-
-get_built_extent <- function(urban_mask) {
-    # Apply opening morphological operation to remove thin lines (roads)
-    kernel <- matrix(1, 5, 5) 
-    eroded <- focal(urban_mask, w = kernel, fun = "min", na.rm = TRUE)
-    # Then dilate
-    opened <- focal(eroded, w = kernel, fun = "max", na.rm = TRUE)
-
-    # Now get extent of remaining urban area
-    urban_cells <- cells(opened, 1)[[1]]
-    urban_coords <- xyFromCell(opened, urban_cells)
-    urban_extent <- ext(
-        min(urban_coords[,1]), max(urban_coords[,1]),
-        min(urban_coords[,2]), max(urban_coords[,2])
-    )
-
-    return(urban_extent)
 }

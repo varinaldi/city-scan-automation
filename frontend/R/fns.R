@@ -780,15 +780,20 @@ double_space <- function(x) {
 #   return(merged)
 # }
 
-merge_lists <- \(x, y) {
-  if (is.null(names(x)) | is.null(names(y))) return(unique(c(x, y)))
+merge_lists <- \(x, y, key = NULL) {
+  # At leaf level: for footnotes, prefer x (manual-text) over y (generic-text)
+  # For other fields, concatenate as before
+  if (is.null(names(x)) | is.null(names(y))) {
+    if (identical(key, "footnote") && !is.null(x) && length(x) > 0 && !all(is.na(x))) return(x)
+    return(unique(c(x, y)))
+  }
   nameless <- c(x[names(x) == ""], y[names(y) == ""])
   nameless <- nameless[!(nameless %in% c(names(x), names(y)))]
   unique_nodes_x <- x[setdiff(names(x), names(y))]
   unique_nodes_y <- y[setdiff(names(y), names(x))]
   common_keys <- intersect(names(x), names(y)) %>% .[. != ""]
   common_nodes <- if (length(common_keys) == 0) NULL else {
-    sapply(common_keys, \(k) merge_lists(x[[k]], y[[k]]), simplify = F)
+    sapply(common_keys, \(k) merge_lists(x[[k]], y[[k]], key = k), simplify = F)
   }
   merged <- unlist(list(common_nodes, unique_nodes_x, unique_nodes_y, nameless), recursive = F)
   return(merged)

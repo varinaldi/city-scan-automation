@@ -745,16 +745,22 @@ pufu <- bind_rows(
   mutate(type = factor(type, levels = c("Combined", "River", "Rainwater", "Coastal")))
 
 # Flood Events ----------------------------------------------------------------------------------
-
+# Dartmouth Flood Observatory - wrap in tryCatch as website may be down
+flood_archive_available <- tryCatch({
 c("dbf", "prj", "shp", "shx") %>% lapply(function(suffix) {
   curl_download(
     url = paste0("https://floodobservatory.colorado.edu/temp/FloodArchive_region.", suffix),
     destfile = paste0(flood_archive_file, "/FloodArchive_region.", suffix))
 })
+  TRUE
+}, error = function(e) {
+  warning("Dartmouth Flood Observatory data unavailable: ", e$message)
+  FALSE
+})
 
+if (flood_archive_available && file.exists(file.path(flood_archive_file, "FloodArchive_region.shp"))) {
 flood_archive <- read_sf(flood_archive_file)
 if (is.na(st_crs(flood_archive))) st_crs(flood_archive) <- "EPSG:4326"
-
 
 flood_archive <- st_make_valid(flood_archive)
 flood_archive <- flood_archive[st_is_valid(flood_archive),] %>% st_transform(st_crs(aoi))
@@ -765,7 +771,6 @@ flood_archive <- flood_archive[intersections,]
 
 floods <- st_drop_geometry(flood_archive) %>%
   select(BEGAN, ENDED, DEAD, DISPLACED, MAINCAUSE, SEVERITY)
-
 
 flood_text_all <- floods %>% mutate(
   severity = ordered(SEVERITY, levels = c(1, 1.5, 2), labels = c("Large event", "Very large event", "Extreme event")),
@@ -787,6 +792,12 @@ flood_text_all <- floods %>% mutate(
 # flood_text_all2[which(order(flood_text_all2$mag, decreasing = TRUE) > 10),"text"] <- NA
 flood_text_all[which(rank(-flood_text_all$mag) > 10),"text"] <- NA
 # flood_text_all2[order(flood_text_all2$mag, decreasing = T)[1:10],"text"]
+} else {
+  warning("Flood archive data not available - skipping flood events analysis")
+  floods <- tibble(BEGAN = as.Date(character()), ENDED = as.Date(character()),
+                   DEAD = numeric(), DISPLACED = numeric(), MAINCAUSE = character(), SEVERITY = numeric())
+  flood_text_all <- tibble()
+}
 
 
 # EARTHQUAKE ----------------------------------------------------------------------------------

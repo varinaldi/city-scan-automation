@@ -303,7 +303,7 @@ $page-margin-right: 0.5in;
       margin-top: 0;
     }  
 
-    p:has(+ .pseudo-h4), p:last-child {display: none}  // Don't show Go to sections
+    // p:has(+ .pseudo-h4), p:last-child {display: none}  // Show Go to sections
 
   }
 
@@ -379,6 +379,7 @@ $page-margin-right: 0.5in;
     margin: 1.5rem 0 0.5rem 0;
     line-height: 1.2;
     color: var(--bs-heading-color);
+    text-transform: uppercase;
   }
   p { font-size: 1rem; }
   .takeaways { 

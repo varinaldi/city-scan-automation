@@ -1,7 +1,4 @@
 ---
-format:
-  html:
-    theme: [source/custom.scss, none]
 editor: source
 execute:
   echo: false
@@ -15,6 +12,8 @@ engine: knitr
 ```{r}
 #| include: false
 #| label: prerender
+
+# USE_GCS <<- FALSE
 source('R/setup.R')
 
 # Run clean-tabular.R if processed folder doesn't exist (needed for OJS plots)
@@ -40,7 +39,8 @@ title: "`r paste(city, country, sep = ', ')`"
 ```{r}
 #| label: get-text
 generic_text <- read_yaml("source/generic-text.yml") %>% rapply(double_space, how = "replace") # Do I only want this for print?
-city_text_file <- file.path(user_input_dir, "text-files/manual-text.md")
+city_text_file <- list.files(file.path(user_input_dir, "text-files"), pattern ="manual-text\\.md$", full.names = TRUE)[1]
+
 if (file.exists(city_text_file)) {
   city_text <- read_md(city_text_file)
   slide_texts <- merge_lists(city_text, generic_text)
@@ -61,7 +61,7 @@ ojs_define(slide_texts = slide_texts)
 
 ```{ojs}
 //| label: ojs-plots-setup
-import { setD3, setWidth, setHeightRatio, setCity, setCountry, plot_pga, plot_pgp, plot_pas, plot_pas_pyramid, plot_age, plot_dependency, plot_rwi_area, plot_uba_area, plot_ubaa, plot_ubap, plot_lc, plot_uddm, plot_pv_area, plot_pv_alt, plot_pv_d, plot_pv, plot_aq, plot_summer_area, plot_ndvi_area, plot_fe, plot_fu, plot_pu, plot_cu, plot_comb, plot_e, plot_s, plot_ls_area, plot_l_area, plot_fwi, plot_fwi_d } from "./ojs/plots.js"
+import { setD3, setWidth, setCity, setCountry, plot_pga, plot_pgp, plot_pas, plot_pas_pyramid, plot_age, plot_dependency, plot_rwi_area, plot_uba_area, plot_ubaa, plot_ubap, plot_uba_tracker, plot_lc, plot_uddm, plot_pv_area, plot_pv_alt, plot_pv_d, plot_pv, plot_aq, plot_summer_area, plot_ndvi_area, plot_fe, plot_fu, plot_pu, plot_cu, plot_comb, plot_e, plot_s, plot_ls_area, plot_l_area, plot_fwi, plot_fwi_d } from "./ojs/plots.js"
 // import { loadData } from "./ojs/dataloader.js" // Moved to bottom of doc -- I suppose all of this should be moved there too
 
 function renderDiv(text, divClass) {
@@ -78,6 +78,7 @@ function addSlideText(slide) {
 }
 
 function fillSlide(layer, chart = null, extra_layers = [], title = null, slide_text = null, extra_html = null) {
+  console.log("fillSlide called for:", layer, "createdMaps includes:", createdMaps?.includes(layer));
   if (!createdMaps.includes(layer)) return md``;
   var mappingLayers = [...(extra_layers ?? []), layer]
     .map(lay => layerParams[lay].group_id)
@@ -88,6 +89,7 @@ function fillSlide(layer, chart = null, extra_layers = [], title = null, slide_t
   if (!slide_text && layer) slide_text = slide_texts[layer];
   if (!title) title = slide_text?.title;
   if (!title && layer) title = layer;
+  console.log("fillSlide rendering:", layer, "with mappingLayers:", mappingLayers);
   return html`
     <section class="level3" id="${layer}">
       ${md`### ${title}`}
@@ -100,12 +102,25 @@ function fillSlide(layer, chart = null, extra_layers = [], title = null, slide_t
 }
 
 textColumn = d3.select('.text-column').node();
-columnWidth = textColumn.getBoundingClientRect().width * .9;
+// columnWidth = textColumn.getBoundingClientRect().width * .9;
+
+columnWidth = Generators.observe(notify => {
+  const textCol = d3.select('.text-column').node();
+  if (!textCol) return notify(width * 0.45);
+
+  const ro = new ResizeObserver(() => {
+    notify(textCol.getBoundingClientRect().width * .9);
+  });
+  ro.observe(textCol);
+  notify(textCol.getBoundingClientRect().width * .9);
+
+  return () => ro.disconnect();
+});
 
 plotsReady = {
   setD3(d3);
-  setWidth(typeof columnWidth !== 'undefined' ? columnWidth : width * 0.45);
-  setHeightRatio(0.9);
+  // setWidth(typeof columnWidth !== 'undefined' ? columnWidth : width * 0.45);
+  setWidth(columnWidth > 0 ? columnWidth : width * 0.45);
   setCity(city);
   setCountry(country);
   return true;
@@ -210,38 +225,32 @@ print_slide_text(slide_texts$basic_city_info)
 
 ## Population and Demographic Trends
 
+```{r}
+#| output: false
+pop_density_file <- fuzzy_read(charts_dir, "oxford-pop-density-scatter", paste)
+age_structure_file <- fuzzy_read(charts_dir, "oxford-age-structure-area", paste)
+ojs_define(pop_density_plot = pop_density_file, age_structure_plot = age_structure_file)
+```
+
 ```{ojs}
 //| output: true
 fillSlide("population", null, null, null, null,
-
-html`<section class="level4">
+  html`<section class="level4">
     ${md`#### Population Growth`}
-    ${plot_pga(d.pg) ?? ""}
+    ${plot_pga(d.pg, {height:350}) ?? ""}
     ${addSlideText(slide_texts.population_growth)}
-    </section>`
+  </section>
+  ${pop_density_plot && pop_density_plot !== "NA" && pop_density_plot !== null ? html`<section class="level4">
+    ${md`#### Population Density`}
+    <img style="max-width:95%" src="${pop_density_plot}">
+    ${addSlideText(slide_texts.population_density_chart)}
+  </section>` : ""}
+  ${age_structure_plot && age_structure_plot !== "NA" && age_structure_plot !== null ? html`<section class="level4">
+    ${md`#### Population Distribution by Age`}
+    <img style="max-width:95%" src="${age_structure_plot}">
+    ${addSlideText(slide_texts.population_density_chart)}
+  </section>` : ""}`
 )
-```
-
-
-```{r}
-#| output: asis
-plots_file <- fuzzy_read(charts_dir, "oxford-pop-density-scatter", paste)
-if (!is.na(plots_file)) {
-  cat("#### Population Density\n") 
-  cat(glue('<img style="max-width:95%" src="{plots_file}">\n\n\n'))
-  print_slide_text(slide_texts$population_density_chart)
-}
-```
-
-```{r}
-#| output: true
-plots_file <- fuzzy_read(charts_dir, "oxford-age-structure-area", paste)
-# THIS STAYS GREYED OUT
-if (!is.na(plots_file)) {
-  cat("#### Population Distribution by Age\n") 
-  cat(glue('<img style="max-width:95%" src="{plots_file}">\n\n\n'))
-  print_slide_text(slide_texts$population_density_chart)
-}
 ```
 
 ```{ojs}
@@ -258,7 +267,7 @@ if (!is.na(plots_file)) {
 // from "@carolinecullinan/nouakchott-scanned"
 
 // fillSlide("rwi", chart_rwi_area)
-fillSlide("rwi", plot_rwi_area(d.rwi_area))
+fillSlide("rwi", plot_rwi_area(d.rwi_area, {height:300}))
 ```
 
 ## Economic Activity
@@ -273,11 +282,11 @@ fillSlide("economic_change")
 
 ```{ojs}
 //| output: true
-fillSlide("wsf", [plot_uba_area(d.uba_area), plot_ubaa(d.uba)])
+fillSlide("wsf", [plot_uba_area(d.uba_area, {height:300}), plot_ubaa(d.uba, {height:300})])
 
-fillSlide("wsf_tracker")
+fillSlide("wsf_tracker", plot_uba_tracker(d.uba_tracker, {height:350}))
 
-fillSlide("land_cover", plot_lc(d.lc))
+fillSlide("land_cover", plot_lc(d.lc, {height:400}))
 fillSlide("school_zones", null, null, null, slide_texts.school_proximity)
 fillSlide("health_zones", null, null, null, slide_texts.health_proximity)
 ```
@@ -291,13 +300,13 @@ fillSlide("health_zones", null, null, null, slide_texts.health_proximity)
 // from "@carolinecullinan/nouakchott-scanned"
 
 // fillSlide("solar", plot_pv_area(d.pv_area))
-fillSlide("solar", [plot_pv_alt(d.pv), plot_pv_area(d.pv_area)], null, null, null)
+fillSlide("solar", [plot_pv_alt(d.pv, {height:300}), plot_pv_area(d.pv_area, {height:300})], null, null, null)
 // plot_pv_d(d.pv)
 // plot_pv(d.pv)
 
-fillSlide("air_quality", plot_aq(d.aq_area))
-fillSlide("summer_lst", plot_summer_area(d.summer_area))
-fillSlide("vegetation", plot_ndvi_area(d.ndvi_area))
+fillSlide("air_quality_trend", plot_aq(d.aq_area, {height:300}))
+fillSlide("summer_lst", plot_summer_area(d.summer_area, {height:300}))
+fillSlide("vegetation", plot_ndvi_area(d.ndvi_area, {height:300}))
 fillSlide("forest", null, ["deforest"])
 ```
 
@@ -307,7 +316,7 @@ fillSlide("forest", null, ["deforest"])
 //| output: true
 html`<section class="level4 is-active">
     ${md`#### Signficant Flood Events`}
-    ${plot_fe(d.fe) ?? ""}
+    ${plot_fe(d.fe, {height:350}) ?? ""}
     ${addSlideText(slide_texts.flood_events)}
     </section>`
 
@@ -316,19 +325,19 @@ fillSlide("pluvial", null, ["infrastructure"], null, slide_texts.flooding_infras
 fillSlide("coastal", null, ["infrastructure"], null, slide_texts.flooding_infrastructure_coastal)
 fillSlide("combined_flooding", null, ["infrastructure"], null, slide_texts.flooding_infrastructure_combined)
 
-fillSlide("fluvial", plot_fu(d.fu), ["wsf"], null, slide_texts.flooding_builtup_fluvial)
-fillSlide("pluvial", plot_pu(d.pu), ["wsf"], null, slide_texts.flooding_builtup_pluvial)
-fillSlide("coastal", plot_cu(d.cu), ["wsf"], null, slide_texts.flooding_builtup_coastal)
-fillSlide("combined_flooding", plot_comb(d.comb, d.pu, d.fu, d.cu), ["wsf"], null, slide_texts.flooding_builtup_combined)
+fillSlide("fluvial", plot_fu(d.fu,  {height:350}), ["wsf"], null, slide_texts.flooding_builtup_fluvial)
+fillSlide("pluvial", plot_pu(d.pu,  {height:350}), ["wsf"], null, slide_texts.flooding_builtup_pluvial)
+fillSlide("coastal", plot_cu(d.cu,  {height:350}), ["wsf"], null, slide_texts.flooding_builtup_coastal)
+fillSlide("combined_flooding", plot_comb(d.comb, d.pu, d.fu, d.cu, {height:350}), ["wsf"], null, slide_texts.flooding_builtup_combined)
 
 fillSlide("fluvial", null, ["population"], null, slide_texts.flooding_population_fluvial)
 fillSlide("pluvial", null, ["population"], null, slide_texts.flooding_population_pluvial)
 fillSlide("coastal", null, ["population"], null, slide_texts.flooding_population_coastal)
 fillSlide("combined_flooding", null, ["population"], null, slide_texts.flooding_population_combined)
 
-fillSlide("elevation", plot_e(d.e))
-fillSlide("slope", plot_s(d.s))
-fillSlide("landslides", plot_ls_area(d.ls_area))
+fillSlide("elevation", plot_e(d.e, {height:300}))
+fillSlide("slope", plot_s(d.s, {height:300}))
+fillSlide("landslides", plot_ls_area(d.ls_area, {height:300}))
 ```
 
 ```{r}
@@ -354,9 +363,9 @@ if (!is.na(plots_file)) {
 ```{ojs}
 //| output: true
 
-fillSlide("liquefaction", plot_l_area(d.l_area))
+fillSlide("liquefaction", plot_l_area(d.l_area, {height:300}))
 fillSlide("roads")
-fillSlide("burnable", plot_fwi(d.fwi))
+fillSlide("burnable", plot_fwi(d.fwi, {height:300}))
 // plot_fwi_d(d.fwi)
 fillSlide("moisture")
 
@@ -436,7 +445,7 @@ The findings, interpretations, and conclusions expressed in this City Scan do no
 loadData = {
   var [pg, pas, rwi_area, uba, uba_area, lc, pug, pv, pv_area,
          aq_area, summer_area, ndvi_area, fu, pu, cu, comb,
-         e, s, ls_area, l_area, fwi] = await Promise.all([
+         e, s, ls_area, l_area, fwi, uba_tracker] = await Promise.all([
     FileAttachment("./02-process-output/tabular/processed/pg.csv").csv({typed: true}),
     FileAttachment("./02-process-output/tabular/processed/pas.csv").csv({typed: true}),
     FileAttachment("./02-process-output/tabular/processed/rwi_area.csv").csv({typed: true}),
@@ -457,11 +466,12 @@ loadData = {
     FileAttachment("./02-process-output/tabular/processed/s.csv").csv({typed: true}),
     FileAttachment("./02-process-output/tabular/processed/ls_area.csv").csv({typed: true}),
     FileAttachment("./02-process-output/tabular/processed/l_area.csv").csv({typed: true}),
-    FileAttachment("./02-process-output/tabular/processed/fwi.csv").csv({typed: true})
+    FileAttachment("./02-process-output/tabular/processed/fwi.csv").csv({typed: true}),
+    FileAttachment("./02-process-output/tabular/processed/uba_tracker.csv").csv({typed: true})
   ]);
 
   var fe = [{begin_year: 1995, begin_month: 9, DISPLACED: 95000, severity: "Large event", line1: "SEPTEMBER 1995", line2: "95,000 displaced", line3: ""}];
 
-  return {pg, pas, rwi_area, uba, uba_area, lc, pug, pv, pv_area, aq_area, summer_area, ndvi_area, fu, pu, cu, comb, e, s, ls_area, l_area, fwi, fe};
+  return {pg, pas, rwi_area, uba, uba_area, lc, pug, pv, pv_area, aq_area, summer_area, ndvi_area, fu, pu, cu, comb, e, s, ls_area, l_area, fwi, fe, uba_tracker};
 }
 ```

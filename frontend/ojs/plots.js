@@ -1353,7 +1353,6 @@ function plot_age(pas, {
   const svg = d3.create("svg")
     .attr("class", "plot")
     .attr("width", "100%")
-    .attr("height", "auto")
     .attr("viewBox", `0 0 ${width} ${height + 60}`)
     .attr("preserveAspectRatio", "xMidYMid meet")
     .style("max-width", "100%");
@@ -2863,7 +2862,6 @@ function plot_lc(lc, {
     const svg = d3.create("svg")
       .attr("class", "plot")
       .attr("width", "100%") // "100%" instead of fixed, width
-      .attr("height", "auto") //  "auto" instead of fixed, height + 40
       .attr("viewBox", `0 0 ${width} ${height + 60}`)
       .attr("preserveAspectRatio", "xMidYMid meet") 
       .style("max-width", "100%")  // prevent overflow
@@ -5872,24 +5870,14 @@ function plot_ndvi_area(ndvi_area, {
       .attr("font-weight", "normal")
       .text("Percentage of Area (%)");
       
-    // x-axis label - to match Observable Plot defaulty styling
-    svg.append("text")
-      .attr("x", margin.left + innerWidth/2)
-      .attr("y", height - 35)
-      .attr("text-anchor", "middle")
-      .attr("fill", "currentColor")
-      .attr("font-size", "11px")
-      .attr("font-family", "system-ui")
-      .attr("font-weight", "normal")
-      .text("Normalized Difference Vegetation Index (NDVI)");
-  
-    // condition labels above x-axis bins
+    // condition labels below x-axis tick labels (position depends on rotation)
+    const typeLabelY = width < 500 ? 55 : 30; // more space when labels are rotated
     completeData.forEach(d => {
       const typeName = binToTypeMap[d.bin];
       if (typeName) {
         svg.append("text")
           .attr("x", margin.left + xScale(d.bin) + xScale.bandwidth()/2)
-          .attr("y", margin.top + innerHeight + 35) // position above x-axis labels
+          .attr("y", margin.top + innerHeight + typeLabelY)
           .attr("text-anchor", "middle")
           .attr("fill", "currentColor")
           .attr("font-size", Math.max(9, Math.min(11, width / 80)) + "px")
@@ -5898,11 +5886,23 @@ function plot_ndvi_area(ndvi_area, {
           .text(typeName);
       }
     });
-      
+
+    // x-axis label - to match Observable Plot default styling
+    const xAxisLabelY = width < 500 ? height - 20 : height - 40;
+    svg.append("text")
+      .attr("x", margin.left + innerWidth/2)
+      .attr("y", xAxisLabelY)
+      .attr("text-anchor", "middle")
+      .attr("fill", "currentColor")
+      .attr("font-size", "11px")
+      .attr("font-family", "system-ui")
+      .attr("font-weight", "normal")
+      .text("Normalized Difference Vegetation Index (NDVI)");
+
     // caption (add in text later if necessary)
     svg.append("text")
       .attr("x", 20)
-      .attr("y", height - 15)
+      .attr("y", height - 5)
       .attr("text-anchor", "start")
       .attr("fill", "#6c757d")
       .attr("font-size", "9px")

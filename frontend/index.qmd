@@ -1,7 +1,4 @@
 ---
-format:
-  html:
-    theme: [source/custom.scss, none]
 editor: source
 execute:
   echo: false
@@ -81,6 +78,7 @@ function addSlideText(slide) {
 }
 
 function fillSlide(layer, chart = null, extra_layers = [], title = null, slide_text = null, extra_html = null) {
+  console.log("fillSlide called for:", layer, "createdMaps includes:", createdMaps?.includes(layer));
   if (!createdMaps.includes(layer)) return md``;
   var mappingLayers = [...(extra_layers ?? []), layer]
     .map(lay => layerParams[lay].group_id)
@@ -91,6 +89,7 @@ function fillSlide(layer, chart = null, extra_layers = [], title = null, slide_t
   if (!slide_text && layer) slide_text = slide_texts[layer];
   if (!title) title = slide_text?.title;
   if (!title && layer) title = layer;
+  console.log("fillSlide rendering:", layer, "with mappingLayers:", mappingLayers);
   return html`
     <section class="level3" id="${layer}">
       ${md`### ${title}`}
@@ -103,10 +102,24 @@ function fillSlide(layer, chart = null, extra_layers = [], title = null, slide_t
 }
 
 textColumn = d3.select('.text-column').node();
-columnWidth = textColumn.getBoundingClientRect().width * .9;
+// columnWidth = textColumn.getBoundingClientRect().width * .9;
+
+columnWidth = Generators.observe(notify => {
+  const textCol = d3.select('.text-column').node();
+  if (!textCol) return notify(width * 0.45);
+
+  const ro = new ResizeObserver(() => {
+    notify(textCol.getBoundingClientRect().width * .9);
+  });
+  ro.observe(textCol);
+  notify(textCol.getBoundingClientRect().width * .9);
+
+  return () => ro.disconnect();
+});
 
 plotsReady = {
   setD3(d3);
+  // setWidth(typeof columnWidth !== 'undefined' ? columnWidth : width * 0.45);
   setWidth(columnWidth > 0 ? columnWidth : width * 0.45);
   setCity(city);
   setCountry(country);
@@ -212,38 +225,32 @@ print_slide_text(slide_texts$basic_city_info)
 
 ## Population and Demographic Trends
 
+```{r}
+#| output: false
+pop_density_file <- fuzzy_read(charts_dir, "oxford-pop-density-scatter", paste)
+age_structure_file <- fuzzy_read(charts_dir, "oxford-age-structure-area", paste)
+ojs_define(pop_density_plot = pop_density_file, age_structure_plot = age_structure_file)
+```
+
 ```{ojs}
 //| output: true
 fillSlide("population", null, null, null, null,
-
-html`<section class="level4">
+  html`<section class="level4">
     ${md`#### Population Growth`}
     ${plot_pga(d.pg, {height:350}) ?? ""}
     ${addSlideText(slide_texts.population_growth)}
-    </section>`
+  </section>
+  ${pop_density_plot && pop_density_plot !== "NA" && pop_density_plot !== null ? html`<section class="level4">
+    ${md`#### Population Density`}
+    <img style="max-width:95%" src="${pop_density_plot}">
+    ${addSlideText(slide_texts.population_density_chart)}
+  </section>` : ""}
+  ${age_structure_plot && age_structure_plot !== "NA" && age_structure_plot !== null ? html`<section class="level4">
+    ${md`#### Population Distribution by Age`}
+    <img style="max-width:95%" src="${age_structure_plot}">
+    ${addSlideText(slide_texts.population_density_chart)}
+  </section>` : ""}`
 )
-```
-
-
-```{r}
-#| output: asis
-plots_file <- fuzzy_read(charts_dir, "oxford-pop-density-scatter", paste)
-if (!is.na(plots_file)) {
-  cat("#### Population Density\n") 
-  cat(glue('<img style="max-width:95%" src="{plots_file}">\n\n\n'))
-  print_slide_text(slide_texts$population_density_chart)
-}
-```
-
-```{r}
-#| output: asis
-plots_file <- fuzzy_read(charts_dir, "oxford-age-structure-area", paste)
-# THIS STAYS GREYED OUT
-if (!is.na(plots_file)) {
-  cat("#### Population Distribution by Age\n") 
-  cat(glue('<img style="max-width:95%" src="{plots_file}">\n\n\n'))
-  print_slide_text(slide_texts$population_density_chart)
-}
 ```
 
 ```{ojs}
@@ -358,7 +365,7 @@ if (!is.na(plots_file)) {
 
 fillSlide("liquefaction", plot_l_area(d.l_area, {height:300}))
 fillSlide("roads")
-fillSlide("burnable", plot_fwi(d.fwi, {height:350}))
+fillSlide("burnable", plot_fwi(d.fwi, {height:300}))
 // plot_fwi_d(d.fwi)
 fillSlide("moisture")
 

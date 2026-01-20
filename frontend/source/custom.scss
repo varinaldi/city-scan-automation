@@ -34,26 +34,13 @@ $page-margin-right: 0.5in;
 
 /*-- scss:rules --*/
 
-// Observable Plot title styling (match Caroline's notebook)
-figure[class*="plot"] text[aria-label="title"],
-svg text[aria-label="title"] {
-  font-weight: 400 !important;
-  font-size: 14px !important;
-}
-
-figure[class*="plot"] text[aria-label="subtitle"],
-svg text[aria-label="subtitle"] {
-  font-style: italic !important;
-  font-size: 12px !important;
-}
-
 // SCROLLYTELLING LAYOUT
 // Sets the page to full screen
 .page-columns main.content {
   @media screen {
     grid-column: screen-start / screen-end; // Maybe applies to print if I keep bootstrap style sheets
     display: grid; // Overridden by print
-    grid-template-columns: 1fr 2fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
     grid-template-rows: var(--topbar-height) calc(100vh - var(--topbar-height)) auto auto;
     min-height: 90vh;
     padding-bottom: 5vh;
@@ -232,7 +219,9 @@ svg text[aria-label="subtitle"] {
     }
 
     section.level3 {
-      @media screen { padding-bottom: 3rem; }
+      @media screen {
+        margin-bottom: 3rem;
+      } // Use margin instead of padding so that scrollama has a gap between steps
       @media print {
         height: 8.5in - $page-margin-top - $page-margin-top - 0.05in;
         max-height: .5in - $page-margin-top - $page-margin-top - 0.05in;
@@ -314,7 +303,7 @@ svg text[aria-label="subtitle"] {
       margin-top: 0;
     }  
 
-    // p:has(+ .pseudo-h4), p:last-child {display: none}  // Don't show Go to sections
+    // p:has(+ .pseudo-h4), p:last-child {display: none}  // Show Go to sections
 
   }
 

@@ -23,22 +23,23 @@ template:
   # resolution or resolution_factor
 # SECTION 3 DEMOGRAPHICS
 population: # <-- We refer to this as the "YAML key" and is used to match generic and manual text
-  fuzzy_string: population.*.tif$
+  fuzzy_string: worldpop_2015_2030.tif$
   title: 'Population density'
   subtitle: 'Number of persons per 10,000 m<sup>2</sup>'
   palette: ['#ECEB72', '#8E3933']
+  data_variable: pop_2025
   basemap: 'satellite'
   group_id: Population density # <-- This is the name shown in the leaflet layer control
   bins: 5
-  caption: 'Map data from WorldPop.'
+  caption: 'Map data from WorldPop Global2.'
 # SECTION 4 ECONOMIC ACTIVITY
 rwi:
   fuzzy_string: rwi(?=.shp$|.gpkg$|$)
   data_variable: rwi
   title: 'Relative wealth'
-  subtitle: Average household wealth, relative to nation
+  subtitle: Average household wealth, in standard deviations from national mean
   palette: ['#009E7A', '#70C5AD', '#FFFFBA', '#FF9169', '#ED431B' ]
-  labels: ['Least wealthy', 'Less wealthy', 'Average wealth', 'More wealthy', 'Most wealthy']
+  # labels: ['Least wealthy', 'Less wealthy', 'Average wealth', 'More wealthy', 'Most wealthy']
   bins: 5
   group_id: Relative wealth index
   caption: 'Map data from Meta Data for Good (2021).'
@@ -70,12 +71,11 @@ wsf:
   group_id: Urban extent
   caption: 'Map data from World Settlement Footprint.'
 wsf_tracker:
-  fuzzy_string: wsf-tracker-edit.tif$
+  fuzzy_string: wsf_tracker.tif$
   title: Year of urban expansion, 2016–2024
-  breaks: [2016.5, 2017, 2019, 2021, 2023, 2024.5]
-  # labels: ['Before 1986', '1986', '1996', '2006', '2015']
-  # breaks: [1986, 1996, 2006, 2015] # Confusingly, if we are using discrete labels, need to remove minimum break
-  labels: ['Before July 2016', 'July 2016-2018', 'July 2018-2020', 'July 2020–2022', 'July 2022–2024']
+  breaks: [2016.5, 2017, 2020, 2023, 2026]
+  data_variable: era
+  labels: ['Before July 2016', 'By July 2019', 'By July 2022', 'By July 2025']
   palette: ['#FBF9CD', '#D18158', '#25115B']
   group_id: Urban extent, 2016–2024
 ghs_builtup:
@@ -88,7 +88,7 @@ ghs_builtup:
   # breaks: [1986, 1996, 2006, 2015] # Confusingly, if we are using discrete labels, need to remove minimum break
   labels: ['Before 1980', '1980-1995', '1995-2010', '2010-2025']
   palette: ['#FBF9CD', '#E3B854', '#BF4A3B', '#25110B']
-  group_id: Urban extent
+  group_id: Urban extent (GHSL)
   caption: 'Map data from GHSL (GHS-BUILT-S R2023A).'
 builtup_projected:
   fuzzy_string: built_2030-edit.tif$
@@ -99,6 +99,7 @@ builtup_projected:
   factor: TRUE
   palette: ['#75147C']
   caption: 'Map data from GHSL: GHS-BUILT-S R2023A).'
+  group_id: Urban extent (GHSL, projected)
 impervious:
   title: Impervious Surfaces
   min: 0
@@ -178,13 +179,30 @@ solar:
   group_id: Solar PV potential
   caption: 'Map data from Global Solar Atlas.'
 air_quality:
-  fuzzy_string: air.*.tif$
-  title: 'Concentrations of PM2.5 particles in 2019'
+  fuzzy_string: air_quality_pm2_5.tif$
+  title: 'Concentrations of PM2.5 particles in 2022'
   subtitle: 'Micrograms per cubic meter (µg/m<sup>3</sup>)'
-  # domain: [0,200]
+  data_variable: pm2_5_2022
   palette: ['#fff4d1', '#f5cbab', '#e6a58c', '#d48172', '#c46673', '#ba6685', '#a86595', '#9467ab']
   breaks: [0, 5, 10, 15, 20, 30, 40, 50, 100]
   group_id: Air quality
+air_quality_local:
+  fuzzy_string: air_quality_pm2_5.tif$
+  title: 'Concentrations of PM2.5 particles in 2022'
+  subtitle: 'Micrograms per cubic meter (µg/m<sup>3</sup>)'
+  data_variable: pm2_5_2022
+  palette: ['#fff4d1', '#f5cbab', '#e6a58c', '#d48172', '#c46673', '#ba6685', '#a86595', '#9467ab']
+  bins: 5
+  group_id: Air quality (local)
+air_quality_trend:
+  fuzzy_string: air_quality_pm2_5.tif$
+  title: 'Concentrations of PM2.5 particles, 10-year trend'
+  subtitle: 'Change in micrograms per cubic meter (µg/m<sup>3</sup>) per year by linear fit (2013–2022)'
+  data_variable: trend_2013_2022
+  palette: ['#fff4d1', "#FFFFFF", '#9467ab']
+  center: 0
+  bins: 5
+  group_id: Air quality (trend)
 summer_lst:
   fuzzy_string: summer.*.tif$
   # palette: 'Spectral'
@@ -258,6 +276,105 @@ coastal:
   title: 'Coastal flood probability'
   subtitle: 'Probability of a flood event within a 3-arc-second area in a given year'
   group_id: Coastal flooding
+# 2030 projections
+coastal_2030_ssp1:
+  fuzzy_string: coastal_2030_ssp1.tif$
+  palette: ['#A7BCEE', '#1B35C4']
+  breaks: [0, .11, 1.1, 10.1]
+  labels: ['0.1–1%', '1–10%', '>10%']
+  title: 'Coastal flood probability in 2030 under SSP1'
+  subtitle: 'Probability of a flood event within a 3-arc-second area in 2030 under SSP1'
+  group_id: Coastal flooding 2030 SSP1
+coastal_2030_ssp2:
+  fuzzy_string: coastal_2030_ssp2.tif$
+  palette: ['#A7BCEE', '#1B35C4']
+  breaks: [0, .11, 1.1, 10.1]
+  labels: ['0.1–1%', '1–10%', '>10%']
+  title: 'Coastal flood probability in 2030 under SSP2'
+  subtitle: 'Probability of a flood event within a 3-arc-second area in 2030 under SSP2'
+  group_id: Coastal flooding 2030 SSP2
+coastal_2030_ssp3:
+  fuzzy_string: coastal_2030_ssp3.tif$
+  palette: ['#A7BCEE', '#1B35C4']
+  breaks: [0, .11, 1.1, 10.1]
+  labels: ['0.1–1%', '1–10%', '>10%']
+  title: 'Coastal flood probability in 2030 under SSP3'
+  subtitle: 'Probability of a flood event within a 3-arc-second area in 2030 under SSP3'
+  group_id: Coastal flooding 2030 SSP3
+coastal_2030_ssp5:
+  fuzzy_string: coastal_2030_ssp5.tif$
+  palette: ['#A7BCEE', '#1B35C4']
+  breaks: [0, .11, 1.1, 10.1]
+  labels: ['0.1–1%', '1–10%', '>10%']
+  title: 'Coastal flood probability in 2030 under SSP5'
+  subtitle: 'Probability of a flood event within a 3-arc-second area in 2030 under SSP5'
+  group_id: Coastal flooding 2030 SSP5
+# 2050 projections
+coastal_2050_ssp1:
+  fuzzy_string: coastal_2050_ssp1.tif$
+  palette: ['#A7BCEE', '#1B35C4']
+  breaks: [0, .11, 1.1, 10.1]
+  labels: ['0.1–1%', '1–10%', '>10%']
+  title: 'Coastal flood probability in 2050 under SSP1'
+  subtitle: 'Probability of a flood event within a 3-arc-second area in 2050 under SSP1'
+  group_id: Coastal flooding 2050 SSP1
+coastal_2050_ssp2:
+  fuzzy_string: coastal_2050_ssp2.tif$
+  palette: ['#A7BCEE', '#1B35C4']
+  breaks: [0, .11, 1.1, 10.1]
+  labels: ['0.1–1%', '1–10%', '>10%']
+  title: 'Coastal flood probability in 2050 under SSP2'
+  subtitle: 'Probability of a flood event within a 3-arc-second area in 2050 under SSP2'
+  group_id: Coastal flooding 2050 SSP2
+coastal_2050_ssp3:
+  fuzzy_string: coastal_2050_ssp3.tif$
+  palette: ['#A7BCEE', '#1B35C4']
+  breaks: [0, .11, 1.1, 10.1]
+  labels: ['0.1–1%', '1–10%', '>10%']
+  title: 'Coastal flood probability in 2050 under SSP3'
+  subtitle: 'Probability of a flood event within a 3-arc-second area in 2050 under SSP3'
+  group_id: Coastal flooding 2050 SSP3
+coastal_2050_ssp5:
+  fuzzy_string: coastal_2050_ssp5.tif$
+  palette: ['#A7BCEE', '#1B35C4']
+  breaks: [0, .11, 1.1, 10.1]
+  labels: ['0.1–1%', '1–10%', '>10%']
+  title: 'Coastal flood probability in 2050 under SSP5'
+  subtitle: 'Probability of a flood event within a 3-arc-second area in 2050 under SSP5'
+  group_id: Coastal flooding 2050 SSP5
+# 2080 projections
+coastal_2080_ssp1:
+  fuzzy_string: coastal_2080_ssp1.tif$
+  palette: ['#A7BCEE', '#1B35C4']
+  breaks: [0, .11, 1.1, 10.1]
+  labels: ['0.1–1%', '1–10%', '>10%']
+  title: 'Coastal flood probability in 2080 under SSP1'
+  subtitle: 'Probability of a flood event within a 3-arc-second area in 2080 under SSP1'
+  group_id: Coastal flooding 2080 SSP1
+coastal_2080_ssp2:
+  fuzzy_string: coastal_2080_ssp2.tif$
+  palette: ['#A7BCEE', '#1B35C4']
+  breaks: [0, .11, 1.1, 10.1]
+  labels: ['0.1–1%', '1–10%', '>10%']
+  title: 'Coastal flood probability in 2080 under SSP2'
+  subtitle: 'Probability of a flood event within a 3-arc-second area in 2080 under SSP2'
+  group_id: Coastal flooding 2080 SSP2
+coastal_2080_ssp3:
+  fuzzy_string: coastal_2080_ssp3.tif$
+  palette: ['#A7BCEE', '#1B35C4']
+  breaks: [0, .11, 1.1, 10.1]
+  labels: ['0.1–1%', '1–10%', '>10%']
+  title: 'Coastal flood probability in 2080 under SSP3'
+  subtitle: 'Probability of a flood event within a 3-arc-second area in 2080 under SSP3'
+  group_id: Coastal flooding 2080 SSP3
+coastal_2080_ssp5:
+  fuzzy_string: coastal_2080_ssp5.tif$
+  palette: ['#A7BCEE', '#1B35C4']
+  breaks: [0, .11, 1.1, 10.1]
+  labels: ['0.1–1%', '1–10%', '>10%']
+  title: 'Coastal flood probability in 2080 under SSP5'
+  subtitle: 'Probability of a flood event within a 3-arc-second area in 2080 under SSP5'
+  group_id: Coastal flooding 2080 SSP5
 combined_flooding: # This will require pre-processing
   fuzzy_string: combined_flooding_2020.tif$
   palette: ['#A7BCEE', '#1B35C4'] # Changing color instead of opacity
@@ -297,14 +414,14 @@ slope:
   suffix: '°'
   group_id: Slope
 landslides:
-  fuzzy_string: landslide.*.tif$
+  fuzzy_string: landslide-edit.tif$
   title: Landslide susceptibility
   palette: ['#FCEFE2', '#F2C08C', '#E89251', '#D66136', '#993F2B']
   labels: ['Very low', 'Low', 'Medium', 'High', 'Very high']
   breaks: [0, 1, 2, 3, 4, 5]
   group_id: Landslides
 liquefaction:
-  fuzzy_string: liquefaction.tif$
+  fuzzy_string: liquefaction-edit.tif$
   title: Liquefaction susceptibility
   subtitle: Proneness to liquefaction given the occurrence of a trigger event
   palette: ['#FCEFE2', '#F2C08C', '#E89251', '#D66136', '#993F2B']
@@ -317,7 +434,7 @@ roads:
   palette: NULL
   stroke:
     title: Road network segment criticality
-    subtitle: 'Percentage of all hypothetical in-city trips using this road segment'
+    subtitle: Percentage of all hypothetical in-city trips using this road segment
     variable: edge_centrality
     palette: ['#C5D1E9', '#8696C8', '#516BAE', '#9C2F76', '#CE3737']
   weight: 
@@ -365,3 +482,185 @@ drought:
 #   # labels: ['0.00–0.01', '0.01–0.02', '0.02–0.03', '0.03–0.05', '0.05–0.08', '0.08–0.13', '0.13–0.20', '0.20–0.35', '0.35–0.55', '0.55–0.90', '0.90–1.50']
 #   group_id: Seismic hazard
 #   caption: 'Map data from Global Earthquake Model (2023).'
+
+
+water_risk_overall:
+  fuzzy_string: water_risk.geojson$
+  data_variable: w_awr_def_tot_raw
+  title: 'Overall Water Risk'
+  subtitle: 'WRI Aqueduct v4 (High risk: 3-4)'
+  palette: ['#fef0d9', '#fdcc8a', '#fc8d59', '#e34a33']
+  breaks: [3.0, 3.3, 3.5, 3.7, 4.0]
+  labels: ['3.0-3.3', '3.3-3.5', '3.5-3.7', '3.7-4.0']
+  oob: censor
+  group_id: Overall Water Risk
+
+water_risk_quantity:
+  fuzzy_string: water_risk.geojson$
+  data_variable: w_awr_def_qan_raw
+  title: 'Physical Quantity Risk'
+  subtitle: 'WRI Aqueduct v4 (High risk: 3-4)'
+  palette: ['#fef0d9', '#fdcc8a', '#fc8d59', '#e34a33']
+  breaks: [3.0, 3.2, 3.3, 3.4, 3.5]
+  labels: ['3.0-3.2', '3.2-3.3', '3.3-3.4', '3.4-3.5']
+  oob: censor
+  group_id: Physical Quantity Risk
+
+water_risk_groundwater:
+  fuzzy_string: water_risk.geojson$
+  data_variable: gtd_cat
+  title: 'Groundwater Table Decline'
+  subtitle: 'WRI Aqueduct v4'
+  palette: ['#fef0d9', '#fdcc8a', '#fc8d59', '#e34a33', '#b30000']
+  breaks: [0, 1, 2, 3, 4]
+  labels: ['Low', 'Low-Medium', 'Medium-High', 'High', 'Extremely High']
+  factor: TRUE
+  oob: censor
+  group_id: Groundwater Decline
+
+water_risk_depletion:
+  fuzzy_string: water_risk.geojson$
+  data_variable: bwd_raw
+  title: 'Water Depletion'
+  subtitle: 'WRI Aqueduct v4 (ratio of consumption to supply)'
+  palette: ['#fef0d9', '#fdcc8a', '#fc8d59', '#e34a33', '#b30000']
+  breaks: [0, 0.25, 0.5, 0.75, 1.0]
+  labels: ['<25%', '25-50%', '50-75%', '>75%']
+  oob: censor
+  group_id: Water Depletion
+
+
+# Sea Level Rise - Climate Central
+# Combined 1-10m layer (minimum flood level for each cell)
+slr_1_10m:
+  fuzzy_string: slr_1_10m.tif$
+  title: 'Sea Level Rise Exposure'
+  subtitle: 'Minimum sea level rise causing inundation'
+  palette: ['#deebf7', '#c6dbef', '#9ecae1', '#6baed6', '#4292c6', '#2171b5', '#08519c', '#08306b', '#062449', '#041733']
+  breaks: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+  labels: ['1m', '2m', '3m', '4m', '5m', '6m', '7m', '8m', '9m', '10m']
+  factor: TRUE
+  group_id: Sea Level Rise
+  caption: 'Map data from Climate Central.'
+
+# AR6 SSP2-4.5 projections (combined by year)
+slr_ssp245_50_hightide:
+  fuzzy_string: slr_ssp245_50.0_hightide.tif$
+  title: 'Sea Level Rise Projection'
+  subtitle: 'SSP2-4.5, 50th percentile, high tide'
+  palette: ['#9ecae1', '#2171b5', '#041733']
+  breaks: [2020, 2050, 2100]
+  labels: ['2020', '2050', '2100']
+  factor: TRUE
+  group_id: SLR SSP2-4.5 50% High Tide
+
+slr_ssp245_50_RL1:
+  fuzzy_string: slr_ssp245_50.0_RL1.tif$
+  title: 'Sea Level Rise Projection'
+  subtitle: 'SSP2-4.5, 50th percentile, 1-year flood'
+  palette: ['#9ecae1', '#2171b5', '#041733']
+  breaks: [2020, 2050, 2100]
+  labels: ['2020', '2050', '2100']
+  factor: TRUE
+  group_id: SLR SSP2-4.5 50% RL1
+
+slr_ssp245_50_RL10:
+  fuzzy_string: slr_ssp245_50.0_RL10.tif$
+  title: 'Sea Level Rise Projection'
+  subtitle: 'SSP2-4.5, 50th percentile, 10-year flood'
+  palette: ['#9ecae1', '#2171b5', '#041733']
+  breaks: [2020, 2050, 2100]
+  labels: ['2020', '2050', '2100']
+  factor: TRUE
+  group_id: SLR SSP2-4.5 50% RL10
+
+slr_ssp245_83_hightide:
+  fuzzy_string: slr_ssp245_83.3_hightide.tif$
+  title: 'Sea Level Rise Projection'
+  subtitle: 'SSP2-4.5, 83rd percentile, high tide'
+  palette: ['#9ecae1', '#2171b5', '#041733']
+  breaks: [2020, 2050, 2100]
+  labels: ['2020', '2050', '2100']
+  factor: TRUE
+  group_id: SLR SSP2-4.5 83% High Tide
+
+slr_ssp245_83_RL1:
+  fuzzy_string: slr_ssp245_83.3_RL1.tif$
+  title: 'Sea Level Rise Projection'
+  subtitle: 'SSP2-4.5, 83rd percentile, 1-year flood'
+  palette: ['#9ecae1', '#2171b5', '#041733']
+  breaks: [2020, 2050, 2100]
+  labels: ['2020', '2050', '2100']
+  factor: TRUE
+  group_id: SLR SSP2-4.5 83% RL1
+
+slr_ssp245_83_RL10:
+  fuzzy_string: slr_ssp245_83.3_RL10.tif$
+  title: 'Sea Level Rise Projection'
+  subtitle: 'SSP2-4.5, 83rd percentile, 10-year flood'
+  palette: ['#9ecae1', '#2171b5', '#041733']
+  breaks: [2020, 2050, 2100]
+  labels: ['2020', '2050', '2100']
+  factor: TRUE
+  group_id: SLR SSP2-4.5 83% RL10
+
+# AR6 SSP5-8.5 projections (combined by year)
+slr_ssp585_50_hightide:
+  fuzzy_string: slr_ssp585_50.0_hightide.tif$
+  title: 'Sea Level Rise Projection'
+  subtitle: 'SSP5-8.5, 50th percentile, high tide'
+  palette: ['#9ecae1', '#2171b5', '#041733']
+  breaks: [2020, 2050, 2100]
+  labels: ['2020', '2050', '2100']
+  factor: TRUE
+  group_id: SLR SSP5-8.5 50% High Tide
+
+slr_ssp585_50_RL1:
+  fuzzy_string: slr_ssp585_50.0_RL1.tif$
+  title: 'Sea Level Rise Projection'
+  subtitle: 'SSP5-8.5, 50th percentile, 1-year flood'
+  palette: ['#9ecae1', '#2171b5', '#041733']
+  breaks: [2020, 2050, 2100]
+  labels: ['2020', '2050', '2100']
+  factor: TRUE
+  group_id: SLR SSP5-8.5 50% RL1
+
+slr_ssp585_50_RL10:
+  fuzzy_string: slr_ssp585_50.0_RL10.tif$
+  title: 'Sea Level Rise Projection'
+  subtitle: 'SSP5-8.5, 50th percentile, 10-year flood'
+  palette: ['#9ecae1', '#2171b5', '#041733']
+  breaks: [2020, 2050, 2100]
+  labels: ['2020', '2050', '2100']
+  factor: TRUE
+  group_id: SLR SSP5-8.5 50% RL10
+
+slr_ssp585_83_hightide:
+  fuzzy_string: slr_ssp585_83.3_hightide.tif$
+  title: 'Sea Level Rise Projection'
+  subtitle: 'SSP5-8.5, 83rd percentile, high tide'
+  palette: ['#9ecae1', '#2171b5', '#041733']
+  breaks: [2020, 2050, 2100]
+  labels: ['2020', '2050', '2100']
+  factor: TRUE
+  group_id: SLR SSP5-8.5 83% High Tide
+
+slr_ssp585_83_RL1:
+  fuzzy_string: slr_ssp585_83.3_RL1.tif$
+  title: 'Sea Level Rise Projection'
+  subtitle: 'SSP5-8.5, 83rd percentile, 1-year flood'
+  palette: ['#9ecae1', '#2171b5', '#041733']
+  breaks: [2020, 2050, 2100]
+  labels: ['2020', '2050', '2100']
+  factor: TRUE
+  group_id: SLR SSP5-8.5 83% RL1
+
+slr_ssp585_83_RL10:
+  fuzzy_string: slr_ssp585_83.3_RL10.tif$
+  title: 'Sea Level Rise Projection'
+  subtitle: 'SSP5-8.5, 83rd percentile, 10-year flood'
+  palette: ['#9ecae1', '#2171b5', '#041733']
+  breaks: [2020, 2050, 2100]
+  labels: ['2020', '2050', '2100']
+  factor: TRUE
+  group_id: SLR SSP5-8.5 83% RL10

@@ -8,7 +8,7 @@ AOI_shp_name: 'Angeles-Pampanga'
 
 # optional: use the directory from a previous run by specifying the year and month in the format of yyyy-mm
 # default value is null
-prev_run_date: 
+prev_run_date: '2026-01'
 
 # accessibility analysis parameters
 osm_query:

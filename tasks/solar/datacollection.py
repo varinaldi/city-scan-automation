@@ -110,7 +110,7 @@ def datacollection_monthly(
         return_raster: bool = True
     ):
     """
-    Download solar raster from global bucket for the AOI country and clip it.
+    Download monthly solar raster from global bucket for the AOI country and clip it.
 
     Parameters
     ----------

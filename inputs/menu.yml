@@ -1,12 +1,12 @@
-accessibility: True
+accessibility: False
 basic_info: False
 burned_area: False
 demographics: False
-population: True
+population: False
 ghs_population: False
 wsf: False
 earthquake: False   # under development
-elevation: False
+elevation: True
 # if slope is set to False, please also set elevation to False
 # because slope is derived from elevation
 # unless the elevation raster file is already on cloud storage
@@ -19,12 +19,12 @@ flood_event: False
 fwi: False
 landcover_burn: False
 road_network: False
-rwi: True
-air: True
-landslide: True
-liquefaction: True
+rwi: False
+air: False
+landslide: False
+liquefaction: False
 oe_plot: False
-solar: True
+solar: False
 forest: False
 green: False
 landcover: False

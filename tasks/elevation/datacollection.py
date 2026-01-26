@@ -1,0 +1,244 @@
+from utils.log_module import setup_logger
+logger = setup_logger(__name__)
+
+import requests
+import shutil
+
+def download_public_zip(url, output_path):
+    """
+    Download a publicly accessible ZIP file via HTTP.
+
+    Parameters
+    ----------
+    url : str
+        Public URL of the ZIP file.
+    output_path : str
+        Local path to save the ZIP.
+    """
+    with requests.get(url, stream=True, timeout=300) as r:
+        r.raise_for_status()
+        with open(output_path, "wb") as f:
+            shutil.copyfileobj(r.raw, f)
+
+def normalize_fabdem_tile_name(tile_name: str) -> str:
+    """
+    Normalize FABDEM tile name by removing zero-padding in latitude/longitude.
+
+    Examples
+    --------
+    N015E120 -> N15E120
+    S003W098 -> S3W98
+    """
+    import re
+
+    match = re.match(r"([NS])0*(\d+)([EW])0*(\d+)", tile_name)
+    if not match:
+        return tile_name
+
+    lat_hem, lat_deg, lon_hem, lon_deg = match.groups()
+    return f"{lat_hem}{int(lat_deg)}{lon_hem}{int(lon_deg)}"
+
+
+
+def datacollection(
+    aoi,
+    city_name,
+    output_dir,
+    return_raster=False,
+):
+    """
+    Download FABDEM raster tiles from internal cloud storage, mosaic,
+    clip to AOI, and save as a city-level elevation raster.
+
+    Parameters
+    ----------
+    aoi : geopandas.GeoDataFrame
+        AOI polygon(s). Must be convertible to EPSG:4326.
+    city_name : str
+        City name used for output file naming.
+    output_dir : str
+        Base directory where outputs will be written.
+    return_raster : bool, optional
+        If True, return clipped raster array and metadata.
+
+    Returns
+    -------
+    (numpy.ndarray, dict) or None
+        Clipped raster array and rasterio metadata if return_raster=True,
+        otherwise None.
+    """
+
+    import os
+    import tempfile
+    import zipfile
+
+    import geopandas as gpd
+    import rasterio
+    from rasterio.merge import merge
+    from rasterio.mask import mask
+
+    import utils
+
+    # ------------------------------------------------------------------
+    # 1. Normalize AOI CRS
+    # ------------------------------------------------------------------
+    logger.info("Normalizing AOI CRS to EPSG:4326")
+
+    if aoi.crs is None or aoi.crs.to_epsg() != 4326:
+        aoi = aoi.to_crs(epsg=4326)
+
+    aoi_geom = aoi.geometry.values
+    aoi_bounds = aoi.total_bounds  # (minx, miny, maxx, maxy)
+
+    # ------------------------------------------------------------------
+    # 2. Prepare output directories
+    # ------------------------------------------------------------------
+    spatial_dir = os.path.join(output_dir, "spatial")
+    os.makedirs(spatial_dir, exist_ok=True)
+
+    output_raster_path = os.path.join(
+        spatial_dir, f"{city_name}_elevation.tif"
+    )
+
+    # ------------------------------------------------------------------
+    # 3. Load FABDEM tile index
+    # ------------------------------------------------------------------
+    logger.info("Loading FABDEM tile index")
+
+    bucket_base = "https://storage.googleapis.com/city-scan-global-public/"
+    tile_index_path = "fabdem/FABDEM_v1-2_tiles.geojson"
+    fabdem_tiles = gpd.read_file(bucket_base+tile_index_path)
+
+    # ------------------------------------------------------------------
+    # 4. Find intersecting tiles
+    # ------------------------------------------------------------------
+    logger.info("Intersecting AOI with FABDEM tiles")
+
+    intersecting = fabdem_tiles[
+        fabdem_tiles.intersects(aoi.unary_union)
+    ]
+
+    if intersecting.empty:
+        logger.error("No FABDEM tiles found for AOI")
+        raise RuntimeError("No FABDEM tiles found for AOI")
+
+    tile_names = intersecting["tile_name"].unique().tolist()
+    logger.info(tile_names)
+    zip_files = intersecting["zipfile_name"].unique().tolist()
+    logger.info(zip_files)
+
+    logger.info(
+        f"Found {len(tile_names)} FABDEM tiles across "
+        f"{len(zip_files)} ZIP archives"
+    )
+
+    # ------------------------------------------------------------------
+    # 5. Download ZIP files & extract required TIFFs (public bucket)
+    # ------------------------------------------------------------------
+    logger.info("Downloading FABDEM ZIP archives from public bucket")
+
+    extracted_tifs = []
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        logger.info("Using temporary directory for ZIP extraction")
+
+        for zip_name in zip_files:
+            zip_url = f"{bucket_base}fabdem/{zip_name}"
+            local_zip = os.path.join(tmpdir, zip_name)
+
+            logger.info(f"Downloading {zip_url}")
+
+            try:
+                with requests.get(zip_url, stream=True, timeout=300) as r:
+                    r.raise_for_status()
+                    with open(local_zip, "wb") as f:
+                        shutil.copyfileobj(r.raw, f)
+            except Exception as e:
+                logger.error(f"Failed to download {zip_name}: {e}")
+                continue
+
+            logger.info(f"Extracting required TIFFs from {zip_name}")
+
+            try:
+                with zipfile.ZipFile(local_zip, "r") as z:
+                    zip_contents = z.namelist()
+
+                    logger.debug(
+                        f"ZIP {zip_name} contains {len(zip_contents)} files"
+                    )
+
+                    for tile in tile_names:
+                        normalized_tile = normalize_fabdem_tile_name(tile)
+                        expected_suffix = f"{normalized_tile}_FABDEM_V1-2.tif"
+
+                        for member in zip_contents:
+                            if member.endswith(expected_suffix):
+                                logger.info(f"Extracting {member}")
+                                z.extract(member, tmpdir)
+
+                                extracted_tifs.append(
+                                    os.path.join(tmpdir, member)
+                                )
+
+            except Exception as e:
+                logger.error(f"Failed to extract {zip_name}: {e}")
+
+        if not extracted_tifs:
+            logger.error("No FABDEM TIFFs extracted from ZIP archives")
+            raise RuntimeError("FABDEM ZIPs contained no matching tiles")
+        # ------------------------------------------------------------------
+        # 6. Mosaic tiles
+        # ------------------------------------------------------------------
+        logger.info("Mosaicing FABDEM tiles")
+
+        src_files = [rasterio.open(fp) for fp in extracted_tifs]
+        mosaic_array, mosaic_transform = merge(src_files)
+
+        mosaic_meta = src_files[0].meta.copy()
+        mosaic_meta.update({
+            "height": mosaic_array.shape[1],
+            "width": mosaic_array.shape[2],
+            "transform": mosaic_transform,
+        })
+
+        for src in src_files:
+            src.close()
+
+        # ------------------------------------------------------------------
+        # 7. Clip mosaic to AOI
+        # ------------------------------------------------------------------
+        logger.info("Clipping mosaic to AOI")
+
+        with rasterio.io.MemoryFile() as memfile:
+            with memfile.open(**mosaic_meta) as dataset:
+                dataset.write(mosaic_array)
+
+                clipped_array, clipped_transform = mask(
+                    dataset,
+                    aoi_geom,
+                    crop=True,
+                    nodata=mosaic_meta.get("nodata"),
+                )
+
+                clipped_meta = dataset.meta.copy()
+                clipped_meta.update({
+                    "height": clipped_array.shape[1],
+                    "width": clipped_array.shape[2],
+                    "transform": clipped_transform,
+                })
+
+        # ------------------------------------------------------------------
+        # 8. Write output raster
+        # ------------------------------------------------------------------
+        logger.info(f"Writing elevation raster to {output_raster_path}")
+
+        with rasterio.open(output_raster_path, "w", **clipped_meta) as dst:
+            dst.write(clipped_array)
+
+    # ------------------------------------------------------------------
+    # 9. Optional return
+    # ------------------------------------------------------------------
+    if return_raster:
+        return clipped_array, clipped_meta
+
+    return None

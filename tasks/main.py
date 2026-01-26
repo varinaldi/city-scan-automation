@@ -172,9 +172,34 @@ if menu.get("accessibility"):
     except Exception as e:
         logger.error(f"Error: {e}")
 
+if menu.get("demographics"):
+    try:
+        from tasks.demography import datacollection as demo_collect
+        from tasks.demography import dataanalysis as demo_analysis
+        from tasks.demography import datavisualization as demo_vis
+        logger.info("Running demographic workflow..")
+        demo_collect.datacollection(aoi=aoi, city_name=city_name, country_iso3=country_iso3, output_dir=output_dir, return_raster=False)
+        demo_analysis.demographic_aggregate(city_name=city_name, output_dir=output_dir, return_df=True)
+        demo_vis.age_distribution_plot(city_name=city_name, output_dir=output_dir, render_dir=render_dir, font_dict=font_dict)
+        
+    except Exception as e:
+        logger.error(f"Error: {e}")
 
+if menu.get("elevation"):
+    try:
+        from tasks.elevation import datacollection as elev_collect
+        # from tasks.elevation import dataanalysis as elev_analysis
+        # from tasks.elevation import datavisualization as elev_vis
+        logger.info("Running elevation workflow..")
+        elev_collect.datacollection(aoi=aoi, city_name=city_name, output_dir=output_dir, return_raster=False)
+        
+        
+    except Exception as e:
+        logger.error(f"Error: {e}")
 
 #####################################################################
 ################ RUN MULTI-LAYER TASKS COMPONENTS ###################
 #####################################################################
+
+
 

@@ -81,7 +81,7 @@ When setup is successful, you should see:
 
 ### 4. Configure Inputs
 
-Adjust the files in the `inputs/` folder as necessary for your specific project. This may include configuration files, data inputs, or parameters required for the analysis.
+Adjust the files in the `inputs/` folder as necessary for your specific project. In this folder, you will need to create a new folder in your local called `AOI/`, where you will store your AOI boundary. The inputs folder is also where city_inputs.yml and menu.yml live, which you will need to modify as input parameters according to your analysis needs. 
 
 ### 5. Run the Main Task
 

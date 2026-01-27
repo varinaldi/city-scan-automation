@@ -188,12 +188,15 @@ if menu.get("demographics"):
 if menu.get("elevation"):
     try:
         from tasks.elevation import datacollection as elev_collect
-        # from tasks.elevation import dataanalysis as elev_analysis
-        # from tasks.elevation import datavisualization as elev_vis
+        from tasks.elevation import dataanalysis as elev_analysis
+        from tasks.elevation import datavisualization as elev_vis
         logger.info("Running elevation workflow..")
-        elev_collect.datacollection(aoi=aoi, city_name=city_name, output_dir=output_dir, return_raster=False)
-        
-        
+        # elev_array, elev_meta = elev_collect.datacollection(aoi=aoi, city_name=city_name, output_dir=output_dir, return_raster=True)
+        # elev_analysis.generate_contours(city_name=city_name, output_dir=output_dir, return_gdf=False, elev_array=elev_array, elev_meta=elev_meta)
+        # elev_analysis.elevation_stats(city_name=city_name, output_dir=output_dir, elev_array=elev_array, elev_meta=elev_meta)
+        # elev_analysis.elevation_interpretation(city_name=city_name, output_dir=output_dir)
+        # elev_vis.plot_elevation_rastermap(city_name=city_name, output_dir=output_dir, clipped_image=elev_array, clipped_meta=elev_meta)
+        elev_vis.plot_elevation_stats(city_name=city_name, output_dir=output_dir, render_dir=render_dir)
     except Exception as e:
         logger.error(f"Error: {e}")
 

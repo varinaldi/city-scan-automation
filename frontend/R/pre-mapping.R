@@ -289,6 +289,28 @@ if (!file.exists(file.path(spatial_dir, "vegetation-edit.tif"))) {
   message("vegetation-edit.tif already exists, skipping...")
 }
 
+# Landslide edit (set 0 to NA)
+if (!file.exists(file.path(spatial_dir, "landslide-edit.tif"))) {
+  landslide <- fuzzy_read(spatial_dir, "landslide.*\\.tif$")
+  if (inherits(landslide, "SpatRaster")) {
+    NAflag(landslide) <- 0
+    writeRaster(landslide, file.path(spatial_dir, "landslide-edit.tif"), overwrite = T)
+  }
+} else {
+  message("landslide-edit.tif already exists, skipping...")
+}
+
+# Liquefaction edit (set 0 to NA)
+if (!file.exists(file.path(spatial_dir, "liquefaction-edit.tif"))) {
+  liquefaction <- fuzzy_read(spatial_dir, "liquefaction\\.tif$")
+  if (inherits(liquefaction, "SpatRaster")) {
+    NAflag(liquefaction) <- 0
+    writeRaster(liquefaction, file.path(spatial_dir, "liquefaction-edit.tif"), overwrite = T)
+  }
+} else {
+  message("liquefaction-edit.tif already exists, skipping...")
+}
+
 
 ## done
 message("Pre-mapping processing complete.")

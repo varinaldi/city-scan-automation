@@ -274,6 +274,10 @@ writeVector(v_styled, fgb_path, overwrite = T, filetype = "FlatGeobuf")
       stop("Data is not spatRaster, RasterLayer, spatVector or sf")
     }
     # See here for formatting the legend: https://stackoverflow.com/a/35803245/5009249
+    # Check if data is points (for circular legend icons)
+    is_points <- (class(data)[1] == "SpatVector" && geomtype(data) == "points") |
+                 (class(data)[1] == "sf" && "POINTS" %in% st_geometry_type(data))
+
     legend_args <- list(
       map = maps,
       # data = data,
@@ -283,7 +287,7 @@ writeVector(v_styled, fgb_path, overwrite = T, filetype = "FlatGeobuf")
       # pal = if (is.null(params$labels) | is.null(params$breaks)) color_scale else NULL,
       pal = if (diff(lengths(list(params$labels, params$breaks))) == 1) NULL else color_scale,
       # colors = if (is.null(params$labels) | is.null(params$breaks)) NULL else if (diff(lengths(list(params$labels, params$breaks))) == 1) color_scale(head(params$breaks, -1)) else color_scale(params$breaks),
-      colors = if (diff(lengths(list(params$labels, params$breaks))) == 1) color_scale(head(params$breaks, -1)) else NULL,
+      colors = if (diff(lengths(list(params$labels, params$breaks))) == 1) color_scale(tail(params$breaks, -1)) else NULL,
       opacity = legend_opacity,
       # bins = params$bins,
       # bins = 3,  # legend color ramp does not render if there are too many bins
@@ -294,7 +298,8 @@ writeVector(v_styled, fgb_path, overwrite = T, filetype = "FlatGeobuf")
       # labFormat = function(type, breaks, labels) {
       # }
       # group = params$title %>% str_replace_all("\\s", "-") %>% tolower())
-      group = params$group_id)
+      group = params$group_id,
+      className = if (is_points) "info legend legend-circle" else "info legend")
     legend_args <- Filter(Negate(is.null), legend_args)
     # Using do.call so I can conditionally include args (i.e., pal and colors)
     maps <- do.call(addLegend, legend_args)
@@ -637,7 +642,8 @@ create_color_scale <- function(domain, palette, center = NULL, bins = 5, reverse
       # Why did I find it necessary to use colorRamp previously? For setting "linear"?
       # palette = colorRamp(palette, interpolate = "linear"),
       !!!args,
-      reverse = reverse)) 
+      reverse = reverse,
+      right = TRUE))  # Important for matching ggplot2 scale_fill_stepsn
   } else {
     color_scale <- rlang::inject(colorBin(
       !!!args,

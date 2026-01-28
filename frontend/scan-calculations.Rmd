@@ -206,10 +206,14 @@ oxford %>%
 ```{r population-growth, echo = F, message= F, warning=F}
 
 # use worldpop data if available
-if (nrow(wpop_growth) > 0 && "Year" %in% names(wpop_growth)) {
+if (exists("wpop_growth") && nrow(wpop_growth) > 0 && "Year" %in% names(wpop_growth)) {
   pop_growth <- wpop_growth
 }
 
+# Check if pop_growth exists and has data
+if (!exists("pop_growth") || is.null(pop_growth) || nrow(pop_growth) == 0) {
+  print_text(paste_bold("No population growth data available"))
+} else {
 
 # Make pop_growth plot
 pop_min_year <- min(pop_growth$Year)
@@ -280,6 +284,7 @@ pop_growth %>% mutate(growth_pct = (Population - lag(Population))/lag(Population
 #   ))
 # }
 
+} # end else for pop_growth check
 ```
 
 
@@ -1690,36 +1695,35 @@ if (!exists('fwi')) print_text(paste_bold('No FWI data available')) else {
         width = 4, height = 3.5, units = "in", dpi = "print")
 }
 
-knitr::knit_exit()
-
 ```
 
-## Plots Check
-```{r}
-# This checks which maps are missing. I could do the same for plots, but would need to be at end of document
-slide_list <- read_csv("slide-list.csv", col_types = "cccddcc")
-plots <- list.files("03-render-output/plots")
-# occasional_maps <- filter(slide_list, filename %in% plots & conditions == "occasional" & type == "map")
-# 
-# if (nrow(occasional_maps > 0)) {
-#   print("These maps exist. Make sure they are included in the InDesign.")
-#   print(occasional_maps %>% select(slide, filename, warning_text))
-# }
+## Output Check
+```{r output-check, echo = F, message= F, warning=F}
+slide_list <- read_csv("source/slide-list.csv", col_types = "cccddcc")
 
+# Check maps
+maps <- list.files("03-render-output/maps", pattern = "\\.png$")
+missing_maps <- filter(slide_list, filename %ni% maps & type == "map") %>%
+  filter(conditions != "none") %>%
+  filter(!str_starts(filename, "map_"))
+
+# Check plots (both PNG and PDF)
+plots <- list.files("03-render-output/plots", pattern = "\\.(png|pdf)$")
 missing_plots <- filter(slide_list, filename %ni% plots & type == "plot") %>%
   filter(conditions != "none")
-# Use the following to make a warning instead of printing a table
-# mutate(
-#   slide_number = paste(section, section_order, sep = "."),
-#   # gap = 27 - nchar(filename),
-#   slide = leading_zeros(substr(slide, 1, 10), length = 10, filler = " ", trailing = T),
-#   filename = leading_zeros(filename, length = 28, filler = " ", trailing = T),
-#   warning_message = paste0(slide, ": ", filename, warning_text),
-#   .keep = "none")
-# warning(paste0("missing maps:\n", paste(missing_maps$warning_message, collapse = "\n")))
+
+# Print results
+if (nrow(missing_maps) > 0) {
+  print_text(paste_bold("Missing Maps:"))
+  print_paged_df(missing_maps %>% select(slide, filename, warning_text, data_sources))
+}
 
 if (nrow(missing_plots) > 0) {
-  print_text("The following plots have not been made. Why not?")
-  print_paged_df(missing_plots %>% select(slide, filename, warning_text))
+  print_text(paste_bold("Missing Plots:"))
+  print_paged_df(missing_plots %>% select(slide, filename, warning_text, data_sources))
+}
+
+if (nrow(missing_maps) == 0 && nrow(missing_plots) == 0) {
+  print_text("All expected maps and plots are present.")
 }
 ```

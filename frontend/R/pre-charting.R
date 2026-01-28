@@ -55,9 +55,9 @@ wpop_growth <- tryCatch(read.csv(str_subset(list.files(tabular_dir, full.names =
 
     sources <- list(
       WorldPop = function() tryCatch(get_worldpop_total(year = 2020, aoi = aoi), error = function(e) NULL),
-      `GHS-POP` = function() get_ghs_pop_growth(city, country, aoi) %>% slice_min(abs(Year - 2021), n = 1) %>%
-                                 pull(Population),
-      `UN/DE` = function() un_de_pop_growth(city, country) %>% slice_max(Year) %>% summarize(Population = mean(Population)) %>% pull(Population)
+      `GHS-POP` = function() tryCatch(get_ghs_pop_growth(city, country, aoi) %>% slice_min(abs(Year - 2021), n = 1) %>%
+                                 pull(Population), error = function(e) NULL),
+      `UN/DE` = function() tryCatch(un_de_pop_growth(city, country) %>% slice_max(Year) %>% summarize(Population = mean(Population)) %>% pull(Population), error = function(e) NULL)
     )
 
     pop <- NULL
@@ -167,7 +167,7 @@ if (in_oxford) {
 # first check, which cities are not in oxford
 non_oxford_cities <- which_not(c( city, bm_cities_manual), oxford$Location) %>% .[!duplicated(.)]
 
-if (city %in% non_oxford_cities && nrow(pop_ghs) > 0) { 
+if (city %in% non_oxford_cities && !is.null(pop_ghs) && nrow(pop_ghs) > 0) { 
     # Use GHS for Scan city if  available
     message("Using GHS population data for ", city)
     pop_longitude <- pop_longitude %>%
@@ -570,7 +570,7 @@ if (length(wsf_file) > 0)  {
 }
 
 # WSF Tracker ---------------------------------------------------------------------------------
-wsf_tracker_file <- str_subset(list.files(tabular_dir, full.names = T), "wsf_tracker.*(csv|xlsx)") 
+wsf_tracker_file <- str_subset(list.files(tabular_dir, full.names = T), "wsf_tracker.*(csv|xlsx)")[0] 
 
 if (length(wsf_tracker_file) > 0)  {
   # Urban built-up area ----
@@ -685,7 +685,7 @@ flood_string <- function(flood_type) {
 # Flood WSF ------------------------------------------------------------------
 flood_file <- str_subset(list.files(tabular_dir, full.names = T), "flood_wsf.csv")
 wsf_flood <- full_join(select(wsf, -starts_with("growth")), read_csv(flood_file), by = c("Year" = "year")) %>%
-  rename(combined_2020 = comb_2020)
+  rename(any_of(c(combined_2020 = "comb_2020")))
 
 # Gather Flood Data ------------------------------------------------------------------
 gather_flood_data <- function(flood_type) {
@@ -745,53 +745,41 @@ pufu <- bind_rows(
   mutate(type = factor(type, levels = c("Combined", "River", "Rainwater", "Coastal")))
 
 # Flood Events ----------------------------------------------------------------------------------
-# Dartmouth Flood Observatory - wrap in tryCatch as website may be down
-flood_archive_available <- tryCatch({
-c("dbf", "prj", "shp", "shx") %>% lapply(function(suffix) {
-  curl_download(
-    url = paste0("https://floodobservatory.colorado.edu/temp/FloodArchive_region.", suffix),
-    destfile = paste0(flood_archive_file, "/FloodArchive_region.", suffix))
-})
-  TRUE
-}, error = function(e) {
-  warning("Dartmouth Flood Observatory data unavailable: ", e$message)
-  FALSE
-})
+# Dartmouth Flood Observatory - read from GCP flood-archive folder
+flood_archive <- read_sf(flood_archive_file) %>%
+  st_transform("EPSG:4326")
 
-if (flood_archive_available && file.exists(file.path(flood_archive_file, "FloodArchive_region.shp"))) {
-flood_archive <- read_sf(flood_archive_file)
-if (is.na(st_crs(flood_archive))) st_crs(flood_archive) <- "EPSG:4326"
+if (nrow(flood_archive) > 0) {
+  flood_archive <- st_make_valid(flood_archive)
+  flood_archive <- flood_archive[st_is_valid(flood_archive),] %>% st_transform(st_crs(aoi))
 
-flood_archive <- st_make_valid(flood_archive)
-flood_archive <- flood_archive[st_is_valid(flood_archive),] %>% st_transform(st_crs(aoi))
+  intersections <- which(apply(st_intersects(flood_archive, aoi, sparse = F), 1, any))
 
-intersections <- which(apply(st_intersects(flood_archive, aoi, sparse = F), 1, any))
+  flood_archive <- flood_archive[intersections,]
 
-flood_archive <- flood_archive[intersections,]
+  floods <- st_drop_geometry(flood_archive) %>%
+    select(BEGAN, ENDED, DEAD, DISPLACED, MAINCAUSE, SEVERITY)
 
-floods <- st_drop_geometry(flood_archive) %>%
-  select(BEGAN, ENDED, DEAD, DISPLACED, MAINCAUSE, SEVERITY)
+  flood_text_all <- floods %>% mutate(
+    severity = ordered(SEVERITY, levels = c(1, 1.5, 2), labels = c("Large event", "Very large event", "Extreme event")),
+    duration = paste(ENDED - BEGAN, "days"),
+    fatalities = paste(scales::label_comma()(DEAD), "fatalities"),
+    displaced = paste(scales::label_comma()(DISPLACED), "displaced"),
+    line1 = toupper(paste(lubridate::month(BEGAN, label = T, abbr = F), lubridate::year(BEGAN))),
+    line2 = paste(severity, (MAINCAUSE), sep = ", "),
+    line3 = paste(as.character(duration), fatalities, displaced, sep = ", "),
+    text = paste0(line1, ": ", line2, "\n", line3),
+    mag = normalize(DEAD) * normalize(DISPLACED) * SEVERITY,
+    begin_day = lubridate::yday(BEGAN),
+    end_day = lubridate::yday(ENDED),
+    begin_month = lubridate::month(BEGAN),
+    end_month = lubridate::month(ENDED),
+    begin_year = lubridate::year(BEGAN) + begin_day/1000, # The /1000 helps keep labels in proper vertical order
+    end_year = lubridate::year(ENDED))
 
-flood_text_all <- floods %>% mutate(
-  severity = ordered(SEVERITY, levels = c(1, 1.5, 2), labels = c("Large event", "Very large event", "Extreme event")),
-  duration = paste(ENDED - BEGAN, "days"),
-  fatalities = paste(scales::label_comma()(DEAD), "fatalities"),
-  displaced = paste(scales::label_comma()(DISPLACED), "displaced"),
-  line1 = toupper(paste(lubridate::month(BEGAN, label = T, abbr = F), lubridate::year(BEGAN))),
-  line2 = paste(severity, (MAINCAUSE), sep = ", "),
-  line3 = paste(as.character(duration), fatalities, displaced, sep = ", "),
-  text = paste0(line1, ": ", line2, "\n", line3),
-  mag = normalize(DEAD) * normalize(DISPLACED) * SEVERITY,
-  begin_day = lubridate::yday(BEGAN),
-  end_day = lubridate::yday(ENDED),
-  begin_month = lubridate::month(BEGAN),
-  end_month = lubridate::month(ENDED),
-  begin_year = lubridate::year(BEGAN) + begin_day/1000, # The /1000 helps keep labels in proper vertical order
-  end_year = lubridate::year(ENDED))
-
-# flood_text_all2[which(order(flood_text_all2$mag, decreasing = TRUE) > 10),"text"] <- NA
-flood_text_all[which(rank(-flood_text_all$mag) > 10),"text"] <- NA
-# flood_text_all2[order(flood_text_all2$mag, decreasing = T)[1:10],"text"]
+  # flood_text_all2[which(order(flood_text_all2$mag, decreasing = TRUE) > 10),"text"] <- NA
+  flood_text_all[which(rank(-flood_text_all$mag) > 10),"text"] <- NA
+  # flood_text_all2[order(flood_text_all2$mag, decreasing = T)[1:10],"text"]
 } else {
   warning("Flood archive data not available - skipping flood events analysis")
   floods <- tibble(BEGAN = as.Date(character()), ENDED = as.Date(character()),

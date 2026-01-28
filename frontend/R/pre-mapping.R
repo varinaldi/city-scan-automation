@@ -248,32 +248,6 @@ if (!file.exists(file.path(spatial_dir, "burnt-area-density.tif"))) {
   message("burnt-area-density.tif already exists, skipping...")
 }
 
-adjust_deforstation_years <- function() {
-  deforest <- fuzzy_read(spatial_dir, "deforestation.tif$", rast)
-  if (inherits(deforest, c("SpatRaster"))) {
-    vals <- na.omit(values(deforest))
-    if (all(vals %in% 1:99)) {
-      values(deforest) <- values(deforest) + 2000
-      writeRaster(deforest, file.path(spatial_dir, "deforestation-edit.tif"), overwrite = T)
-      return(NULL)
-    }
-    if (all(vals > 2000) | length(vals) == 0) {
-      writeRaster(deforest, file.path(spatial_dir, "deforestation-edit.tif"), overwrite = T)
-      return(NULL)
-    }
-    stop("Deforestation raster has values both in 1-99 and above 2000; please fix source data")
-  }
-}
-adjust_deforstation_years()
-
-ndvi <- fuzzy_read(spatial_dir, "ndvi.seaso")
-if (inherits(ndvi, "SpatRaster")) {
-  writeRaster(filter(ndvi, NDVI >= .18), file.path(spatial_dir, "vegetation-edit.tif"), overwrite = T)
-  veg_binary <- mutate(ndvi, NDVI = NDVI >= .18) + 0
-  values(veg_binary)[values(veg_binary) == 0] <- NA
-  writeRaster(veg_binary, file.path(spatial_dir, "vegetation-binary-edit.tif"), overwrite = T)
-}
-
 
 # Pop edit 
 if (!file.exists(file.path(spatial_dir, "pop_2025-edit.tif"))) {
@@ -313,6 +287,28 @@ if (!file.exists(file.path(spatial_dir, "vegetation-edit.tif"))) {
   }
 } else {
   message("vegetation-edit.tif already exists, skipping...")
+}
+
+# Landslide edit (set 0 to NA)
+if (!file.exists(file.path(spatial_dir, "landslide-edit.tif"))) {
+  landslide <- fuzzy_read(spatial_dir, "landslide.*\\.tif$")
+  if (inherits(landslide, "SpatRaster")) {
+    NAflag(landslide) <- 0
+    writeRaster(landslide, file.path(spatial_dir, "landslide-edit.tif"), overwrite = T)
+  }
+} else {
+  message("landslide-edit.tif already exists, skipping...")
+}
+
+# Liquefaction edit (set 0 to NA)
+if (!file.exists(file.path(spatial_dir, "liquefaction-edit.tif"))) {
+  liquefaction <- fuzzy_read(spatial_dir, "liquefaction\\.tif$")
+  if (inherits(liquefaction, "SpatRaster")) {
+    NAflag(liquefaction) <- 0
+    writeRaster(liquefaction, file.path(spatial_dir, "liquefaction-edit.tif"), overwrite = T)
+  }
+} else {
+  message("liquefaction-edit.tif already exists, skipping...")
 }
 
 

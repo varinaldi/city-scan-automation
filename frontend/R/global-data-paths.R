@@ -12,8 +12,8 @@ if (USE_GCS && exists(GLOBAL_DATA_BUCKET)) {
     undata_file <- "Population/undata-pop.csv"  # add Population/
     koeppen_file <- "climate-classification/Koeppen-Geiger-ASCII.csv" 
 
-    flood_archive_file <- "flood-archive"
-    cyclone_archive_file <- "IBTrACS-tropical-cyclones"
+    flood_archive_file <- "flood-archive/FloodArchive_region.shp"
+    cyclone_archive_file <- "IBTrACS-tropical-cyclones/IBTrACS.since1980.list.v04r00.lines.shp"
 
     # pv_path <- "World_PVOUT_GISdata_LTAm_AvgDailyTotals_GlobalSolarAtlas-v2_AAIGRID/"
     pv_path <- "globalsolar/PVOUT-monthly.tif"
@@ -31,9 +31,9 @@ if (USE_GCS && exists(GLOBAL_DATA_BUCKET)) {
     undata_file <-  file.path(local_materials, "undata-pop.csv")
     koeppen_file <- file.path(local_materials, "Koeppen-Geiger-ASCII.csv")
 
-    flood_archive_file <- file.path(local_materials, "flood-archive")
+    flood_archive_file <- file.path(local_materials, "flood-archive", "FloodArchive_region.shp")
 
-    cyclone_archive_file <- file.path(local_materials, "IBTrACS-tropical-cyclones")
+    cyclone_archive_file <- file.path(local_materials, "IBTrACS-tropical-cyclones", "IBTrACS.since1980.list.v04r00.lines.shp")
 
     pv_path <- paste0(local_materials, "/World_PVOUT_GISdata_LTAm_AvgDailyTotals_GlobalSolarAtlas-v2_AAIGRID.nosync/")
 

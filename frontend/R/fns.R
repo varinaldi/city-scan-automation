@@ -642,14 +642,14 @@ create_color_scale <- function(domain, palette, center = NULL, bins = 5, reverse
       # Why did I find it necessary to use colorRamp previously? For setting "linear"?
       # palette = colorRamp(palette, interpolate = "linear"),
       !!!args,
-      reverse = reverse,
-      right = TRUE))  # Important for matching ggplot2 scale_fill_stepsn
+      reverse = reverse))
   } else {
     color_scale <- rlang::inject(colorBin(
       !!!args,
       bins = if (!is.null(breaks)) breaks else bins,
       # Might want to turn pretty back on
       pretty = FALSE,
+      right = TRUE,  # Important for matching ggplot2 scale_fill_stepsn
       reverse = reverse))       
   }
   return(color_scale)

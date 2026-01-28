@@ -110,7 +110,7 @@ function initLevel3() {
 
 setTimeout(() => {
   initLevel3();
-}, 3000);
+}, 5500);
 ```
 
 

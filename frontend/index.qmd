@@ -61,7 +61,7 @@ ojs_define(slide_texts = slide_texts)
 
 ```{ojs}
 //| label: ojs-plots-setup
-import { setD3, setWidth, setCity, setCountry, plot_pga, plot_pgp, plot_pas, plot_pas_pyramid, plot_age, plot_dependency, plot_rwi_area, plot_uba_area, plot_ubaa, plot_ubap, plot_uba_tracker, plot_lc, plot_uddm, plot_pv_area, plot_pv_alt, plot_pv_d, plot_pv, plot_aq, plot_summer_area, plot_ndvi_area, plot_fe, plot_fu, plot_pu, plot_cu, plot_comb, plot_e, plot_s, plot_ls_area, plot_l_area, plot_fwi, plot_fwi_d } from "./ojs/plots.js"
+import { setD3, setWidth, setCity, setCountry, plot_pga, plot_pgp, plot_pas, plot_pas_pyramid, plot_age, plot_dependency, plot_rwi_area, plot_uba_area, plot_ubaa, plot_ubap, plot_uba_tracker, plot_lc, plot_uddm, plot_pv_area, plot_pv_alt, plot_pv_d, plot_pv, plot_aq, plot_summer_area, plot_ndvi_area, plot_fe, plot_fu, plot_pu, plot_cu, plot_comb, plot_e, plot_s, plot_ls_area, plot_l_area, plot_fwi, plot_fwi_d, plot_flood_prob } from "./ojs/plots.js"
 // import { loadData } from "./ojs/dataloader.js" // Moved to bottom of doc -- I suppose all of this should be moved there too
 
 function renderDiv(text, divClass) {
@@ -79,9 +79,9 @@ function addSlideText(slide) {
 
 function fillSlide(layer, chart = null, extra_layers = [], title = null, slide_text = null, extra_html = null) {
   console.log("fillSlide called for:", layer, "createdMaps includes:", createdMaps?.includes(layer));
-  if (!createdMaps.includes(layer)) return md``;
+  if (!createdMaps.includes(layer) && !chart) return md``;
   var mappingLayers = [...(extra_layers ?? []), layer]
-    .map(lay => layerParams[lay].group_id)
+    .map(lay => layerParams[lay]?.group_id)
     .filter(Boolean)
     .join(";"); 
   // To avoid rendering "null", "undefined", or "" in the document, return nothing explicitly:
@@ -167,9 +167,6 @@ City Scan
 `r month.name[lubridate::month(Sys.Date())]` `r lubridate::year(Sys.Date())`
 
 ::: donors
-![GFDRR](source/donors/CRP_GFDRR_Logo.png)
-
-![World Bank](source/donors/WB%20Logo.png)
 
 ![Austrian Federal Ministry of Finance](source/donors/Austria%20BMF%20Logo.png)
 
@@ -179,7 +176,10 @@ City Scan
 
 ![MAECI](source/donors/MAECI-logo-horizontal.png)
 
-![AICS](source/donors/AICS%20Logo.png)
+![GFDRR](source/donors/CRP_GFDRR_Logo.png)
+
+![World Bank](source/donors/WB%20Logo.png)
+
 :::
 
 :::
@@ -303,8 +303,8 @@ fillSlide("health_zones", null, null, null, slide_texts.health_proximity)
 fillSlide("solar", [plot_pv_alt(d.pv, {height:300}), plot_pv_area(d.pv_area, {height:300})], null, null, null)
 // plot_pv_d(d.pv)
 // plot_pv(d.pv)
-
-fillSlide("air_quality_trend", plot_aq(d.aq_area, {height:300}))
+fillSlide("air_quality", plot_aq(d.aq_area, {height:300}), null, null,)
+fillSlide("air_quality_trend", null, )
 fillSlide("summer_lst", plot_summer_area(d.summer_area, {height:300}))
 fillSlide("vegetation", plot_ndvi_area(d.ndvi_area, {height:300}))
 fillSlide("forest", null, ["deforest"])
@@ -314,27 +314,39 @@ fillSlide("forest", null, ["deforest"])
 
 ```{ojs}
 //| output: true
-html`<section class="level4 is-active">
-    ${md`#### Signficant Flood Events`}
-    ${plot_fe(d.fe, {height:350}) ?? ""}
-    ${addSlideText(slide_texts.flood_events)}
-    </section>`
 
-fillSlide("fluvial", null, ["infrastructure"], null, slide_texts.flooding_infrastructure_fluvial)
-fillSlide("pluvial", null, ["infrastructure"], null, slide_texts.flooding_infrastructure_pluvial)
-fillSlide("coastal", null, ["infrastructure"], null, slide_texts.flooding_infrastructure_coastal)
-fillSlide("combined_flooding", null, ["infrastructure"], null, slide_texts.flooding_infrastructure_combined)
+// html`<section class="level4 is-active">
+//     ${md`#### 7.1 Signficant Flood Events`}
+//     ${plot_fe(d.fe, {height:350}) ?? ""}
+//     ${addSlideText(slide_texts.flood_events)}
+//     </section>`
+// ----------------------- Flood Events --------------------------
+fillSlide("flood_events", plot_fe(d.fe, {height:350}), null,  "Flood Events", slide_texts.flood_events)
 
+// ----------------------- Flood Built-Up --------------------------
 fillSlide("fluvial", plot_fu(d.fu,  {height:350}), ["wsf"], null, slide_texts.flooding_builtup_fluvial)
-fillSlide("pluvial", plot_pu(d.pu,  {height:350}), ["wsf"], null, slide_texts.flooding_builtup_pluvial)
-fillSlide("coastal", plot_cu(d.cu,  {height:350}), ["wsf"], null, slide_texts.flooding_builtup_coastal)
+// fillSlide("pluvial", plot_pu(d.pu,  {height:350}), ["wsf"], null, slide_texts.flooding_builtup_pluvial)
+
+fillSlide("pluvial", plot_flood_prob(d.pu_prob, {floodType: "Pluvial Flooding", height:350}), ["wsf"], null, slide_texts.flooding_builtup_pluvial)
+
+// fillSlide("coastal", plot_cu(d.cu,  {height:350}), ["wsf"], null, slide_texts.flooding_builtup_coastal)
+fillSlide("pluvial", plot_flood_prob(d.cu_prob, {floodType: "Coastal Flooding", height:350}), ["wsf"], null, slide_texts.flooding_builtup_coastal)
+
 fillSlide("combined_flooding", plot_comb(d.comb, d.pu, d.fu, d.cu, {height:350}), ["wsf"], null, slide_texts.flooding_builtup_combined)
 
+// ----------------------- Flood Population --------------------------
 fillSlide("fluvial", null, ["population"], null, slide_texts.flooding_population_fluvial)
 fillSlide("pluvial", null, ["population"], null, slide_texts.flooding_population_pluvial)
 fillSlide("coastal", null, ["population"], null, slide_texts.flooding_population_coastal)
 fillSlide("combined_flooding", null, ["population"], null, slide_texts.flooding_population_combined)
 
+// ----------------------- Flood Infrastructure --------------------------
+fillSlide("fluvial", null, ["infrastructure"], null, slide_texts.flooding_infrastructure_fluvial)
+fillSlide("pluvial", null, ["infrastructure"], null, slide_texts.flooding_infrastructure_pluvial)
+fillSlide("coastal", null, ["infrastructure"], null, slide_texts.flooding_infrastructure_coastal)
+fillSlide("combined_flooding", null, ["infrastructure"], null, slide_texts.flooding_infrastructure_combined)
+
+// ----------------------- Others --------------------------
 fillSlide("elevation", plot_e(d.e, {height:300}))
 fillSlide("slope", plot_s(d.s, {height:300}))
 fillSlide("landslides", plot_ls_area(d.ls_area, {height:300}))
@@ -445,7 +457,7 @@ The findings, interpretations, and conclusions expressed in this City Scan do no
 loadData = {
   var [pg, pas, rwi_area, uba, uba_area, lc, pug, pv, pv_area,
          aq_area, summer_area, ndvi_area, fu, pu, cu, comb,
-         e, s, ls_area, l_area, fwi, uba_tracker] = await Promise.all([
+         e, s, ls_area, l_area, fwi, uba_tracker, fe, fu_prob, pu_prob, cu_prob ] = await Promise.all([
     FileAttachment("./02-process-output/tabular/processed/pg.csv").csv({typed: true}),
     FileAttachment("./02-process-output/tabular/processed/pas.csv").csv({typed: true}),
     FileAttachment("./02-process-output/tabular/processed/rwi_area.csv").csv({typed: true}),
@@ -467,11 +479,13 @@ loadData = {
     FileAttachment("./02-process-output/tabular/processed/ls_area.csv").csv({typed: true}),
     FileAttachment("./02-process-output/tabular/processed/l_area.csv").csv({typed: true}),
     FileAttachment("./02-process-output/tabular/processed/fwi.csv").csv({typed: true}),
-    FileAttachment("./02-process-output/tabular/processed/uba_tracker.csv").csv({typed: true})
+    FileAttachment("./02-process-output/tabular/processed/uba_tracker.csv").csv({typed: true}),
+    FileAttachment("./02-process-output/tabular/processed/fe.csv").csv({typed: true}), 
+    FileAttachment("./02-process-output/tabular/processed/fu_prob.csv").csv({typed: true}),
+    FileAttachment("./02-process-output/tabular/processed/pu_prob.csv").csv({typed: true}),
+    FileAttachment("./02-process-output/tabular/processed/cu_prob.csv").csv({typed: true}),
   ]);
 
-  var fe = [{begin_year: 1995, begin_month: 9, DISPLACED: 95000, severity: "Large event", line1: "SEPTEMBER 1995", line2: "95,000 displaced", line3: ""}];
-
-  return {pg, pas, rwi_area, uba, uba_area, lc, pug, pv, pv_area, aq_area, summer_area, ndvi_area, fu, pu, cu, comb, e, s, ls_area, l_area, fwi, fe, uba_tracker};
+  return {pg, pas, rwi_area, uba, uba_area, lc, pug, pv, pv_area, aq_area, summer_area, ndvi_area, fu, pu, cu, comb, e, s, ls_area, l_area, fwi, fe, uba_tracker, fu_prob, pu_prob, cu_prob};
 }
 ```

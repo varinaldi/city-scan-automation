@@ -2000,7 +2000,7 @@ function plot_rwi_area(rwi_area, {
       .attr("font-style", d => d.percentage > 0 ? "normal" : "italic")
       .text(d => d.percentage > 0 ? 
         `${d.percentage.toFixed(1)}%` : 
-        "0.0%")
+        "")
       .style("display", d => d.percentage > 2 || d.percentage === 0 ? "block" : "none");
   
     // x-axis
@@ -2207,9 +2207,9 @@ function plot_uba_area(uba_area, {
       .attr("width", xScale.bandwidth())
       .attr("y", d => yScale(d.percentage))
       .attr("height", d => innerHeight - yScale(d.percentage))
-      .attr("fill", d => ubaAreaColorMap[d.year] || color) // use d.year instead of d.bin
+      .attr("fill", d => ubaAreaColorMap[d.bin] || color)
       .attr("fill-opacity", 1)
-      .attr("stroke", d => d3.color(ubaAreaColorMap[d.year] || color).darker(0.3)) // use d.year instead of d.bin
+      .attr("stroke", d => d3.color(ubaAreaColorMap[d.bin] || color).darker(0.3))
       .attr("stroke-width", 1)
       .style("cursor", "default")
       .on("mouseover", function(event, d) {
@@ -2298,7 +2298,7 @@ function plot_uba_area(uba_area, {
       .attr("font-style", d => d.percentage > 0 ? "normal" : "italic")
       .text(d => d.percentage > 0 ? 
         `${d.percentage.toFixed(1)}%` : 
-        "0.0%")
+        "")
       .style("display", d => d.percentage > 2 || d.percentage === 0 ? "block" : "none"); // show labels for significant values or zeros
   
     // x-axis - to match Observable Plot default styling
@@ -2830,7 +2830,7 @@ function plot_lc(lc, {
   //color scale - dynamic mapping based on actual data
   const landCoverColors = {
     "Cropland": "#eaa86f",
-    "Built up": "#d3605f", 
+    "Built-up": "#d3605f", 
     "Grassland": "#9bbb7f",
     "Tree cover": "#629777",
     "Permanent water bodies": "#61acdc",
@@ -4149,7 +4149,7 @@ function plot_pv_area(pv_area, {
       .attr("font-style", d => d.percentage > 0 ? "normal" : "italic")
       .text(d => d.percentage > 0 ? 
         `${d.percentage.toFixed(1)}%` : 
-        "0.0%")
+        "")
       .style("display", d => d.percentage > 2 || d.percentage === 0 ? "block" : "none"); // show labels for significant values or zeros
   
     // x-axis - to match Observable Plot default styling
@@ -5009,8 +5009,9 @@ function plot_aq(aq_area, {
       "20-30": "#d5949f",         // [20-30)
       "30-40": "#cf94aa" ,        // [30-40)
       "40-50": "#c394b5",         // [40-50)
-      "50-100": "#c394b5" ,       // [50-100)
-      "100+": "#a07ca0" ,         // [100+)
+      "50-100": "#a07ca0" ,       // [50-100)
+      "100+": "#9467ab" ,         // [100+)
+
     };
 
     // calculate total area to show complete distribution
@@ -5188,7 +5189,7 @@ function plot_aq(aq_area, {
       .attr("font-style", d => d.percentage > 0 ? "normal" : "italic")
       .text(d => d.percentage > 0 ? 
         `${d.percentage.toFixed(1)}%` : 
-        "0.0%")
+        "")
       .style("display", d => d.percentage > 2 || d.percentage === 0 ? "block" : "none"); // show labels for significant values or zeros
   
     // x-axis - to match Observable Plot default styling
@@ -5501,7 +5502,7 @@ function plot_summer_area(summer_area, {
       .attr("font-style", d => d.percentage > 0 ? "normal" : "italic")
       .text(d => d.percentage > 0 ? 
         `${d.percentage.toFixed(1)}%` : 
-        "0.0%")
+        "")
       .style("display", d => d.percentage > 2 || d.percentage === 0 ? "block" : "none");
   
     // x axis
@@ -5604,20 +5605,6 @@ function plot_ndvi_area(ndvi_area, {
     color = "black"
   } = {}) {
 
-    const sortedData = ndvi_area.slice().sort((a, b) =>
-      parseNdviRange(a.bin) - parseNdviRange(b.bin)
-    );
-
-    // color mapping for coverage "type" (same colors as mapped)
-    const ndviColorMap = {
-      "Water": "#b2b2d5",
-      "Built-up": "#eff4d8",
-      "Barren": "#cfe4c7",
-      "Shrub and Grassland": "#a5cd9f",
-      "Sparse": "#82b685",
-      "Dense": "#82b685"
-    };
-
     // map from bin values to "type" (similar to binToConditionMap in plot_pv_alt)
     const binToTypeMap = {
       "-1-0.015": "Water",
@@ -5626,6 +5613,21 @@ function plot_ndvi_area(ndvi_area, {
       "0.18-0.27": "Shrub and Grassland",
       "0.27-0.36": "Sparse",
       "0.36-1": "Dense"
+    };
+
+    // Filter out Water and Built-up, keep only vegetation categories (keep original percentages)
+    const sortedData = ndvi_area.slice()
+      .filter(d => !["Water", "Built-up"].includes(binToTypeMap[d.bin]))
+      .sort((a, b) => parseNdviRange(a.bin) - parseNdviRange(b.bin));
+
+    // color mapping for coverage "type" (same colors as mapped)
+    const ndviColorMap = {
+      "Water": "#b2b2d5",
+      "Built-up": "#eff4d8",
+      "Barren": "#cfe4c7",
+      "Shrub and Grassland": "#a5cd9f",
+      "Sparse": "#82b685",
+      "Dense": "#2e6a34"
     };
 
     // calculate total area to show complete distribution
@@ -5643,32 +5645,39 @@ function plot_ndvi_area(ndvi_area, {
     height = height ?? (width * heightRatio);
     const margin = {
       top: 90,
-      right: Math.max(20, width * 0.02), 
+      right: Math.max(20, width * 0.02),
       bottom: Math.max(90, width * 0.12), // increased for type labels
       left: Math.max(80, width * 0.08)
     };
     const innerWidth = width - margin.left - margin.right;
     const innerHeight = height - margin.top - margin.bottom;
-    
+
     const xScale = d3.scaleBand()
       .domain(completeData.map(d => d.bin))
       .range([0, innerWidth])
       .padding(0.1);
-      
+
+    // Dynamic y-axis max based on data (with 10% offset)
+    const maxPercentage = Math.max(...completeData.map(d => d.percentage));
+    // For small percentages (<5), round to nearest 0.5; otherwise round to nearest 5
+    const yMax = maxPercentage < 5
+      ? Math.ceil(maxPercentage * 1.1 * 2) / 2  // round to nearest 0.5
+      : Math.ceil(maxPercentage * 1.1 / 5) * 5 || 100;
+
     const yScale = d3.scaleLinear()
-      .domain([0, 100])
+      .domain([0, yMax])
       .range([innerHeight, 0]);
-  
+
     // svg
     const svg = d3.create("svg")
       .attr("width", width)
       .attr("height", height)
       .style("background", "white")
       .style("font", "10 px system-ui"); // Observable Plot default styling to match other plots
-  
+
     const g = svg.append("g")
       .attr("transform", `translate(${margin.left},${margin.top})`);
-    
+
     // y-axis with grid lines (behind bars)
     const yTicks = Math.max(4, Math.min(10, Math.floor(width * 0.6) / 60));
     const yAxisGroup = g.append("g").attr("class", "y-axis");
@@ -5676,8 +5685,8 @@ function plot_ndvi_area(ndvi_area, {
       .ticks(yTicks)
       .tickSizeOuter(0)
       .tickSizeInner(-innerWidth)
-      .tickFormat(d3.format("~s"));
-  
+      .tickFormat(d => d < 1 ? d.toFixed(1) : d); // Show decimals for small values
+
     // y-axis to match Observable Plot default styling
     yAxisGroup.call(yAxisCall);
     yAxisGroup.select(".domain").remove();
@@ -5802,16 +5811,13 @@ function plot_ndvi_area(ndvi_area, {
       .attr("font-family", "system-ui")
       .attr("font-weight", "normal")
       .attr("font-style", d => d.percentage > 0 ? "normal" : "italic")
-      .text(d => d.percentage > 0 ? 
-        `${d.percentage.toFixed(1)}%` : 
-        "0.0%")
-      .style("display", d => d.percentage > 2 || d.percentage === 0 ? "block" : "none"); // show labels for significant values or zeros
-  
+      .text(d => d.percentage > 0 ? `${d.percentage.toFixed(2)}%` : ""); // hide 0% labels
+
     // x-axis - to match Observable Plot default styling
     const xAxisGroup = g.append("g")
       .attr("class", "x-axis")
       .attr("transform", `translate(0,${innerHeight})`);
-      
+
     xAxisGroup.call(d3.axisBottom(xScale)
       .tickSizeOuter(0)
       .tickSizeInner(0));
@@ -5825,7 +5831,7 @@ function plot_ndvi_area(ndvi_area, {
       .attr("font-family", "system-ui")
       .attr("font-weight", "normal")
       .attr("dy", "1.5em");
-      
+
     if (width < 500) {
       xAxisGroup.selectAll("text")
         .style("text-anchor", "end")
@@ -5833,7 +5839,7 @@ function plot_ndvi_area(ndvi_area, {
         .attr("dy", ".15em")
         .attr("transform", "rotate(-45)");
     }
-      
+
     // title
     svg.append("text")
       .attr("x", 20)
@@ -6156,6 +6162,216 @@ function plot_fe(fe, {
 
 
 // ------------------------------------------------------------
+// plot_flood_prob - Multi-line flood charts by probability (matching plot_pu style)
+// ------------------------------------------------------------
+function plot_flood_prob(data, {
+  cityName = globalCity,
+  width = plotWidth,
+  height = null,
+  floodType = "Flooding",  // "Pluvial Flooding", "Fluvial Flooding", etc.
+  xLabel = "Year",
+  yLabel = "Exposed Urban Built-up Area (sq km)"
+} = {}) {
+
+  height = height ?? (width * heightRatio);
+  const margin = {
+    top: 90,
+    right: Math.max(80, width * 0.12),  // space for legend
+    bottom: Math.max(90, width * 0.1),
+    left: Math.max(80, width * 0.08)
+  };
+  const innerWidth = width - margin.left - margin.right;
+  const innerHeight = height - margin.top - margin.bottom;
+
+  // Probability bin columns and colors (matching layers.yml)
+  const bins = [
+    { key: "0.1-1%", label: "0.1–1%", color: "#A7BCEE", dash: null },
+    { key: "1-10%", label: "1–10%", color: "#6478D9", dash: "4,3" },
+    { key: ">10%", label: ">10%", color: "#1B35C4", dash: "2,2" }
+  ];
+
+  // Get year range
+  const minYear = d3.min(data, d => d.yearName);
+  const maxYear = d3.max(data, d => d.yearName);
+
+  // Find max value across all bins for y-scale
+  const maxVal = d3.max(data, d => Math.max(d["0.1-1%"] || 0, d["1-10%"] || 0, d[">10%"] || 0));
+
+  // Scales
+  const xScale = d3.scaleLinear()
+    .domain([1, data.length])
+    .range([0, innerWidth]);
+
+  const yScale = d3.scaleLinear()
+    .domain([0, maxVal * 1.2])
+    .range([innerHeight, 0]);
+
+  // SVG
+  const svg = d3.create("svg")
+    .attr("width", width)
+    .attr("height", height)
+    .style("background", "white")
+    .style("font", "10px system-ui");
+
+  const g = svg.append("g")
+    .attr("transform", `translate(${margin.left},${margin.top})`);
+
+  // y-axis with grid lines (matching plot_pu style)
+  const yTicks = Math.max(4, Math.min(10, Math.floor(width * 0.6) / 60));
+  const yAxisGroup = g.append("g").attr("class", "y-axis");
+  // Use decimal format for small values, SI notation for large
+  const yFormat = maxVal < 1 ? d3.format(".2f") : d3.format("~s");
+  const yAxisCall = d3.axisLeft(yScale)
+    .ticks(yTicks)
+    .tickSizeOuter(0)
+    .tickSizeInner(-innerWidth)
+    .tickFormat(yFormat);
+
+  yAxisGroup.call(yAxisCall);
+  yAxisGroup.select(".domain").remove();
+  yAxisGroup.selectAll(".tick line")
+    .attr("stroke", "#f0f0f0")
+    .attr("stroke-width", 1);
+  yAxisGroup.selectAll(".tick text")
+    .attr("fill", "currentColor")
+    .attr("font-size", "10px")
+    .attr("font-family", "system-ui")
+    .attr("font-weight", "normal")
+    .attr("dx", "-0.3em");
+
+  // x-axis with grid lines (matching plot_pu style)
+  const xAxisGroup = g.append("g")
+    .attr("class", "x-axis")
+    .attr("transform", `translate(0,${innerHeight})`);
+
+  xAxisGroup.call(d3.axisBottom(xScale)
+    .ticks(Math.max(3, Math.min(6, Math.floor(width / 120))))
+    .tickFormat(d => {
+      const index = Math.round(d) - 1;
+      return index >= 0 && index < data.length ? d3.format("d")(data[index].yearName) : "";
+    })
+    .tickSizeOuter(0)
+    .tickSizeInner(-innerHeight));
+  xAxisGroup.select(".domain")
+    .attr("stroke", "currentColor")
+    .attr("stroke-width", 1);
+
+  xAxisGroup.selectAll(".tick line")
+    .attr("stroke", "#f0f0f0")
+    .attr("stroke-width", 1);
+
+  xAxisGroup.selectAll(".tick text")
+    .attr("fill", "currentColor")
+    .attr("font-size", "10px")
+    .attr("font-family", "system-ui")
+    .attr("font-weight", "normal")
+    .attr("dy", "1.5em");
+
+  // Line generator
+  const line = d3.line()
+    .defined(d => d.value != null && !isNaN(d.value))
+    .x(d => xScale(d.year))
+    .y(d => yScale(d.value));
+
+  // Draw lines for each probability bin
+  bins.forEach(bin => {
+    const lineData = data.map(d => ({
+      year: d.year,
+      value: d[bin.key] || 0
+    }));
+
+    const path = g.append("path")
+      .datum(lineData)
+      .attr("fill", "none")
+      .attr("stroke", bin.color)
+      .attr("stroke-width", Math.max(1.5, Math.min(3, width / 400)))
+      .attr("d", line);
+
+    if (bin.dash) path.attr("stroke-dasharray", bin.dash);
+  });
+
+  // Legend (on SVG, right side below subtitle - like plot_comb)
+  const legendX = width - 100;
+  const legendY = 60;
+  const legendSpacing = 18;
+
+  const legendGroup = svg.append("g")
+    .attr("class", "legend");
+
+  bins.forEach((bin, i) => {
+    const legendItem = legendGroup.append("g")
+      .attr("transform", `translate(${legendX}, ${legendY + i * legendSpacing})`);
+
+    const legendLine = legendItem.append("line")
+      .attr("x1", 0)
+      .attr("x2", 20)
+      .attr("y1", 0)
+      .attr("y2", 0)
+      .attr("stroke", bin.color)
+      .attr("stroke-width", 2.5);
+
+    if (bin.dash) legendLine.attr("stroke-dasharray", bin.dash);
+
+    legendItem.append("text")
+      .attr("x", 25)
+      .attr("y", 0)
+      .attr("dy", "0.32em")
+      .attr("font-size", "12px")
+      .attr("font-family", "system-ui")
+      .text(bin.label);
+  });
+
+  // title (matching plot_pu style: 18px, normal weight, includes year range)
+  svg.append("text")
+    .attr("x", 20)
+    .attr("y", 25)
+    .attr("text-anchor", "start")
+    .attr("fill", "currentColor")
+    .attr("font-size", "18px")
+    .attr("font-family", "system-ui")
+    .attr("font-weight", "normal")
+    .text(`Built-up Area Exposed to ${floodType}, ${minYear}-${maxYear}`);
+
+  // subtitle (matching plot_pu style: 16px, italic, just cityName)
+  svg.append("text")
+    .attr("x", 20)
+    .attr("y", 45)
+    .attr("text-anchor", "start")
+    .attr("fill", "currentColor")
+    .attr("font-size", "16px")
+    .attr("font-family", "system-ui")
+    .attr("font-style", "italic")
+    .attr("font-weight", "normal")
+    .text(cityName);
+
+  // y-axis label
+  svg.append("text")
+    .attr("transform", "rotate(-90)")
+    .attr("y", 20)
+    .attr("x", -(margin.top + innerHeight/2))
+    .attr("text-anchor", "middle")
+    .attr("fill", "currentColor")
+    .attr("font-size", "11px")
+    .attr("font-family", "system-ui")
+    .attr("font-weight", "normal")
+    .text(yLabel);
+
+  // x-axis label
+  svg.append("text")
+    .attr("x", margin.left + innerWidth/2)
+    .attr("y", getXAxisTitleY(height, width, xScale.domain()))
+    .attr("text-anchor", "middle")
+    .attr("fill", "currentColor")
+    .attr("font-size", "11px")
+    .attr("font-family", "system-ui")
+    .attr("font-weight", "normal")
+    .text(xLabel);
+
+  return svg.node();
+}
+
+
+// ------------------------------------------------------------
 // plot_fu
 // ------------------------------------------------------------
 function plot_fu(fu, {
@@ -6207,7 +6423,7 @@ function plot_fu(fu, {
     .ticks(yTicks)
     .tickSizeOuter(0)
     .tickSizeInner(-innerWidth)
-    .tickFormat(d3.format("~s"));
+    .tickFormat(d => d < 1 ? d.toFixed(2) : d);  // Handle small decimals properly
 
   yAxisGroup.call(yAxisCall);
   yAxisGroup.select(".domain").remove();
@@ -6220,12 +6436,12 @@ function plot_fu(fu, {
     .attr("font-family", "system-ui")
     .attr("font-weight", "normal")
     .attr("dx", "-0.3em");
-  
+
   // x-axis with grid lines
   const xAxisGroup = g.append("g")
     .attr("class", "x-axis")
     .attr("transform", `translate(0,${innerHeight})`);
-    
+
   xAxisGroup.call(d3.axisBottom(xScale)
     .ticks(Math.max(5, Math.min(15, Math.floor(width / 80))))
     .tickFormat(d => {
@@ -6625,7 +6841,7 @@ function plot_cu(cu, {
     .ticks(yTicks)
     .tickSizeOuter(0)
     .tickSizeInner(-innerWidth)
-    .tickFormat(d3.format("~s"));
+    .tickFormat(d => d < 1 ? d.toFixed(2) : d);  // Handle small decimals properly
 
   yAxisGroup.call(yAxisCall);
   yAxisGroup.select(".domain").remove();
@@ -6638,12 +6854,12 @@ function plot_cu(cu, {
     .attr("font-family", "system-ui")
     .attr("font-weight", "normal")
     .attr("dx", "-0.3em");
-  
+
   // x-axis with grid lines
   const xAxisGroup = g.append("g")
     .attr("class", "x-axis")
     .attr("transform", `translate(0,${innerHeight})`);
-    
+
   xAxisGroup.call(d3.axisBottom(xScale)
     .ticks(Math.max(5, Math.min(15, Math.floor(width / 80))))
     .tickFormat(d => {
@@ -6833,7 +7049,7 @@ function plot_comb(comb, pu, fu, cu, {
     .ticks(yTicks)
     .tickSizeOuter(0)
     .tickSizeInner(-innerWidth)
-    .tickFormat(d3.format("~s"));
+    .tickFormat(d => d < 1 ? d.toFixed(2) : d);  // Handle small decimals properly
 
   yAxisGroup.call(yAxisCall);
   yAxisGroup.select(".domain").remove();
@@ -6846,12 +7062,12 @@ function plot_comb(comb, pu, fu, cu, {
     .attr("font-family", "system-ui")
     .attr("font-weight", "normal")
     .attr("dx", "-0.3em");
-  
+
   // x-axis with grid lines
   const xAxisGroup = g.append("g")
     .attr("class", "x-axis")
     .attr("transform", `translate(0,${innerHeight})`);
-    
+
   xAxisGroup.call(d3.axisBottom(xScale)
     .ticks(Math.max(5, Math.min(15, Math.floor(width / 80))))
     .tickFormat(d => {
@@ -6888,6 +7104,17 @@ function plot_comb(comb, pu, fu, cu, {
   const dashArray = `${Math.max(2, Math.min(6, width / 200))},${Math.max(2, Math.min(6, width / 200))}`;
   const strokeWidth = Math.max(1.5, Math.min(3, width / 400));
   
+  // combined line (comb) - black solid (draw first so dashed lines appear on top)
+  g.append("path")
+    .datum(comb)
+    .attr("fill", "none")
+    .attr("stroke", "black")
+    .attr("stroke-width", strokeWidth)
+    .attr("d", d3.line()
+      .defined(d => d.comb !== null)
+      .x(d => xScale(d.year))
+      .y(d => yScale(d.comb)));
+
   // coastal line (cu) - green dashed
   g.append("path")
     .datum(cu)
@@ -6899,7 +7126,7 @@ function plot_comb(comb, pu, fu, cu, {
       .defined(d => d.cu !== null)
       .x(d => xScale(d.year))
       .y(d => yScale(d.cu)));
-  
+
   // fluvial line (fu) - red dashed
   g.append("path")
     .datum(fu)
@@ -6911,8 +7138,8 @@ function plot_comb(comb, pu, fu, cu, {
       .defined(d => d.fu !== null)
       .x(d => xScale(d.year))
       .y(d => yScale(d.fu)));
-  
-  // pluvial line (pu) - blue dashed
+
+  // pluvial line (pu) - blue dashed (drawn last to appear on top)
   g.append("path")
     .datum(pu)
     .attr("fill", "none")
@@ -6923,17 +7150,6 @@ function plot_comb(comb, pu, fu, cu, {
       .defined(d => d.pu !== null)
       .x(d => xScale(d.year))
       .y(d => yScale(d.pu)));
-  
-  // combined line (comb) - black solid
-  g.append("path")
-    .datum(comb)
-    .attr("fill", "none")
-    .attr("stroke", "black")
-    .attr("stroke-width", strokeWidth)
-    .attr("d", d3.line()
-      .defined(d => d.comb !== null)
-      .x(d => xScale(d.year))
-      .y(d => yScale(d.comb)));
   
   // invisible interaction area for tooltips
   g.selectAll(".interaction-area")
@@ -7018,10 +7234,10 @@ function plot_comb(comb, pu, fu, cu, {
   
   // legend
   const legendData = [
-    { label: "Combined", color: "black", dashed: false },
     { label: "River", color: "#f8766d", dashed: true },
     { label: "Rainwater", color: "#619cfe", dashed: true },
-    { label: "Coastal", color: "#02b939", dashed: true }
+    { label: "Coastal", color: "#02b939", dashed: true },
+    { label: "Combined", color: "black", dashed: false }
   ];
   
   const legendX = width - 160;
@@ -7285,7 +7501,7 @@ function plot_e(e, {
       .attr("font-style", d => d.percentage > 0 ? "normal" : "italic")
       .text(d => d.percentage > 0 ? 
         `${d.percentage.toFixed(1)}%` : 
-        "0.0%")
+        "")
       .style("display", d => d.percentage > 2 || d.percentage === 0 ? "block" : "none"); // show labels for significant values or zeros
   
     // x-axis - to match Observable Plot defaulty styling
@@ -7578,7 +7794,7 @@ function plot_s(s, {
       .attr("font-style", d => d.percentage > 0 ? "normal" : "italic")
       .text(d => d.percentage > 0 ? 
         `${d.percentage.toFixed(1)}%` : 
-        "0.0%")
+        "")
       .style("display", d => d.percentage > 2 || d.percentage === 0 ? "block" : "none"); // show labels for significant values or zeros
   
     // x-axis - to match Observable Plot default styling
@@ -7880,7 +8096,7 @@ function plot_ls_area(ls_area, {
       .attr("font-style", d => d.percentage > 0 ? "normal" : "italic")
       .text(d => d.percentage > 0 ? 
         `${d.percentage.toFixed(1)}%` : 
-        "0.0%")
+        "")
       .style("display", d => d.percentage > 2 || d.percentage === 0 ? "block" : "none"); // show labels for significant values or zeros
   
     // x-axis - to match Observable Plot default styling
@@ -8182,7 +8398,7 @@ function plot_l_area(l_area, {
       .attr("font-style", d => d.percentage > 0 ? "normal" : "italic")
       .text(d => d.percentage > 0 ? 
         `${d.percentage.toFixed(1)}%` : 
-        "0.0%")
+        "")
       .style("display", d => d.percentage > 2 || d.percentage === 0 ? "block" : "none"); // show labels for significant values or zeros
   
     // x-axis - to match Observable Plot default styling
@@ -8944,6 +9160,7 @@ export {
   plot_l_area,
   plot_fwi,
   plot_fwi_d,
+  plot_flood_prob,
   // Variables
   plotWidth
 };
@@ -8955,6 +9172,7 @@ export default function() {
     plot_rwi_area, plot_uba_area, plot_ubaa, plot_ubap, plot_lc, plot_uddm,
     plot_pv_area, plot_pv_alt, plot_pv_d, plot_pv, plot_aq, plot_summer_area,
     plot_ndvi_area, plot_fe, plot_fu, plot_pu, plot_cu, plot_comb,
-    plot_e, plot_s, plot_ls_area, plot_l_area, plot_fwi, plot_fwi_d
+    plot_e, plot_s, plot_ls_area, plot_l_area, plot_fwi, plot_fwi_d, 
+    plot_flood_prob
   };
 }

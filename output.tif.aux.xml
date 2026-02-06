@@ -1,0 +1,20 @@
+<PAMDataset>
+  <Metadata>
+    <MDI key="crs_transform">[0.00025, 0, -180, 0, -0.00025, 80]</MDI>
+    <MDI key="data_type">{'type': 'PixelType', 'precision': 'int', 'min': 0, 'max': 255}</MDI>
+    <MDI key="dimensions">[1440000, 560000]</MDI>
+    <MDI key="id">treecover2000</MDI>
+  </Metadata>
+  <PAMRasterBand band="1">
+    <Description>treecover2000</Description>
+    <Scale>0.00025</Scale>
+    <Metadata>
+      <MDI key="STATISTICS_APPROXIMATE">YES</MDI>
+      <MDI key="STATISTICS_MAXIMUM">64000</MDI>
+      <MDI key="STATISTICS_MEAN">3614.6106133701</MDI>
+      <MDI key="STATISTICS_MINIMUM">0</MDI>
+      <MDI key="STATISTICS_STDDEV">8429.0619800645</MDI>
+      <MDI key="STATISTICS_VALID_PERCENT">36.03</MDI>
+    </Metadata>
+  </PAMRasterBand>
+</PAMDataset>

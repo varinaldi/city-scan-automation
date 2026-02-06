@@ -1,0 +1,164 @@
+Spatial Data Sources Tree
+=========================
+
+GEE (Google Earth Engine)
+├── Land Cover
+│   ├── src: ESA WorldCover v200
+│   ├── url: ee.ImageCollection('ESA/WorldCover/v200')
+│   ├── py:  backend/gee_fun.py → gee_landcover()
+│   └── stac: YES - Planetary Computer
+│             https://planetarycomputer.microsoft.com/dataset/esa-worldcover
+│
+├── Elevation
+│   ├── src: USGS SRTM 30m
+│   ├── url: ee.Image('USGS/SRTMGL1_003')
+│   ├── py:  backend/gee_fun.py → gee_elevation()
+│   └── stac: YES - Planetary Computer (Copernicus DEM), AWS Earth Search
+│             https://planetarycomputer.microsoft.com/dataset/cop-dem-glo-30
+│
+├── Forest / Deforestation
+│   ├── src: Hansen Global Forest Change v1.11
+│   ├── url: ee.Image('UMD/hansen/global_forest_change_2023_v1_11')
+│   ├── py:  backend/gee_fun.py → gee_forest()
+│   ├── stac: PARTIAL - MAAP platform (requires special access)
+│   │         https://stac-browser.maap-project.org/collections/glad-global-forest-change-1.11
+│   └── alt:  Direct download (GeoTIFF tiles, 10x10 degree)
+│             https://storage.googleapis.com/earthenginepartners-hansen/GFC-2023-v1.11/
+│             COG version: https://github.com/ramiqcom/hansen-global-forest-change
+│
+├── Land Surface Temperature (LST)
+│   ├── src: Landsat 8 Collection 2 Tier 1
+│   ├── url: ee.ImageCollection('LANDSAT/LC08/C02/T1_L2')
+│   ├── py:  backend/gee_fun.py → gee_lst()
+│   └── stac: YES - Planetary Computer, AWS Earth Search, USGS
+│             https://planetarycomputer.microsoft.com/dataset/landsat-c2-l2
+│             https://earth-search.aws.element84.com/v1
+│
+├── NDVI / NDMI
+│   ├── src: Sentinel-2 Harmonized
+│   ├── url: ee.ImageCollection('COPERNICUS/S2_HARMONIZED')
+│   ├── py:  backend/gee_fun.py → gee_ndxi()
+│   └── stac: YES - Planetary Computer, AWS Earth Search, Copernicus
+│             https://planetarycomputer.microsoft.com/dataset/sentinel-2-l2a
+│             https://earth-search.aws.element84.com/v1
+│             https://catalogue.dataspace.copernicus.eu/stac/
+│
+└── Nighttime Lights
+    ├── src: VIIRS DNB Monthly
+    ├── url: ee.ImageCollection('NOAA/VIIRS/DNB/MONTHLY_V1/VCMSLCFG')
+    ├── py:  backend/gee_fun.py → gee_nightlight()
+    ├── stac: OUTDATED - AWS (2012-2020 only)
+    │         https://registry.opendata.aws/wb-light-every-night/
+    └── alt:  EOG VNL v2.2 (2012-2024, monthly composites, GeoTIFF)
+              https://eogdata.mines.edu/products/vnl/
+              NASA Black Marble VNP46A2 (2012-present, daily 500m, HDF format)
+              https://ladsweb.modaps.eosdis.nasa.gov/missions-and-measurements/products/VNP46A2/
+
+
+Direct Download (Public)
+├── WSF Evolution
+│   ├── src: DLR World Settlement Footprint Evolution
+│   ├── url: https://download.geoservice.dlr.de/WSF_EVO/files/
+│   └── py:  backend/wsf.py
+│
+├── WSF Tracker
+│   ├── src: DLR World Settlement Footprint Tracker
+│   ├── url: https://download.geoservice.dlr.de/WSF_Tracker/
+│   └── py:  backend/wsf.py
+│
+├── GHS Population
+│   ├── src: JRC Global Human Settlement Layer R2023A
+│   ├── url: https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/GHSL/GHS_POP_GLOBE_R2023A
+│   └── py:  backend/ghs_population.py
+│
+├── GHS Built-Up
+│   ├── src: JRC Global Human Settlement Layer R2023A
+│   ├── url: https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/GHSL/GHS_BUILT_S_GLOBE_R2023A
+│   └── py:  backend/ghs_buildup.py
+│
+├── FABDEM Elevation
+│   ├── src: University of Bristol Global FABDEM
+│   ├── url: https://data.bris.ac.uk/datasets/s5hqmjcdj8yo2ibzi9b4ew3sn/
+│   └── py:  backend/elevation.py
+│
+├── Population (WorldPop)
+│   ├── src: WorldPop Constrained 100m
+│   ├── url: https://hub.worldpop.org/rest/data/pop/cic2020_100m?iso3={iso3}
+│   └── py:  backend/main.py
+│
+└── MS Building Footprints
+    ├── src: Microsoft Global ML Building Footprints
+    ├── url: https://minedbuildings.z5.web.core.windows.net/global-buildings/dataset-links.csv
+    └── py:  backend/buildings.py
+
+
+GCS Bucket (city-scan-global-data)
+├── Burned Area
+│   ├── src: MODIS GlobFire MCD64A1
+│   ├── blob: GlobFire/
+│   └── py:  backend/burned_area.py
+│
+├── Fire Weather Index
+│   ├── src: CRU FWI
+│   ├── blob: FWI/
+│   └── py:  backend/fwi.py
+│
+├── Land Cover Burnability
+│   ├── src: ESA CCI Land Cover + Burnability Index
+│   ├── blob: land_cover/
+│   └── py:  backend/landcover_burnability.py
+│
+├── Relative Wealth Index
+│   ├── src: Meta/Facebook RWI
+│   ├── blob: RWI/
+│   └── py:  backend/rwi.py
+│
+├── Air Quality
+│   ├── src: WHO Air Quality PM2.5
+│   ├── blob: air_quality/
+│   └── py:  backend/main.py
+│
+├── Landslide Susceptibility
+│   ├── src: NASA LHASA 2.0
+│   ├── blob: landslide/
+│   └── py:  backend/main.py
+│
+├── Liquefaction Susceptibility
+│   ├── src: USGS Global Liquefaction
+│   ├── blob: liquefaction/
+│   └── py:  backend/main.py
+│
+├── Solar Potential
+│   ├── src: Global Solar Atlas
+│   ├── blob: solar/
+│   └── py:  backend/solar.py
+│
+└── Sea Level Rise
+    ├── src: Climate Central / AR6
+    ├── blob: slr/
+    └── py:  backend/slr.py
+
+
+AWS S3 (Restricted)
+└── Flood Risk (Fathom)
+    ├── src: Fathom Global v3.0
+    ├── bucket: (WBG AWS - credentials required)
+    ├── types: coastal, fluvial, pluvial
+    └── py:  backend/fathom.py
+
+
+API (No Download)
+├── OpenStreetMap
+│   ├── src: OSM via OSMnx
+│   ├── url: https://api.openstreetmap.org/
+│   └── py:  backend/accessibility.py, backend/road_network.py
+│
+├── Demographics
+│   ├── src: WorldPop Age-Sex Structures
+│   ├── url: https://www.worldpop.org/rest/data/age_structures/ascic_2020?iso3={iso3}
+│   └── py:  backend/demographics.py
+│
+└── Earthquake Events
+    ├── src: NOAA NGDC
+    ├── url: http://www.ngdc.noaa.gov/hazel/hazard-service/api/v1/earthquakes
+    └── py:  backend/earthquake_event.py

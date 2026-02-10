@@ -157,6 +157,9 @@ city <- str_to_title(city_params$city_name)
 message(glue("City set to {city} (City directory: {city_dir})"))
 city_string <- tolower(city) %>% stringr::str_replace_all(" ", "-")
 country <- str_to_title(city_params$country_name)
+if (length(country) == 0 || is.null(country) || country == "") {
+  country <- str_match(scan_id, "\\d{4}-\\d{2}-([a-z]+)-")[1, 2] %>% str_to_title()
+}
 
 bm_cities_manual <- c(city_params$bm_cities_manual)
 nearby_countries_string <- city_params$nearby_countries

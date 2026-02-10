@@ -179,3 +179,64 @@ get_worldpop_total <- function(year = 2020, aoi = aoi) {
     #   Method = "WorldPop CIC 2020"
     # )
   }
+
+
+# Read WorldPop CSVs from sibling scan directories for benchmark cities
+get_worldpop_from_siblings <- function(cities, country) {
+  parent_dir <- dirname(getwd())
+  sibling_dirs <- list.dirs(parent_dir, full.names = TRUE, recursive = FALSE)
+
+  results <- list()
+  found_cities <- character()
+
+  for (ct in cities) {
+    # Normalize city name the same way setup.R creates city_string
+    ct_normalized <- tolatin(ct) %>% tolower() %>% str_replace_all(" ", "-")
+    ct_underscore <- str_replace_all(ct_normalized, "-", "_")
+
+    # Find matching sibling directory (ends with the city string)
+    match_dir <- sibling_dirs[str_detect(basename(sibling_dirs),
+      paste0("(", ct_normalized, "|", ct_underscore, ")$"))]
+
+    if (length(match_dir) == 0) next
+    match_dir <- match_dir[1]
+
+    # Look for WorldPop CSV
+    tabular_path <- file.path(match_dir, "02-process-output", "tabular")
+    if (!dir.exists(tabular_path)) next
+
+    csv_files <- list.files(tabular_path, pattern = "worldpop_2015_2030\\.csv$", full.names = TRUE)
+    if (length(csv_files) == 0) next
+
+    # Get area from sibling's AOI shapefile
+    area_km <- tryCatch({
+      sibling_yml <- yaml::read_yaml(file.path(match_dir, "01-user-input", "city_inputs.yml"))
+      aoi_shp <- file.path(match_dir, "01-user-input", "AOI", paste0(sibling_yml$AOI_shp_name, ".shp"))
+      sibling_aoi <- st_read(aoi_shp, quiet = TRUE) %>% vect()
+      round(sum(expanse(sibling_aoi, unit = "km")), 2)
+    }, error = function(e) NA_real_)
+
+    wp <- tryCatch({
+      read.csv(csv_files[1]) %>%
+        as_tibble() %>%
+        mutate(
+          Year = as.numeric(str_extract(year, "\\d{4}")),
+          Population = population,
+          Location = ct,
+          Country = country,
+          Area_km = area_km,
+          Source = "WorldPop Global 2",
+          Method = "WorldPop G2 (sibling scan)",
+          .keep = "none"
+        )
+    }, error = function(e) NULL)
+
+    if (!is.null(wp) && nrow(wp) > 0) {
+      results[[ct]] <- wp
+      found_cities <- c(found_cities, ct)
+      message("  WorldPop from sibling: ", ct, " (", basename(match_dir), ")")
+    }
+  }
+
+  list(data = bind_rows(results), found_cities = found_cities)
+}

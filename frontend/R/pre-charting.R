@@ -32,12 +32,25 @@ pop_manual <- tryCatch({readr::read_csv("./manual-data-entry/pop.csv", col_types
 pop_ghs <- tryCatch({get_ghs_pop_growth(city, country, aoi)}, error = function(e) tibble(Group = city))
 
 # Population raster (worldpop) for ridges plot
-wpop_df <- fuzzy_read(spatial_dir, "population.*.tif$") %>%
-  as_tibble() %>%
-  rename(pop = 1) %>%
-  filter(!is.na(pop), pop > 0)
+tryCatch({
+  wpop_df <- fuzzy_read(spatial_dir, "population.*.tif$") %>%
+    as_tibble() %>%
+    rename(pop = 1) %>%
+    filter(!is.na(pop), pop > 0)
+}, error = function(e) message("wpop_df not available"))
  
-wpop_growth <- tryCatch(read.csv(str_subset(list.files(tabular_dir, full.names = T), "worldpop_2015_2030.csv")) %>% mutate(Group = city, Location = city) %>% rename_with(str_to_title), error = function(e) tibble(Group = city, Location = city))
+wpop_growth <- tryCatch({
+  aoi_area <- sum(expanse(aoi %>% vect(), unit = "km"))
+  fuzzy_read(tabular_dir, "worldpop_2015_2030.csv", read_csv) %>%
+    rename_with(str_to_title) %>%
+    mutate(
+      Year = as.numeric(str_extract(Year, "\\d{4}")),
+      Location = city,
+      Country = country,
+      Group = city,
+      Area_km = round(aoi_area, 2)
+    )
+}, error = function(e) tibble(Group = city, Location = city))
 
 
 
@@ -54,7 +67,8 @@ wpop_growth <- tryCatch(read.csv(str_subset(list.files(tabular_dir, full.names =
   } else {
 
     sources <- list(
-      WorldPop = function() tryCatch(get_worldpop_total(year = 2020, aoi = aoi), error = function(e) NULL),
+      `WorldPop Global 2 (2025)` = function() tryCatch(wpop_growth %>% slice_min(abs(Year - 2025), n = 1) %>%
+                                 pull(Population), error = function(e) NULL),
       `GHS-POP` = function() tryCatch(get_ghs_pop_growth(city, country, aoi) %>% slice_min(abs(Year - 2021), n = 1) %>%
                                  pull(Population), error = function(e) NULL),
       `UN/DE` = function() tryCatch(un_de_pop_growth(city, country) %>% slice_max(Year) %>% summarize(Population = mean(Population)) %>% pull(Population), error = function(e) NULL)
@@ -121,8 +135,12 @@ bm_cities_oxford <- if (is.null(nearby_countries_string)) NULL else { oxford_ful
   
 }
 
-# Manualy select benchmark cities
-bm_cities <- c(bm_cities_oxford, bm_cities_manual) %>% unique() %>% which_not(city)
+# Benchmark cities: use manual selection if defined, otherwise auto-detect from Oxford
+bm_cities <- if (length(bm_cities_manual) > 0) {
+  bm_cities_manual %>% unique() %>% which_not(city)
+} else {
+  bm_cities_oxford %>% unique() %>% which_not(city)
+}
 
 
 # Building Population Data -------------------------------------------------------------------------
@@ -135,46 +153,75 @@ oxford <- subset(oxford_full, Location %in% c(city, bm_cities)) %>%
 # DUMMY DF
 pop_longitude <- tibble() # dummy df
 
+# Check if WorldPop Global2 available for main city (prioritize over Oxford)
+use_wpop_for_city <- !is.null(wpop_growth) && nrow(wpop_growth) > 1
+
 if (in_oxford) {
-    
-    pop_longitude <- pop_longitude %>% bind_rows(
-        subset(oxford, Indicator == "Total population") %>%
-        select(Group, Location, Country, Indicator, matches('\\d')) %>%
-        pivot_longer(cols = matches('^\\d'), names_to = "Year", values_to = "Value") %>%
-        pivot_wider(values_from = Value, names_from = Indicator) %>%
-        mutate(
-        Year = as.numeric(Year),
-        Population = `Total population` * 1000,
-        Source = "Oxford",
-        Method = "Oxford",
-        .keep = "unused") %>%
-        arrange(Group) %>% 
-        subset(Year <= 2021 & !is.na(Population)) 
-        )
+    # For main city: use WorldPop if available, otherwise Oxford
+    # For benchmarks: always use Oxford
+    oxford_pop_subset <- if (use_wpop_for_city) {
+        subset(oxford, Indicator == "Total population" & Location != city)
+    } else {
+        subset(oxford, Indicator == "Total population")
+    }
 
-    # Get Area data for oxford pop
-    oxford_areas <- read_csv(oxford_areas_file, col_types = "ccd") %>%
-        mutate(Location = str_to_title(Location)) %>%
-        filter(Location %in% str_to_title(pop_longitude$Location)) %>%
-        select(-Country)
+    if (nrow(oxford_pop_subset) > 0) {
+        pop_longitude <- pop_longitude %>% bind_rows(
+            oxford_pop_subset %>%
+            select(Group, Location, Country, Indicator, matches('\\d')) %>%
+            pivot_longer(cols = matches('^\\d'), names_to = "Year", values_to = "Value") %>%
+            pivot_wider(values_from = Value, names_from = Indicator) %>%
+            mutate(
+            Year = as.numeric(Year),
+            Population = `Total population` * 1000,
+            Source = "Oxford",
+            Method = "Oxford",
+            .keep = "unused") %>%
+            arrange(Group) %>%
+            subset(Year <= 2021 & !is.na(Population))
+            )
 
-    if (any(duplicated(oxford_areas$Location))) stop("Multiple Oxford Economics cities have been matched with the same name")
+        # Get Area data for oxford pop
+        oxford_areas <- read_csv(oxford_areas_file, col_types = "ccd") %>%
+            mutate(Location = str_to_title(Location)) %>%
+            filter(Location %in% str_to_title(pop_longitude$Location)) %>%
+            select(-Country)
 
-    pop_longitude <- left_join(pop_longitude, oxford_areas, by = "Location")
+        if (any(duplicated(oxford_areas$Location))) stop("Multiple Oxford Economics cities have been matched with the same name")
 
+        pop_longitude <- left_join(pop_longitude, oxford_areas, by = "Location")
+    }
 }
 
-# first check, which cities are not in oxford
-non_oxford_cities <- which_not(c( city, bm_cities_manual), oxford$Location) %>% .[!duplicated(.)]
+# Add WorldPop Global2 for main city if available (priority over Oxford)
+if (use_wpop_for_city) {
+    message("Using WorldPop Global2 population data for ", city)
+    pop_longitude <- pop_longitude %>%
+        bind_rows(wpop_growth %>% mutate(Source = "WorldPop", Method = "WorldPop Global2", Group = city))
+}
 
-if (city %in% non_oxford_cities && !is.null(pop_ghs) && nrow(pop_ghs) > 0) { 
-    # Use GHS for Scan city if  available
+# first check, which cities are not in oxford (excluding main city if using WorldPop)
+non_oxford_cities <- which_not(c(city, bm_cities_manual), oxford$Location) %>% .[!duplicated(.)]
+if (use_wpop_for_city) non_oxford_cities <- setdiff(non_oxford_cities, city)
+
+# Use GHS for main city if not in Oxford and no WorldPop
+if (city %in% non_oxford_cities && !is.null(pop_ghs) && nrow(pop_ghs) > 0) {
     message("Using GHS population data for ", city)
     pop_longitude <- pop_longitude %>%
         bind_rows(pop_ghs) %>% mutate(Group = city)
+    non_oxford_cities <- setdiff(non_oxford_cities, city)
+}
 
-    non_oxford_cities <- setdiff(non_oxford_cities, city) # remove city from non-oxford list
-} 
+# Use WorldPop from sibling scan directories for benchmark cities
+if (length(non_oxford_cities) > 0) {
+    message("Looking for WorldPop CSVs in sibling scan directories...")
+    wp_siblings <- get_worldpop_from_siblings(non_oxford_cities, country)
+    if (nrow(wp_siblings$data) > 0) {
+        pop_longitude <- pop_longitude %>%
+            bind_rows(wp_siblings$data %>% mutate(Group = "Benchmark"))
+        non_oxford_cities <- setdiff(non_oxford_cities, wp_siblings$found_cities)
+    }
+}
 
 # for the rest, use citypopulation.DE / UN data
 if (length(non_oxford_cities) > 0) {
@@ -244,9 +291,22 @@ write_csv(pop_growth, file.path(tabular_dir,"population-growth.csv"))
 # pop_capital %>% filter(str_detect(`Country or area`, nearby_countries_string))
 
 # Population Density ------------------------------------------------------------------------------------
+# Find the target comparison year (most recent year among benchmarks)
+benchmark_max_years <- pop_longitude %>%
+    filter(Location != city) %>%
+    group_by(Location) %>%
+    slice_max(Year, n = 1) %>%
+    ungroup()
+target_year <- if (nrow(benchmark_max_years) > 0) {
+    median(benchmark_max_years$Year)
+} else {
+    max(pop_longitude$Year, na.rm = TRUE)
+}
+
 density <- pop_longitude %>%
     filter(Area_km != 0 & !is.na(Area_km)) %>%
-    slice_max(order_by = Year, by = Location)
+    # For each location, pick the year closest to target_year for fair comparison
+    slice_min(order_by = abs(Year - target_year), by = Location, with_ties = FALSE)
 
 density$Density <- density$Population/density$Area_km
 density <- density %>% arrange(desc(Density))
@@ -570,7 +630,7 @@ if (length(wsf_file) > 0)  {
 }
 
 # WSF Tracker ---------------------------------------------------------------------------------
-wsf_tracker_file <- str_subset(list.files(tabular_dir, full.names = T), "wsf_tracker.*(csv|xlsx)")[0] 
+wsf_tracker_file <- str_subset(list.files(tabular_dir, full.names = T), "wsf_tracker.*(csv|xlsx)") 
 
 if (length(wsf_tracker_file) > 0)  {
   # Urban built-up area ----
@@ -585,28 +645,33 @@ if (length(wsf_tracker_file) > 0)  {
 }
     
 # Landcover ----------------------------------------------------------------------------------
-lc <- read_csv(str_subset(list.files(tabular_dir, full = T), "lc.csv"), col_types = "cd") %>%
-  rename(`Land Cover` = `Land Cover Type`, Count = `Pixel Count`) %>%
-  # remove_missing(na.rm = T) %>%
-  filter(!is.na(`Land Cover`)) %>%
-  mutate(Percent = Count/sum(Count)) %>%
-  arrange(desc(Percent))  %>% 
-  mutate(`Land Cover` = factor(`Land Cover`, levels = `Land Cover`)) %>%
-  mutate(Percent = round(Percent, 4))
+tryCatch({
+  lc <- read_csv(str_subset(list.files(tabular_dir, full = T), "lc.csv"), col_types = "cd") %>%
+    rename(`Land Cover` = `Land Cover Type`, Count = `Pixel Count`) %>%
+    filter(!is.na(`Land Cover`)) %>%
+    mutate(Percent = Count/sum(Count)) %>%
+    arrange(desc(Percent)) %>%
+    mutate(`Land Cover` = factor(`Land Cover`, levels = `Land Cover`)) %>%
+    mutate(Percent = round(Percent, 4))
+}, error = function(e) message("lc not available"))
 
 # Elevation ----------------------------------------------------------------------------------
-elevation <- read_csv(str_subset(list.files(tabular_dir, full = T), "elevation.csv"), col_types = "cd") %>%
-        subset(!is.na(Bin)) %>%
-        mutate(Elevation = as.numeric(str_replace(Bin, "-.*", "")),
-                Bin = factor(Bin, levels = Bin),
-                percent = Count/sum(Count))
-# Slope ----------------------------------------------------------------------------------
+tryCatch({
+  elevation <- read_csv(str_subset(list.files(tabular_dir, full = T), "elevation.csv"), col_types = "cd") %>%
+    subset(!is.na(Bin)) %>%
+    mutate(Elevation = as.numeric(str_replace(Bin, "-.*", "")),
+           Bin = factor(Bin, levels = Bin),
+           percent = Count/sum(Count))
+}, error = function(e) message("elevation not available"))
 
-slope <- read_csv(str_subset(list.files(tabular_dir, full = T), "slope.csv"), col_types = "cd") %>%
+# Slope ----------------------------------------------------------------------------------
+tryCatch({
+  slope <- read_csv(str_subset(list.files(tabular_dir, full = T), "slope.csv"), col_types = "cd") %>%
     subset(!is.na(Bin)) %>%
     mutate(Slope = as.numeric(str_replace(Bin, "[-+].*", "")),
-            Bin = factor(Bin, levels = Bin),
-            percent = Count/sum(Count))
+           Bin = factor(Bin, levels = Bin),
+           percent = Count/sum(Count))
+}, error = function(e) message("slope not available"))
 
 
 
@@ -683,12 +748,15 @@ flood_string <- function(flood_type) {
 }
 
 # Flood WSF ------------------------------------------------------------------
-flood_file <- str_subset(list.files(tabular_dir, full.names = T), "flood_wsf.csv")
-wsf_flood <- full_join(select(wsf, -starts_with("growth")), read_csv(flood_file), by = c("Year" = "year")) %>%
-  rename(any_of(c(combined_2020 = "comb_2020")))
+tryCatch({
+  flood_file <- str_subset(list.files(tabular_dir, full.names = T), "flood_wsf.csv")
+  wsf_flood <- full_join(select(wsf, -starts_with("growth")), read_csv(flood_file), by = c("Year" = "year")) %>%
+    rename(combined_2020 = comb_2020)
+}, error = function(e) message("wsf_flood not available"))
 
 # Gather Flood Data ------------------------------------------------------------------
 gather_flood_data <- function(flood_type) {
+  if (!exists("wsf_flood")) return(NULL)
   df <- select(wsf_flood, Year, uba_km2, uba_km2_exposed = contains(flood_type))
   if ("uba_km2_exposed" %ni% names(df)) {
     no_data_df <- tibble(Year = wsf$Year, uba_km2_exposed = 0)
@@ -726,23 +794,23 @@ flood_pop_area <- function(flood_type) {
   } else "Pop flood file not found or empty"
 }
 
-# Fluvial ----------------------------------------------------------------------------------
-fu <- gather_flood_data("fluvial")
-
-# Pluvial ----------------------------------------------------------------------------------
-pu <- gather_flood_data("pluvial")
-
-# Coastal ----------------------------------------------------------------------------------
-cu <- gather_flood_data("coastal")
-
-# Combined ----------------------------------------------------------------------------------
-comb <- gather_flood_data("combined")
-pufu <- bind_rows(
-    if (any(fu$uba_km2_exposed > 0)) fu %>% mutate(type = "River") else NULL,
-    if (any(pu$uba_km2_exposed > 0)) pu %>% mutate(type = "Rainwater") else NULL,
-    if (any(cu$uba_km2_exposed > 0)) cu %>% mutate(type = "Coastal") else NULL,
-    comb %>% mutate(type = "Combined")) %>%
-  mutate(type = factor(type, levels = c("Combined", "River", "Rainwater", "Coastal")))
+# Flood data - only create if wsf_flood exists
+if (exists("wsf_flood")) {
+  # Fluvial
+  fu <- gather_flood_data("fluvial")
+  # Pluvial
+  pu <- gather_flood_data("pluvial")
+  # Coastal
+  cu <- gather_flood_data("coastal")
+  # Combined
+  comb <- gather_flood_data("combined")
+  pufu <- bind_rows(
+      if (any(fu$uba_km2_exposed > 0)) fu %>% mutate(type = "River") else NULL,
+      if (any(pu$uba_km2_exposed > 0)) pu %>% mutate(type = "Rainwater") else NULL,
+      if (any(cu$uba_km2_exposed > 0)) cu %>% mutate(type = "Coastal") else NULL,
+      comb %>% mutate(type = "Combined")) %>%
+    mutate(type = factor(type, levels = c("Combined", "River", "Rainwater", "Coastal")))
+}
 
 # Flood Events ----------------------------------------------------------------------------------
 # Dartmouth Flood Observatory - read from GCP flood-archive folder
@@ -841,6 +909,8 @@ monthly_pv <- rast("/vsigs/city-scan-global-data/globalsolar/PVOUT-monthly.tif")
 
 
 
-fwi_file <- str_subset(list.files(tabular_dir, full = T), "fwi")
-fwi <- read_csv(fwi_file, col_types = "dd")
+tryCatch({
+  fwi_file <- str_subset(list.files(tabular_dir, full = T), "fwi")
+  fwi <- read_csv(fwi_file, col_types = "dd")
+}, error = function(e) message("fwi not available"))
 # PLOT CHECKS

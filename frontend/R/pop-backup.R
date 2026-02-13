@@ -226,7 +226,7 @@ get_worldpop_from_siblings <- function(cities, country) {
           Country = country,
           Area_km = area_km,
           Source = "WorldPop Global 2",
-          Method = "WorldPop G2 (sibling scan)",
+          Method = "WorldPop G2 (scan-tabular)",
           .keep = "none"
         )
     }, error = function(e) NULL)

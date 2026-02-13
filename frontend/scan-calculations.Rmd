@@ -677,14 +677,14 @@ multi_city_pop_plot <- ggplot(pop_longitude) +
   labs(title = paste("Population of", city, "and benchmark cities"), x = "") +
   scale_y_continuous(limits = c(0, NA), labels = scales::label_comma(scale_cut = scales::cut_short_scale()), expand = c(0,0)) +
   scale_x_continuous(
-    breaks = seq(min(pop_longitude$Year), 2021, 5),
-    minor_breaks = seq(2000,2030,1), expand = c(0,0)) +
-  # geom_dl(aes(label = Location), method = list(dl.combine("first.points", "last.points")), cex = 0.8) 
+    breaks = seq(min(pop_longitude$Year), max(pop_longitude$Year), 5),
+    minor_breaks = seq(2000,2035,1), expand = c(0,0)) +
   geom_text_repel(
-    data = \(x) slice_max(x, order_by = Year, by = Location), aes(label = Location, x = 2021, y = `Population`, color = Group), 
-    hjust = 0, size = 3, xlim = c(2021.25, 2030), box.padding = 0.05,
-    direction = "y", segment.linetype = "dotted") +
-  coord_cartesian(xlim = c(max(2000, min(c(pop_longitude$Year))), 2028))
+    data = \(x) slice_max(x, order_by = Year, by = Location),
+    aes(label = Location, x = max(pop_longitude$Year), y = `Population`, color = Group),
+    hjust = 0, size = 2.5, xlim = c(max(pop_longitude$Year) + 0.25, NA), box.padding = 0.05,
+    direction = "y", segment.linetype = "dotted", max.overlaps = 20, force_pull = 1) +
+  coord_cartesian(xlim = c(max(2000, min(c(pop_longitude$Year))), max(pop_longitude$Year) + 7))
 
 ggplot2:::print.ggplot(multi_city_pop_plot)
 ggsave("03-render-output/plots/oxford-pop_line.png", device = "png",

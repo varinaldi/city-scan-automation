@@ -156,71 +156,69 @@ pop_longitude <- tibble() # dummy df
 # Check if WorldPop Global2 available for main city (prioritize over Oxford)
 use_wpop_for_city <- !is.null(wpop_growth) && nrow(wpop_growth) > 1
 
-if (in_oxford) {
-    # For main city: use WorldPop if available, otherwise Oxford
-    # For benchmarks: always use Oxford
-    oxford_pop_subset <- if (use_wpop_for_city) {
-        subset(oxford, Indicator == "Total population" & Location != city)
-    } else {
-        subset(oxford, Indicator == "Total population")
-    }
-
-    if (nrow(oxford_pop_subset) > 0) {
-        pop_longitude <- pop_longitude %>% bind_rows(
-            oxford_pop_subset %>%
-            select(Group, Location, Country, Indicator, matches('\\d')) %>%
-            pivot_longer(cols = matches('^\\d'), names_to = "Year", values_to = "Value") %>%
-            pivot_wider(values_from = Value, names_from = Indicator) %>%
-            mutate(
-            Year = as.numeric(Year),
-            Population = `Total population` * 1000,
-            Source = "Oxford",
-            Method = "Oxford",
-            .keep = "unused") %>%
-            arrange(Group) %>%
-            subset(Year <= 2021 & !is.na(Population))
-            )
-
-        # Get Area data for oxford pop
-        oxford_areas <- read_csv(oxford_areas_file, col_types = "ccd") %>%
-            mutate(Location = str_to_title(Location)) %>%
-            filter(Location %in% str_to_title(pop_longitude$Location)) %>%
-            select(-Country)
-
-        if (any(duplicated(oxford_areas$Location))) stop("Multiple Oxford Economics cities have been matched with the same name")
-
-        pop_longitude <- left_join(pop_longitude, oxford_areas, by = "Location")
-    }
-}
-
 # Add WorldPop Global2 for main city if available (priority over Oxford)
 if (use_wpop_for_city) {
     message("Using WorldPop Global2 population data for ", city)
     pop_longitude <- pop_longitude %>%
-        bind_rows(wpop_growth %>% mutate(Source = "WorldPop", Method = "WorldPop Global2", Group = city))
+        bind_rows(wpop_growth %>% mutate(Source = "WorldPop Global 2", Method = "WorldPop Global2", Group = city))
 }
 
-# first check, which cities are not in oxford (excluding main city if using WorldPop)
-non_oxford_cities <- which_not(c(city, bm_cities_manual), oxford$Location) %>% .[!duplicated(.)]
-if (use_wpop_for_city) non_oxford_cities <- setdiff(non_oxford_cities, city)
+# WorldPop from sibling scan directories for ALL benchmark cities (priority over Oxford)
+bm_cities_no_city <- setdiff(bm_cities, city)
+wp_found_cities <- character()
+if (length(bm_cities_no_city) > 0) {
+    message("Looking for WorldPop CSVs in sibling scan directories...")
+    wp_siblings <- get_worldpop_from_siblings(bm_cities_no_city, country)
+    if (nrow(wp_siblings$data) > 0) {
+        pop_longitude <- pop_longitude %>%
+            bind_rows(wp_siblings$data %>% mutate(Group = "Benchmark"))
+        wp_found_cities <- wp_siblings$found_cities
+    }
+}
 
-# Use GHS for main city if not in Oxford and no WorldPop
+# Oxford as fallback for benchmarks not found via WorldPop; also main city if in_oxford and no WorldPop
+oxford_pop_subset <- if (in_oxford && !use_wpop_for_city) {
+    subset(oxford, Indicator == "Total population" & !Location %in% wp_found_cities)
+} else {
+    subset(oxford, Indicator == "Total population" & Location != city & !Location %in% wp_found_cities)
+}
+
+if (nrow(oxford_pop_subset) > 0) {
+    pop_longitude <- pop_longitude %>% bind_rows(
+        oxford_pop_subset %>%
+        select(Group, Location, Country, Indicator, matches('\\d')) %>%
+        pivot_longer(cols = matches('^\\d'), names_to = "Year", values_to = "Value") %>%
+        pivot_wider(values_from = Value, names_from = Indicator) %>%
+        mutate(
+        Year = as.numeric(Year),
+        Population = `Total population` * 1000,
+        Source = "Oxford",
+        Method = "Oxford",
+        .keep = "unused") %>%
+        arrange(Group) %>%
+        subset(Year <= 2021 & !is.na(Population))
+        )
+
+    # Get Area data for oxford pop
+    oxford_areas <- read_csv(oxford_areas_file, col_types = "ccd") %>%
+        mutate(Location = str_to_title(Location)) %>%
+        filter(Location %in% str_to_title(pop_longitude$Location)) %>%
+        select(-Country)
+
+    if (any(duplicated(oxford_areas$Location))) stop("Multiple Oxford Economics cities have been matched with the same name")
+
+    pop_longitude <- left_join(pop_longitude, oxford_areas, by = "Location")
+}
+
+# Remaining cities not yet in pop_longitude
+non_oxford_cities <- setdiff(c(city, bm_cities_manual), pop_longitude$Location %>% unique()) %>% .[!duplicated(.)]
+
+# Use GHS for main city if not yet added
 if (city %in% non_oxford_cities && !is.null(pop_ghs) && nrow(pop_ghs) > 0) {
     message("Using GHS population data for ", city)
     pop_longitude <- pop_longitude %>%
         bind_rows(pop_ghs) %>% mutate(Group = city)
     non_oxford_cities <- setdiff(non_oxford_cities, city)
-}
-
-# Use WorldPop from sibling scan directories for benchmark cities
-if (length(non_oxford_cities) > 0) {
-    message("Looking for WorldPop CSVs in sibling scan directories...")
-    wp_siblings <- get_worldpop_from_siblings(non_oxford_cities, country)
-    if (nrow(wp_siblings$data) > 0) {
-        pop_longitude <- pop_longitude %>%
-            bind_rows(wp_siblings$data %>% mutate(Group = "Benchmark"))
-        non_oxford_cities <- setdiff(non_oxford_cities, wp_siblings$found_cities)
-    }
 }
 
 # for the rest, use citypopulation.DE / UN data
@@ -291,21 +289,11 @@ write_csv(pop_growth, file.path(tabular_dir,"population-growth.csv"))
 # pop_capital %>% filter(str_detect(`Country or area`, nearby_countries_string))
 
 # Population Density ------------------------------------------------------------------------------------
-# Find the target comparison year (most recent year among benchmarks)
-benchmark_max_years <- pop_longitude %>%
-    filter(Location != city) %>%
-    group_by(Location) %>%
-    slice_max(Year, n = 1) %>%
-    ungroup()
-target_year <- if (nrow(benchmark_max_years) > 0) {
-    median(benchmark_max_years$Year)
-} else {
-    max(pop_longitude$Year, na.rm = TRUE)
-}
+target_year <- as.numeric(format(Sys.Date(), "%Y"))
 
 density <- pop_longitude %>%
     filter(Area_km != 0 & !is.na(Area_km)) %>%
-    # For each location, pick the year closest to target_year for fair comparison
+    # For each location, pick the year closest to current year for fair comparison
     slice_min(order_by = abs(Year - target_year), by = Location, with_ties = FALSE)
 
 density$Density <- density$Population/density$Area_km

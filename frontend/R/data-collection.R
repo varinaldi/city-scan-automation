@@ -15,6 +15,10 @@ suppressPackageStartupMessages({
 
 Sys.setenv(GOOGLE_APPLICATION_CREDENTIALS = path.expand("~/.config/gcloud/application_default_credentials.json"))
 
+# Clear GDAL cloud cache to avoid stale data from prior GCS reads (e.g. setup.R)
+setGDALconfig("CPL_VSIL_CURL_CACHE_SIZE", "0")
+setGDALconfig("VSI_CACHE", "FALSE")
+
 #### WSF Tracker ----------------------------------------------------------------
 
 # Currently runs locally and only for Africa (other data is downloaded already)
@@ -79,6 +83,10 @@ stats_wsf_tracker <- function(x) {
 
 collect_worldpop <- function(aoi, output_dir = NULL, source = "/vsigs/city-scan-global-public/world_population/WorldPop-Global-2") {
 
+  # Clear GDAL cloud cache before reading from GCS (avoids stale cached data)
+  setGDALconfig("CPL_VSIL_CURL_CACHE_SIZE", "0")
+  setGDALconfig("VSI_CACHE", "FALSE")
+
   iso <- countrycode::countrycode(country, "country.name", "iso3c")
   years <- 2015:2030
 
@@ -94,9 +102,21 @@ collect_worldpop <- function(aoi, output_dir = NULL, source = "/vsigs/city-scan-
   # })
 
   rast_paths <- glue::glue("{source}/{tolower(iso)}_pop_{years}_CN_100m_R2025A_v1.tif")
-  country_rasters <- rast(rast_paths)
-  names(country_rasters) <- str_extract(names(country_rasters), "pop_\\d{4}")
-  # country_rasters <- reduce(country_rasters, c)
+
+  # Download cropped region to temp to avoid GDAL vsigs cache issues
+  temp_dir <- file.path(tempdir(), "WorldPop-Global2")
+  dir.create(temp_dir, showWarnings = FALSE)
+  local_paths <- file.path(temp_dir, paste0(tolower(iso), "_pop_", years, "_cropped.tif"))
+  for (i in seq_along(rast_paths)) {
+    if (!file.exists(local_paths[i])) {
+      message("  Downloading: ", basename(rast_paths[i]))
+      crop(rast(rast_paths[i]), ext(aoi)) %>%
+        writeRaster(local_paths[i], overwrite = TRUE)
+    }
+  }
+
+  country_rasters <- rast(local_paths)
+  names(country_rasters) <- paste0("pop_", years)
 
   # Crop and mask to AOI
   worldpop_2015_2030 <- crop(country_rasters, aoi, mask = T)

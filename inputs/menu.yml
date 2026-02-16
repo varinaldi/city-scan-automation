@@ -10,7 +10,7 @@ elevation: True
 # if slope is set to False, please also set elevation to False
 # because slope is derived from elevation
 # unless the elevation raster file is already on cloud storage
-slope: False
+slope: True
 flood_coastal: False
 flood_fluvial: False
 flood_pluvial: False

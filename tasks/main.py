@@ -191,12 +191,28 @@ if menu.get("elevation"):
         from tasks.elevation import dataanalysis as elev_analysis
         from tasks.elevation import datavisualization as elev_vis
         logger.info("Running elevation workflow..")
-        # elev_array, elev_meta = elev_collect.datacollection(aoi=aoi, city_name=city_name, output_dir=output_dir, return_raster=True)
-        # elev_analysis.generate_contours(city_name=city_name, output_dir=output_dir, return_gdf=False, elev_array=elev_array, elev_meta=elev_meta)
-        # elev_analysis.elevation_stats(city_name=city_name, output_dir=output_dir, elev_array=elev_array, elev_meta=elev_meta)
-        # elev_analysis.elevation_interpretation(city_name=city_name, output_dir=output_dir)
-        # elev_vis.plot_elevation_rastermap(city_name=city_name, output_dir=output_dir, clipped_image=elev_array, clipped_meta=elev_meta)
+        elev_array, elev_meta = elev_collect.datacollection(aoi=aoi, city_name=city_name, output_dir=output_dir, return_raster=True, create_raster_buffer=True)
+        elev_analysis.generate_contours(city_name=city_name, output_dir=output_dir, return_gdf=False, elev_array=elev_array, elev_meta=elev_meta)
+        elev_analysis.elevation_stats(city_name=city_name, output_dir=output_dir, elev_array=elev_array, elev_meta=elev_meta)
+        elev_analysis.elevation_interpretation(city_name=city_name, output_dir=output_dir)
+        elev_vis.plot_elevation_rastermap(city_name=city_name, output_dir=output_dir, clipped_image=elev_array, clipped_meta=elev_meta)
         elev_vis.plot_elevation_stats(city_name=city_name, output_dir=output_dir, render_dir=render_dir)
+    except Exception as e:
+        logger.error(f"Error: {e}")
+
+if menu.get("slope"):
+    try:
+        from tasks.slope import datacollection as slope_collect
+        from tasks.slope import dataanalysis as slope_analysis
+        from tasks.slope import datavisualization as slope_vis
+        logger.info("Running slope workflow..")
+        slop_bins = [0, 2, 5, 10, 20, 90]
+        slope_collect.datacollection(aoi=aoi, city_name=city_name, output_dir=output_dir, return_raster=False)
+        slope_analysis.compute_slope_histogram(city_name=city_name, bins=slop_bins, output_dir=output_dir, enrich=True, return_df=False)
+        slope_analysis.generate_slope_yaml(city_name=city_name, output_dir=output_dir)
+        slope_vis.plot_slope_rastermap(city_name=city_name, bins=slop_bins, output_dir=output_dir)
+        slope_vis.render_slope_treemap_png(city_name=city_name, output_dir=output_dir, render_dir=render_dir)
+        slope_vis.render_slope_treemap_html(city_name=city_name, output_dir=output_dir, render_dir=render_dir, font_dict=font_dict)
     except Exception as e:
         logger.error(f"Error: {e}")
 

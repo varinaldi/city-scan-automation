@@ -55,8 +55,9 @@ def render_slope_treemap_png(
         "10-20": "#d95f0e",
         f"20-{int(max_upper_range)}": "#993404"
     }
-
-    png_path = os.path.join(render_dir, f"{city_name}_slope_treemap.png")
+    render_png_dir = os.path.join(render_dir, "plots", "html")
+    os.makedirs(render_png_dir, exist_ok=True)
+    png_path = os.path.join(render_png_dir, f"{city_name}_slope_treemap.png")
 
     plt.figure(figsize=(12, 8))
     squarify.plot(
@@ -104,7 +105,8 @@ def render_slope_treemap_html(
         logger.error("Histogram CSV is not enriched. Run compute_slope_histogram(enrich=True).")
         return None
 
-    os.makedirs(render_dir, exist_ok=True)
+    render_html_dir = os.path.join(render_dir, "plots", "html")
+    os.makedirs(render_html_dir, exist_ok=True)
 
     max_upper_range = slope["UpperRange"].max()
 
@@ -116,7 +118,7 @@ def render_slope_treemap_html(
         f"20-{int(max_upper_range)}": "#993404"
     }
 
-    html_path = os.path.join(render_dir, f"{city_name}_slope_treemap.html")
+    html_path = os.path.join(render_html_dir, f"{city_name}_slope_treemap.html")
 
     fig = px.treemap(
         slope,

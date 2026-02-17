@@ -216,6 +216,22 @@ if menu.get("slope"):
     except Exception as e:
         logger.error(f"Error: {e}")
 
+if menu.get("fwi"):
+    try:
+        from tasks.fwi import datacollection as fwi_collect
+        from tasks.fwi import dataanalysis as fwi_analysis
+        
+        logger.info("Running FWI workflow..")
+        fwi_first_year = city_inputs['fwi_first_year']
+        fwi_last_year = city_inputs['fwi_last_year']
+        fwi_raster_dict, fwi_meta = fwi_collect.datacollection(aoi=aoi, city_name=city_name, output_dir=output_dir, fwi_first_year=fwi_first_year, fwi_last_year=fwi_last_year, return_raster=True)
+        spatial_raster_path = fwi_analysis.generate_nth_raster(fwi_raster_dict=fwi_raster_dict, nth_percentile=98.6, output_dir=output_dir, city_name=city_name, out_meta=fwi_meta)
+        weekly_csv_path = fwi_analysis.calculate_weekly_nth(fwi_raster_dict=fwi_raster_dict, nth_percentile=95, output_dir=output_dir,city_name=city_name)    
+        logger.info("Done with FWI analysis")
+        
+    except Exception as e:
+        logger.error(f"Error: {e}")
+
 #####################################################################
 ################ RUN MULTI-LAYER TASKS COMPONENTS ###################
 #####################################################################

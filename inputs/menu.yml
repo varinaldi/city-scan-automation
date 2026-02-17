@@ -6,17 +6,17 @@ population: False
 ghs_population: False
 wsf: False
 earthquake: False   # under development
-elevation: True
+elevation: False
 # if slope is set to False, please also set elevation to False
 # because slope is derived from elevation
 # unless the elevation raster file is already on cloud storage
-slope: True
+slope: False
 flood_coastal: False
 flood_fluvial: False
 flood_pluvial: False
 flood_comb: False
 flood_event: False
-fwi: False
+fwi: True
 landcover_burn: False
 road_network: False
 rwi: False

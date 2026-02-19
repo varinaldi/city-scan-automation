@@ -34,3 +34,10 @@ pystac==1.10.0
 pystac-client==0.8.5
 stackstac==0.5.0
 planetary-computer==1.0.0
+folium==0.16.0
+mapclassify==2.6.1
+branca==0.7.1
+jinja2==3.1.4
+xyzservices==2024.6.0
+ipyleaflet==0.19.2
+ipywidgets==8.1.2

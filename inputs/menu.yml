@@ -1,6 +1,6 @@
 accessibility: False
 basic_info: False
-burned_area: False
+burned_area: True
 demographics: False
 population: False
 ghs_population: False
@@ -16,7 +16,7 @@ flood_fluvial: False
 flood_pluvial: False
 flood_comb: False
 flood_event: False
-fwi: True
+fwi: False
 landcover_burn: False
 road_network: False
 rwi: False

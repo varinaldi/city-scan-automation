@@ -1,6 +1,5 @@
 from utils.log_module import setup_logger
 logger = setup_logger(__name__)
-
 import requests
 import shutil
 
@@ -45,6 +44,7 @@ def datacollection(
     city_name,
     output_dir,
     return_raster=False,
+    create_raster_buffer=True,
 ):
     """
     Download FABDEM raster tiles from internal cloud storage, mosaic,
@@ -60,6 +60,8 @@ def datacollection(
         Base directory where outputs will be written.
     return_raster : bool, optional
         If True, return clipped raster array and metadata.
+    create_raster_buffer : bool, optional
+        If True, raster will be clipped to buffered AOI (used for slope analysis)
 
     Returns
     -------
@@ -226,7 +228,6 @@ def datacollection(
                     "width": clipped_array.shape[2],
                     "transform": clipped_transform,
                 })
-
         # ------------------------------------------------------------------
         # 8. Write output raster
         # ------------------------------------------------------------------
@@ -234,6 +235,62 @@ def datacollection(
 
         with rasterio.open(output_raster_path, "w", **clipped_meta) as dst:
             dst.write(clipped_array)
+
+        # ------------------------------------------------------------------
+        # 9. Clip raster to buffered AOI (for slope analysis)
+        # ------------------------------------------------------------------
+        if create_raster_buffer:
+            logger.info("Creating buffered AOI for slope-safe raster")
+
+            buffer_distance_m = 500  
+
+            # --------------------------------------------------------------
+            # 9a. Project AOI to local metric CRS
+            # --------------------------------------------------------------
+            utm_crs = aoi.estimate_utm_crs()
+            aoi_utm = aoi.to_crs(utm_crs)
+
+            # --------------------------------------------------------------
+            # 9b. Buffer in meters, then return to WGS84
+            # --------------------------------------------------------------
+            buffered = aoi_utm.buffer(buffer_distance_m)
+            buffered_wgs = buffered.to_crs(epsg=4326)
+
+            buffered_geom = buffered_wgs.values
+
+            # --------------------------------------------------------------
+            # 9c. Clip mosaic again with buffered AOI
+            # --------------------------------------------------------------
+            logger.info("Clipping elevation to buffered AOI")
+
+            with rasterio.io.MemoryFile() as memfile:
+                with memfile.open(**mosaic_meta) as dataset:
+                    dataset.write(mosaic_array)
+
+                    buf_array, buf_transform = mask(
+                        dataset,
+                        buffered_geom,
+                        crop=True,
+                        nodata=mosaic_meta.get("nodata"),
+                    )
+
+                    buf_meta = dataset.meta.copy()
+                    buf_meta.update({
+                        "height": buf_array.shape[1],
+                        "width": buf_array.shape[2],
+                        "transform": buf_transform,
+                    })
+
+            buf_output_path = os.path.join(
+                spatial_dir, f"{city_name}_elevation_buf.tif"
+            )
+
+            logger.info(f"Writing buffered elevation raster: {buf_output_path}")
+
+            with rasterio.open(buf_output_path, "w", **buf_meta) as dst:
+                dst.write(buf_array)
+
+        
 
     # ------------------------------------------------------------------
     # 9. Optional return

@@ -191,12 +191,50 @@ if menu.get("elevation"):
         from tasks.elevation import dataanalysis as elev_analysis
         from tasks.elevation import datavisualization as elev_vis
         logger.info("Running elevation workflow..")
-        # elev_array, elev_meta = elev_collect.datacollection(aoi=aoi, city_name=city_name, output_dir=output_dir, return_raster=True)
-        # elev_analysis.generate_contours(city_name=city_name, output_dir=output_dir, return_gdf=False, elev_array=elev_array, elev_meta=elev_meta)
-        # elev_analysis.elevation_stats(city_name=city_name, output_dir=output_dir, elev_array=elev_array, elev_meta=elev_meta)
-        # elev_analysis.elevation_interpretation(city_name=city_name, output_dir=output_dir)
-        # elev_vis.plot_elevation_rastermap(city_name=city_name, output_dir=output_dir, clipped_image=elev_array, clipped_meta=elev_meta)
+        elev_array, elev_meta = elev_collect.datacollection(aoi=aoi, city_name=city_name, output_dir=output_dir, return_raster=True, create_raster_buffer=True)
+        elev_analysis.generate_contours(city_name=city_name, output_dir=output_dir, return_gdf=False, elev_array=elev_array, elev_meta=elev_meta)
+        elev_analysis.elevation_stats(city_name=city_name, output_dir=output_dir, elev_array=elev_array, elev_meta=elev_meta)
+        elev_analysis.elevation_interpretation(city_name=city_name, output_dir=output_dir)
+        elev_vis.plot_elevation_rastermap(city_name=city_name, output_dir=output_dir, clipped_image=elev_array, clipped_meta=elev_meta)
         elev_vis.plot_elevation_stats(city_name=city_name, output_dir=output_dir, render_dir=render_dir)
+    except Exception as e:
+        logger.error(f"Error: {e}")
+
+if menu.get("slope"):
+    try:
+        from tasks.slope import datacollection as slope_collect
+        from tasks.slope import dataanalysis as slope_analysis
+        from tasks.slope import datavisualization as slope_vis
+        logger.info("Running slope workflow..")
+        slop_bins = [0, 2, 5, 10, 20, 90]
+        slope_collect.datacollection(aoi=aoi, city_name=city_name, output_dir=output_dir, return_raster=False)
+        slope_analysis.compute_slope_histogram(city_name=city_name, bins=slop_bins, output_dir=output_dir, enrich=True, return_df=False)
+        slope_analysis.generate_slope_yaml(city_name=city_name, output_dir=output_dir)
+        slope_vis.plot_slope_rastermap(city_name=city_name, bins=slop_bins, output_dir=output_dir)
+        slope_vis.render_slope_treemap_png(city_name=city_name, output_dir=output_dir, render_dir=render_dir)
+        slope_vis.render_slope_treemap_html(city_name=city_name, output_dir=output_dir, render_dir=render_dir, font_dict=font_dict)
+    except Exception as e:
+        logger.error(f"Error: {e}")
+
+if menu.get("fwi"):
+    try:
+        from tasks.fwi import datacollection as fwi_collect
+        from tasks.fwi import dataanalysis as fwi_analysis 
+        logger.info("Running FWI workflow..")
+        fwi_first_year = city_inputs['fwi_first_year']
+        fwi_last_year = city_inputs['fwi_last_year']
+        fwi_raster_dict, fwi_meta = fwi_collect.datacollection(aoi=aoi, city_name=city_name, output_dir=output_dir, fwi_first_year=fwi_first_year, fwi_last_year=fwi_last_year, return_raster=True)
+        spatial_raster_path = fwi_analysis.generate_nth_raster(fwi_raster_dict=fwi_raster_dict, nth_percentile=98.6, output_dir=output_dir, city_name=city_name, out_meta=fwi_meta)
+        weekly_csv_path = fwi_analysis.calculate_weekly_nth(fwi_raster_dict=fwi_raster_dict, nth_percentile=95, output_dir=output_dir,city_name=city_name)    
+        logger.info("Done with FWI analysis")
+    except Exception as e:
+        logger.error(f"Error: {e}")
+
+if menu.get("burned_area"):
+    try:
+        from tasks.burned_area import datacollection as burn_collect 
+        logger.info("Running burned area workflow..")
+        burned_gdf = burn_collect.datacollection(aoi=aoi, city_name=city_name, output_dir=output_dir, return_gdf=True)
     except Exception as e:
         logger.error(f"Error: {e}")
 

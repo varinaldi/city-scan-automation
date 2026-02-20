@@ -1,12 +1,12 @@
 accessibility: False
 basic_info: False
-burned_area: False
+burned_area: True
 demographics: False
 population: False
 ghs_population: False
 wsf: False
 earthquake: False   # under development
-elevation: True
+elevation: False
 # if slope is set to False, please also set elevation to False
 # because slope is derived from elevation
 # unless the elevation raster file is already on cloud storage

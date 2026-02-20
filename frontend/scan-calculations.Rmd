@@ -944,7 +944,7 @@ if (!exists('wsf') || is.null(wsf) || nrow(wsf) == 0) print_text(paste_bold("No 
   if (str_detect(wsf_file, "csv$")) wsf <- read_csv(wsf_file, col_types = "dd")
   wsf <- wsf %>%
     rename(Year = 1) %>%
-    select(Year, uba_km2 = any_of(c("AREA_sq_km", "cumulative sq km"))) %>%
+    select(Year, uba_km2 = any_of(c("AREA_sq_km", "cumulative sq km", "cumulative_sq_km"))) %>%
     mutate(growth_pct = (uba_km2 / lag(uba_km2) - 1), growth_km2 = uba_km2 - lag(uba_km2))
   uba_plot <- wsf %>%
     ggplot +
@@ -986,7 +986,7 @@ if (!exists('wsf_tracker') || is.null(wsf_tracker) || nrow(wsf_tracker) == 0) pr
   wsf_tracker <- wsf_tracker %>%
     # mutate(date = zoo::as.yearmon(date)) %>%
     mutate(date = zoo::as.yearmon(paste(year, month, sep = "-"))) %>%
-    select(date, uba_km2 = any_of(c("AREA_sq_km", "cumulative sq km"))) %>%
+    select(date, uba_km2 = any_of(c("AREA_sq_km", "cumulative sq km", "cumulative_sq_km"))) %>%
     mutate(growth_pct = (uba_km2 / lag(uba_km2) - 1), growth_km2 = uba_km2 - lag(uba_km2))
   uba_tracker_plot <- wsf_tracker %>%
     ggplot() +
@@ -1014,6 +1014,57 @@ if (!exists('wsf_tracker') || is.null(wsf_tracker) || nrow(wsf_tracker) == 0) pr
   write_csv(wsf_tracker, "02-process-output/tabular/urban-extent-and-change-tracker.csv")
 }
 
+
+```
+
+### WSF Harmonized
+
+```{r wsf-harmonized, echo = F, message= F, warning=F}
+
+wsf_harm_file <- list.files(file.path(tabular_dir, "processed"), pattern = "wsf_harmonized\\.csv$", full.names = T)
+
+if (length(wsf_harm_file) == 0) print_text(paste_bold("No WSF harmonized file available")) else {
+  wsf_harm <- read_csv(wsf_harm_file, col_types = "ddcd") %>%
+    rename(uba_km2 = cumulative_sq_km)
+
+  # Use Evolution (masked) + Tracker, like the web version
+  evo_source <- "WSF Evolution (masked)"
+  wsf_harm_plot_data <- wsf_harm %>% filter(source %in% c(evo_source, "WSF Tracker"))
+
+  uba_harm_plot <- wsf_harm_plot_data %>%
+    ggplot() +
+    geom_line(aes(x = year, y = uba_km2, color = source, linetype = source)) +
+    scale_x_continuous(
+      breaks = seq(1985, 2025, 5),
+      minor_breaks = seq(1985, 2025, 1)) +
+    scale_y_continuous(labels = scales::comma, limits = c(0, NA), expand = expansion(c(0, 0.05))) +
+    scale_color_manual(values = c("WSF Evolution (masked)" = "#2166ac", "WSF Tracker" = "#b2182b")) +
+    scale_linetype_manual(values = c("WSF Evolution (masked)" = "dashed", "WSF Tracker" = "dashed")) +
+    theme_minimal() +
+    labs(title = "",
+         y = bquote('Urban built-up area,'~km^2),
+         x = "Year",
+         color = NULL, linetype = NULL) +
+    theme(
+      axis.line = element_line(linewidth = .5, color = "black"),
+      legend.position = "bottom")
+  ggsave("03-render-output/plots/wsf-uba-harmonized-plot.png", plot = uba_harm_plot, device = "png",
+         width = 5, height = 4, units = "in", dpi = "print")
+  ggplot2:::print.ggplot(uba_harm_plot)
+
+  # Stats for Evolution (masked) period
+  evo_data <- wsf_harm %>% filter(source == evo_source)
+  tracker_data <- wsf_harm %>% filter(source == "WSF Tracker")
+  first_area <- evo_data$uba_km2[1]
+  latest_area <- tail(tracker_data$uba_km2, 1)
+  first_year <- evo_data$year[1]
+  latest_year <- tail(tracker_data$year, 1)
+  pct_growth <- 100 * (latest_area - first_area)/first_area
+
+  print_text(paste0("\nThe city's built-up area grew from ", paste_bold(round(first_area, 2)), " km² in ", first_year, " to ", paste_bold(round(latest_area, 2)), " in ", paste_bold(latest_year), " for ", paste_bold(round(pct_growth, 2)), "% growth"))
+
+  print_paged_df(wsf_harm_plot_data)
+}
 
 ```
 
@@ -1356,6 +1407,171 @@ if ((!exists('pufu') || is.null(pufu) || nrow(pufu) == 0) && (!exists('comb') ||
 
 
 
+```
+
+### Combined Flood Exposure (Harmonized WSF, 1985-2025)
+```{r combined-flood-harmonized, echo = F, message= F, warning=F}
+
+fu_total_file <- file.path(tabular_dir, "processed", "fu_total.csv")
+pu_total_file <- file.path(tabular_dir, "processed", "pu_total.csv")
+cu_total_file <- file.path(tabular_dir, "processed", "cu_total.csv")
+
+flood_total_data <- list()
+if (file.exists(fu_total_file)) flood_total_data$River <- read_csv(fu_total_file, col_types = "dddc") %>% mutate(type = "River")
+if (file.exists(pu_total_file)) flood_total_data$Rainwater <- read_csv(pu_total_file, col_types = "dddc") %>% mutate(type = "Rainwater")
+if (file.exists(cu_total_file)) flood_total_data$Coastal <- read_csv(cu_total_file, col_types = "dddc") %>% mutate(type = "Coastal")
+
+if (length(flood_total_data) == 0) print_text(paste_bold("No harmonized flood total data available")) else {
+  flood_total <- bind_rows(flood_total_data)
+
+  flood_harm_plot <- flood_total %>%
+    ggplot(aes(x = Year, y = uba_km2_exposed, color = type, linetype = type)) +
+    geom_line() +
+    scale_x_continuous(
+      breaks = seq(1985, 2025, 5),
+      minor_breaks = seq(1985, 2025, 1)) +
+    scale_y_continuous(labels = scales::comma, limits = c(0, NA), expand = expansion(c(0, 0.05))) +
+    scale_color_manual(values = c(River = "#F8766D", Rainwater = "#619CFF", Coastal = "#00BA38")) +
+    theme_minimal() +
+    labs(title = "",
+         y = bquote('Exposed Urban Built-up Area,'~km^2),
+         color = NULL, linetype = NULL) +
+    theme(
+      axis.line = element_line(linewidth = .5, color = "black"),
+      axis.title.x = element_blank(),
+      legend.position = "bottom")
+  ggsave("03-render-output/plots/wsf-flood-harmonized-plot.png", plot = flood_harm_plot, device = "png",
+         width = 5, height = 4, units = "in", dpi = "print")
+  ggplot2:::print.ggplot(flood_harm_plot)
+
+  for (ft in names(flood_total_data)) {
+    d <- flood_total_data[[ft]]
+    print_text(paste0(
+      paste_bold(ft), ": from ", paste_bold(round(d$uba_km2_exposed[1], 2)), " km² exposed in ",
+      d$Year[1], " to ", paste_bold(round(tail(d$uba_km2_exposed, 1), 2)), " km² in ",
+      tail(d$Year, 1), " (", paste_bold(tail(d$percent_uba_exposed, 1)), " of built-up area)"))
+  }
+
+  print_paged_df(flood_total)
+}
+
+```
+
+### Flood Exposure by Probability (Harmonized WSF, 1985-2025)
+```{r flood-probability-harmonized, echo = F, message= F, warning=F}
+
+prob_colors <- c("0.1-1%" = "#9ECAE1", "1-10%" = "#3182BD", ">10%" = "#08306B")
+prob_linetypes <- c("0.1-1%" = "solid", "1-10%" = "dashed", ">10%" = "dotted")
+
+flood_prob_types <- list(
+  fluvial = list(file = "fu_prob.csv", label = "Fluvial"),
+  pluvial = list(file = "pu_prob.csv", label = "Pluvial"),
+  coastal = list(file = "cu_prob.csv", label = "Coastal")
+)
+
+for (ft in names(flood_prob_types)) {
+  ft_info <- flood_prob_types[[ft]]
+  prob_file <- file.path(tabular_dir, "processed", ft_info$file)
+
+  if (!file.exists(prob_file)) {
+    print_text(paste_bold(paste("No", ft_info$label, "probability data available")))
+    next
+  }
+
+  prob_df <- read_csv(prob_file, col_types = cols()) %>%
+    pivot_longer(cols = c(`0.1-1%`, `1-10%`, `>10%`), names_to = "probability", values_to = "area_km2") %>%
+    mutate(probability = factor(probability, levels = c("0.1-1%", "1-10%", ">10%")))
+
+  prob_df <- prob_df %>%
+    mutate(period = ifelse(yearName <= 2015, "Evolution", "Tracker"))
+
+  prob_plot <- prob_df %>%
+    ggplot(aes(x = yearName, y = area_km2, color = probability, linetype = probability, group = interaction(probability, period))) +
+    geom_line(linewidth = 0.8) +
+    scale_x_continuous(breaks = seq(1984, 2024, 10)) +
+    scale_y_continuous(labels = scales::comma, limits = c(0, NA), expand = expansion(c(0, 0.05))) +
+    scale_color_manual(values = prob_colors) +
+    scale_linetype_manual(values = prob_linetypes) +
+    theme_minimal() +
+    labs(title = paste0("Built-up Area Exposed to ", ft_info$label, " Flooding, 1985-2025"),
+         subtitle = city,
+         y = "Exposed Urban Built-up Area (sq km)",
+         color = NULL, linetype = NULL) +
+    theme(
+      axis.line = element_line(linewidth = .5, color = "black"),
+      axis.title.x = element_blank(),
+      legend.position = c(0.1, 0.85),
+      plot.title = element_text(face = "bold"))
+
+  ggsave(paste0("03-render-output/plots/wsf-", ft, "-prob-plot.png"), plot = prob_plot, device = "png",
+         width = 5, height = 4, units = "in", dpi = "print")
+  ggplot2:::print.ggplot(prob_plot)
+
+  last_row <- prob_df %>% filter(yearName == max(yearName))
+  for (p in c("0.1-1%", "1-10%", ">10%")) {
+    val <- last_row %>% filter(probability == p) %>% pull(area_km2)
+    print_text(paste0(ft_info$label, " ", paste_bold(p), " probability: ", paste_bold(round(val, 2)), " km² exposed by ", max(prob_df$yearName)))
+  }
+}
+```
+
+## Groundwater
+```{r groundwater, echo = F, message= F, warning=F}
+
+gwsa_file <- list.files(tabular_dir, pattern = "gwsa_aquifers.*\\.csv$", full.names = TRUE)
+sws_file <- list.files(tabular_dir, pattern = "sws_aquifers.*\\.csv$", full.names = TRUE)
+
+if (length(gwsa_file) == 0) print_text(paste_bold("No groundwater storage data available")) else {
+  gwsa <- read_csv(gwsa_file[1], col_types = "ccdd") %>%
+    select(date = 2, gwsa = 3) %>%
+    mutate(date = as.Date(date)) %>%
+    arrange(date) %>%
+    mutate(
+      gap = c(0, diff(date)) > 120,
+      group = cumsum(gap)
+    )
+
+  gwsa_plot <- ggplot(gwsa, aes(x = date, y = gwsa)) +
+    geom_line(aes(group = group), alpha = 0.6) +
+    geom_smooth(method = "loess", span = 0.2, se = FALSE, linewidth = 0.6, linetype = 2) +
+    scale_x_date(date_breaks = "2 years", date_labels = "%Y") +
+    labs(title = "Groundwater Storage Anomaly",
+         subtitle = "Baseline is the average from April 2002 to September 2023",
+         y = "Storage anomaly (mm)", x = "Year") +
+    theme_minimal() +
+    theme(axis.line = element_line(linewidth = .5, color = "black"),
+          axis.title.x = element_blank())
+  ggsave("03-render-output/plots/groundwater-timeseries.png", device = "png",
+         width = 5, height = 4.6, units = "in", dpi = "print")
+
+  if (length(sws_file) > 0) {
+    sws <- read_csv(sws_file[1], col_types = "ccdd") %>%
+      select(date = 2, sws = 3) %>%
+      mutate(date = as.Date(date))
+
+    # Extract aquifer name from filename for subtitle
+    aquifer_name <- gsub(".*aquifers_(.+)\\.csv$", "\\1", basename(gwsa_file[1]))
+
+    combined_plot <- ggplot(gwsa, aes(x = date, y = gwsa)) +
+      geom_line(aes(group = group, color = "Groundwater Storage"), alpha = 0.6) +
+      geom_line(data = sws, aes(y = sws, color = "Surface Water Storage"), alpha = 0.6) +
+      scale_color_manual(values = c("Groundwater Storage" = "steelblue",
+                                     "Surface Water Storage" = "darkred")) +
+      scale_x_date(date_breaks = "2 years", date_labels = "%Y") +
+      labs(title = "Water Storage Anomaly",
+           subtitle = paste0(aquifer_name, " (GRACE/GRACE-FO)"),
+           y = "Storage anomaly (mm)", x = "Year", color = NULL) +
+      theme_minimal() +
+      theme(axis.line = element_line(linewidth = 0.5, color = "black"),
+            plot.background = element_rect(fill = "white", color = NA),
+            legend.position = "bottom")
+    ggsave("03-render-output/plots/groundwater-surfacewater-timeseries.png", device = "png",
+           width = 5, height = 4.6, units = "in", dpi = "print")
+    ggplot2:::print.ggplot(combined_plot)
+  } else {
+    ggplot2:::print.ggplot(gwsa_plot)
+  }
+}
 ```
 
 ## Flood Events

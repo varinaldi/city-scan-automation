@@ -97,11 +97,16 @@ if (inherits(landmarks, "SpatVector")) {
 
 # Standard plots ---------------------------------------------------------------
 unlist(lapply(layer_params, \(x) x$fuzzy_string)) %>%
-  discard_at(c("fluvial", "pluvial", "coastal", "combined_flooding", "burnt_area", "elevation")) %>%
+  discard_at(c("fluvial", "pluvial", "coastal", "combined_flooding", "burnt_area", "elevation",
+               "coastal_erosion_baseline", "transect_coastline")) %>%
   map2(names(.), \(fuzzy_string, yaml_key) {
     tryCatch_named(yaml_key, {
-      data <- fuzzy_read(spatial_dir, fuzzy_string) %>%
-        vectorize_if_coarse()
+      data <- fuzzy_read(spatial_dir, fuzzy_string)
+      # Changed from direct pipe to vectorize_if_coarse() — now selects
+      # data_variable band first for multi-band rasters (e.g. air quality)
+      dv <- layer_params[[yaml_key]]$data_variable
+      if (!is.null(dv) && inherits(data, "SpatRaster") && nlyr(data) > 1) data <- data[dv]
+      data <- vectorize_if_coarse(data)
       if (nrow(data) == 0) {
         message(paste("No data for:", yaml_key))
         return(NULL)
@@ -121,6 +126,7 @@ source("R/map-elevation.R", local = T) # Could be standard if we wrote city-spec
 source("R/map-deforestation.R", local = T) # Could be standard if layers.yml included baseplot and source data had 2000 added
 source("R/map-flooding.R", local = T)
 source("R/map-historical-burnt-area.R", local = T)
+source("R/map-coastal-erosion.R", local = T)
 
 source("R/map-ghs-expansion.R", local = T)
 source("R/map-economic-activity-freq.R", local = T)

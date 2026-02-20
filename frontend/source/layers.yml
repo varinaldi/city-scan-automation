@@ -32,17 +32,47 @@ population: # <-- We refer to this as the "YAML key" and is used to match generi
   group_id: Population density # <-- This is the name shown in the leaflet layer control
   bins: 5
   caption: 'Map data from WorldPop Global2.'
-# SECTION 4 ECONOMIC ACTIVITY
+population_2030:
+  fuzzy_string: worldpop_2015_2030.tif$
+  data_variable: pop_2030
+  title: 'Population density, 2030 projection'
+  subtitle: 'Number of persons per 10,000 m<sup>2</sup>'
+  palette: ['#ECEB72', '#8E3933']
+  basemap: 'satellite'
+  group_id: Population density 2030
+  bins: 5
+  caption: 'Map data from WorldPop Global2.'
+# # SECTION 4 ECONOMIC ACTIVITY
 rwi:
   fuzzy_string: rwi(?=.shp$|.gpkg$|$)
   data_variable: rwi
   title: 'Relative wealth'
   subtitle: Average household wealth, in standard deviations from national mean
   palette: ['#009E7A', '#70C5AD', '#FFFFBA', '#FF9169', '#ED431B' ]
-  # labels: ['Least wealthy', 'Less wealthy', 'Average wealth', 'More wealthy', 'Most wealthy']
+  labels: ['Least wealthy', 'Less wealthy', 'Average wealth', 'More wealthy', 'Most wealthy']
   bins: 5
   group_id: Relative wealth index
   caption: 'Map data from Meta Data for Good (2021).'
+gdp_total:
+  fuzzy_string: gdp_total.tif$
+  data_variable: gdp_2020
+  title: 'Total GDP, 2020'
+  subtitle: 'Gross Domestic Product (PPP, million USD)'
+  palette: [ '#721F81', '#CD4071', '#FD9567', '#FCFDBF']
+  bins: 5
+  basemap: 'satellite'
+  group_id: Total GDP
+  caption: 'Map data from Kummu et al. (2025), 30 arc-sec gridded GDP.'
+gdp_per_capita:
+  fuzzy_string: gdp_per_capita.tif$
+  data_variable: gdp_pc_2022
+  title: 'GDP per capita, 2022'
+  subtitle: 'Gross Domestic Product per capita (PPP, USD)'
+  palette: [ '#721F81', '#CD4071', '#FD9567', '#FCFDBF']
+  bins: 5
+  basemap: 'satellite'
+  group_id: GDP per capita
+  caption: 'Map data from Kummu et al. (2025), downscaled gridded GDP per capita.'
 economic_activity:
   fuzzy_string: avg_rad_sum.*.tif$
   title: Economic activity
@@ -58,7 +88,7 @@ economic_change:
   palette: ['#404040', '#bababa', '#FFFFFF', '#f4a582', '#ca0020']
   center: 0
   bins: 0
-# SECTION 5 BUILT FORM
+# # SECTION 5 BUILT FORM
 wsf:
   fuzzy_string: wsf-edit.tif$
   title: Year of urban expansion, 1985–2015
@@ -78,6 +108,15 @@ wsf_tracker:
   labels: ['Before July 2016', 'By July 2019', 'By July 2022', 'By July 2025']
   palette: ['#FBF9CD', '#D18158', '#25115B']
   group_id: Urban extent, 2016–2024
+wsf_harmonized:
+  fuzzy_string: wsf_harmonized.tif$
+  title: Year of urban expansion, 1985–2025
+  breaks: [1985, 1986, 1996, 2006, 2015, 2025]
+  oob: censor
+  labels: ['Before 1986', '1986-1995', '1996-2005', '2006-2015', '2016-2025']
+  palette: ['#FBF9CD', '#E3B854', '#D18158', '#BF4A3B', '#25110B' ,'#25115B']
+  group_id: Urban extent harmonized
+  caption: 'Map data from World Settlement Footprint.'
 ghs_builtup:
   fuzzy_string: built_over_time.tif$
   title: Built-up area
@@ -169,7 +208,7 @@ health_points:
   factor: TRUE
   group_id: Healthcare proximity
   caption: 'Map data from OpenStreetMap.'
-# SECTION 6 CLIMATE CONDITIONS
+# # SECTION 6 CLIMATE CONDITIONS
 solar:
   fuzzy_string: solar.*.tif$
   title: 'Photovoltaic Potential'
@@ -182,7 +221,7 @@ air_quality:
   fuzzy_string: air_quality_pm2_5.tif$
   title: 'Concentrations of PM2.5 particles in 2022'
   subtitle: 'Micrograms per cubic meter (µg/m<sup>3</sup>)'
-  data_variable: pm2_5_2022
+  data_variable: sdei-global-annual-gwr-pm2-5-modis-misr-seawifs-viirs-aod-v5-gl-04-2022-geotiff
   palette: ['#fff4d1', '#f5cbab', '#e6a58c', '#d48172', '#c46673', '#ba6685', '#a86595', '#9467ab']
   breaks: [0, 5, 10, 15, 20, 30, 40, 50, 100]
   group_id: Air quality
@@ -190,7 +229,7 @@ air_quality_local:
   fuzzy_string: air_quality_pm2_5.tif$
   title: 'Concentrations of PM2.5 particles in 2022'
   subtitle: 'Micrograms per cubic meter (µg/m<sup>3</sup>)'
-  data_variable: pm2_5_2022
+  data_variable: sdei-global-annual-gwr-pm2-5-modis-misr-seawifs-viirs-aod-v5-gl-04-2022-geotiff
   palette: ['#fff4d1', '#f5cbab', '#e6a58c', '#d48172', '#c46673', '#ba6685', '#a86595', '#9467ab']
   bins: 5
   group_id: Air quality (local)
@@ -276,7 +315,7 @@ coastal:
   title: 'Coastal flood probability'
   subtitle: 'Probability of a flood event within a 3-arc-second area in a given year'
   group_id: Coastal flooding
-# 2030 projections
+# # 2030 projections
 coastal_2030_ssp1:
   fuzzy_string: coastal_2030_ssp1.tif$
   palette: ['#A7BCEE', '#1B35C4']
@@ -309,7 +348,7 @@ coastal_2030_ssp5:
   title: 'Coastal flood probability in 2030 under SSP5'
   subtitle: 'Probability of a flood event within a 3-arc-second area in 2030 under SSP5'
   group_id: Coastal flooding 2030 SSP5
-# 2050 projections
+# # 2050 projections
 coastal_2050_ssp1:
   fuzzy_string: coastal_2050_ssp1.tif$
   palette: ['#A7BCEE', '#1B35C4']
@@ -342,7 +381,7 @@ coastal_2050_ssp5:
   title: 'Coastal flood probability in 2050 under SSP5'
   subtitle: 'Probability of a flood event within a 3-arc-second area in 2050 under SSP5'
   group_id: Coastal flooding 2050 SSP5
-# 2080 projections
+# # 2080 projections
 coastal_2080_ssp1:
   fuzzy_string: coastal_2080_ssp1.tif$
   palette: ['#A7BCEE', '#1B35C4']
@@ -392,17 +431,17 @@ elevation:
   palette: ['#f5c4c0', '#762175']
   bins: 5
   group_id: Elevation
-# elevation: # For using contour lines file
-#   fuzzy_string: contour.shp$
-#   palette: NULL
-#   bins: 5
-#   stroke: 
-#     title: Elevation
-#     subtitle: 'Meters above sea level (MASL)'
-#     variable: elev
-#     palette: ['#f5c4c0', '#762175']
-#   weight: 1
-#   group_id: Elevation
+# # elevation: # For using contour lines file
+# #   fuzzy_string: contour.shp$
+# #   palette: NULL
+# #   bins: 5
+# #   stroke: 
+# #     title: Elevation
+# #     subtitle: 'Meters above sea level (MASL)'
+# #     variable: elev
+# #     palette: ['#f5c4c0', '#762175']
+# #   weight: 1
+# #   group_id: Elevation
 slope:
   fuzzy_string: slope.tif$
   title: Slope
@@ -471,17 +510,45 @@ drought:
   breaks: [-1, -0.2, 0.1, 0.4, 0.7, 1]
   labels: ['Dry (-1–-0.2)', 'More water stress (-0.2–0.1)', 'Water stress (0.1–0.4)', 'Wet (0.4–0.7)', 'Wetter (0.–1)']
   group_id: Moisture
-# seismic_hazard:
-#   fuzzy_string: seismic-hazard-masked.tif$
-#   title: Seismic hazard
-#   subtitle: 'Peak ground acceleration (PGA)'
-#   palette: ['#FFFFFF', '#D7E3EE', '#B5CAFF', '#8FB3FF', '#7F97FF', '#ABCF63', '#E8F59E', '#FFFA14', '#FFD121', '#FFA30A', '#FF4C00']
-#   breaks: [0.00, 0.115, 0.401, 1.50]
-#   labels: ['Low (< 0.115g)', 'Moderate (0.115g – 0.401g)', 'High (> 0.401g)']
-#   # breaks: [0.00, 0.01, 0.02, 0.03, 0.05, 0.08, 0.13, 0.20, 0.35, 0.55, 0.90, 1.50]
-#   # labels: ['0.00–0.01', '0.01–0.02', '0.02–0.03', '0.03–0.05', '0.05–0.08', '0.08–0.13', '0.13–0.20', '0.20–0.35', '0.35–0.55', '0.55–0.90', '0.90–1.50']
-#   group_id: Seismic hazard
-#   caption: 'Map data from Global Earthquake Model (2023).'
+coastal_erosion_snap:
+  fuzzy_string: shoreline_snap.fgb$
+  data_variable: changerate
+  title: 'Coastline Change (snapped to AOI)'
+  subtitle: 'Average meters per year, 1984–2016'
+  palette: ['#C62421', '#E88B39', '#f6e8a1', '#90C050', '#277242']
+  breaks: [-3, -1.5, 0, 1.5, 3]
+  labels: ['-3', '-1.5', '0', '+1.5', '+3']
+  basemap: 'satellite'
+  group_id: Coastal erosion snap
+  caption: 'Delft University of Technology, Long-term Shoreline Changes (1984-2016).'
+coastal_erosion_baseline:
+  fuzzy_string: shoreline_baseline.fgb$
+  data_variable: changerate
+  title: 'Coastline Change (transect baseline)'
+  subtitle: 'Average meters per year, 1984–2016'
+  palette: ['#C62421', '#E88B39', '#f6e8a1', '#90C050', '#277242']
+  breaks: [-3, -1.5, 0, 1.5, 3]
+  labels: ['-3', '-1.5', '0', '+1.5', '+3']
+  basemap: 'satellite'
+  group_id: Coastal erosion baseline
+  caption: 'Delft University of Technology, Long-term Shoreline Changes (1984-2016).'
+transect_coastline:
+  fuzzy_string: transect_coastline.fgb$
+  title: 'Transect Coastline Baseline'
+  subtitle: 'Coastline derived from transect intersection points'
+  palette: ['#FFFFFF']
+  basemap: 'satellite'
+  group_id: Transect coastline
+  caption: 'Delft University of Technology, Long-term Shoreline Changes (1984-2016).'
+seismic_hazard:
+  fuzzy_string: seismic-hazard-masked.tif$
+  title: Seismic hazard
+  subtitle: 'Peak ground acceleration (PGA)'
+  palette: ['#FFFFFF', '#D7E3EE', '#B5CAFF', '#8FB3FF', '#7F97FF', '#ABCF63', '#E8F59E', '#FFFA14', '#FFD121', '#FFA30A', '#FF4C00']
+  breaks: [0.00, 0.115, 0.401, 1.50]
+  labels: ['Low (< 0.115g)', 'Moderate (0.115g – 0.401g)', 'High (> 0.401g)']
+  group_id: Seismic hazard
+  caption: 'Map data from Global Earthquake Model (2023).'
 
 
 water_risk_overall:
@@ -543,7 +610,7 @@ slr_1_10m:
   group_id: Sea Level Rise
   caption: 'Map data from Climate Central.'
 
-# AR6 SSP2-4.5 projections (combined by year)
+# # AR6 SSP2-4.5 projections (combined by year)
 slr_ssp245_50_hightide:
   fuzzy_string: slr_ssp245_50.0_hightide.tif$
   title: 'Sea Level Rise Projection'
@@ -604,7 +671,7 @@ slr_ssp245_83_RL10:
   factor: TRUE
   group_id: SLR SSP2-4.5 83% RL10
 
-# AR6 SSP5-8.5 projections (combined by year)
+# # AR6 SSP5-8.5 projections (combined by year)
 slr_ssp585_50_hightide:
   fuzzy_string: slr_ssp585_50.0_hightide.tif$
   title: 'Sea Level Rise Projection'

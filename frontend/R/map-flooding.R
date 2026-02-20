@@ -10,8 +10,11 @@ plot_flooding <- function(flood_type) {
       plot_aoi = T, plot_wards = !is.null(wards))
     if (!is.null(plots$population)) plots[[glue("{flood_type}_population")]] <<-
       plot_static_layer(flood_data, yaml_key = flood_type, baseplot = plots$population)
-    if (!is.null(plots$wsf)) plots[[glue("{flood_type}_wsf")]] <<-
-      plot_static_layer(flood_data, yaml_key = flood_type, baseplot = plots$wsf)
+    if (!is.null(plots$population_2030)) plots[[glue("{flood_type}_population_2030")]] <<-
+      plot_static_layer(flood_data, yaml_key = flood_type, baseplot = plots$population_2030)
+    wsf_base <- if (!is.null(plots$wsf_harmonized)) plots$wsf_harmonized else plots$wsf
+    if (!is.null(wsf_base)) plots[[glue("{flood_type}_wsf")]] <<-
+      plot_static_layer(flood_data, yaml_key = flood_type, baseplot = wsf_base)
     if (!is.null(plots$infrastructure)) plots[[glue("{flood_type}_infrastructure")]] <<-
       plot_static_layer(flood_data, yaml_key = flood_type, baseplot = plots$infrastructure)
   })

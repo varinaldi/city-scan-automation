@@ -43,6 +43,14 @@ economic_activity:
     method: Population growth measures the annual change resulting from births, deaths, and net migration during the year. Depending on the level of development and income, it is a key factor in the overall economic growth of a city.
   gdp_per_capita_growth:
     method: City GDP per capita is an informal measure of economic performance and a useful unit to compare the standard of living and economic and material well-being between countries.
+  gdp_total:
+    title: Gridded GDP
+    method: This map shows the spatial distribution of Gross Domestic Product at purchasing power parity (PPP, 2017 international USD) on a 30 arc-second (~1 km) grid. The dataset first downscales GDP per capita from national and subnational statistical sources to ~43,500 administrative units using an ensemble machine learning model, then multiplies the result by gridded population counts to produce total GDP at high resolution. PPP adjustment accounts for differences in price levels between countries, enabling meaningful spatial comparisons.
+    footnote: 'Map data from Kummu, M., Kosonen, M. & Masoumzadeh Sayyar, S., 2025, "Downscaled gridded global dataset for GDP per capita PPP over 1990–2022", Scientific Data.'
+  gdp_per_capita:
+    title: Gridded GDP per Capita
+    method: This map shows the spatial distribution of Gross Domestic Product per capita at purchasing power parity (PPP, 2017 international USD) on a 5 arc-minute (~10 km) grid. The dataset combines national GDP figures from the World Bank and IMF with subnational data from OECD, Eurostat, and national statistical offices, then downscales subnational-to-national GDP ratios to ~43,500 administrative units worldwide using an ensemble machine learning model trained on urbanization level, travel time to nearest city, national income inequality, and national GDP per capita. GDP per capita provides a localized measure of economic well-being and living standards, revealing within-city disparities that national or city-level averages may obscure. 
+    footnote: 'Map data from Kummu, M., Kosonen, M. & Masoumzadeh Sayyar, S., 2025, "Downscaled gridded global dataset for GDP per capita PPP over 1990–2022", Scientific Data.'
   economic_activity:
     title: Economic Hotspots
     method: 'This map measures the total emissions of nighttime lights from the monthly average of radiance for 2014 through 2022. Nighttime light radiance is a common proxy for economic activity: where there is more artificial light, there is generally more commercial activity. VIIRS observations are made fairly late at night, as its satellites cross the equator at around 1:30 local time; thus, the observed lights are typically street lights and nights which are left lit all night long. The correlation of nighttime light and economic activity is strongest for urban areas; it is less relevant in agricultural areas and areas with very low population density.'

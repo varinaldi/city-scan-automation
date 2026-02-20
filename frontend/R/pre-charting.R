@@ -208,6 +208,11 @@ if (nrow(oxford_pop_subset) > 0) {
     if (any(duplicated(oxford_areas$Location))) stop("Multiple Oxford Economics cities have been matched with the same name")
 
     pop_longitude <- left_join(pop_longitude, oxford_areas, by = "Location")
+    if ("Area_km.x" %in% names(pop_longitude)) {
+        pop_longitude <- pop_longitude %>%
+            mutate(Area_km = coalesce(Area_km.x, Area_km.y)) %>%
+            select(-Area_km.x, -Area_km.y)
+    }
 }
 
 # Remaining cities not yet in pop_longitude
@@ -247,6 +252,7 @@ if (nrow(pop_manual) > 0) pop_longitude <- bind_rows(pop_longitude, pop_manual) 
   filter(!is.na(Population))
 
 # Final Populatin data
+if (!"Area_km" %in% names(pop_longitude)) pop_longitude$Area_km <- NA_real_
 pop_longitude <- pop_longitude %>%
   mutate(Area_km = case_when(
          Area_km == 0 ~ NA_real_,
@@ -605,7 +611,7 @@ if (in_oxford) {
 # WSF
 # Urban Built-up Area -----------------------------------------------------------------------------
 
-wsf_file <- str_subset(list.files(tabular_dir, full.names = T), "(?<!flood_)wsf(?!.*tracker).*(csv|xlsx)")
+wsf_file <- str_subset(list.files(tabular_dir, full.names = T), "(?<!flood_)wsf(?!.*(tracker|stats)).*(csv|xlsx)")
 
 if (length(wsf_file) > 0)  {
     # Urban built-up area ----
@@ -613,7 +619,7 @@ if (length(wsf_file) > 0)  {
     if (str_detect(wsf_file, "csv$")) wsf <- read_csv(wsf_file, col_types = "dd")
     wsf <- wsf %>%
         rename(Year = 1) %>%
-        select(Year, uba_km2 = any_of(c("AREA_sq_km", "cumulative sq km"))) %>%
+        select(Year, uba_km2 = any_of(c("AREA_sq_km", "cumulative sq km", "cumulative_sq_km"))) %>%
         mutate(growth_pct = (uba_km2 / lag(uba_km2) - 1), growth_km2 = uba_km2 - lag(uba_km2))
 }
 
@@ -628,7 +634,7 @@ if (length(wsf_tracker_file) > 0)  {
     wsf_tracker <- wsf_tracker %>%
         # mutate(date = zoo::as.yearmon(date)) %>%
         mutate(date = zoo::as.yearmon(paste(year, month, sep = "-"))) %>%
-        select(date, uba_km2 = any_of(c("AREA_sq_km", "cumulative sq km"))) %>%
+        select(date, uba_km2 = any_of(c("AREA_sq_km", "cumulative sq km", "cumulative_sq_km"))) %>%
         mutate(growth_pct = (uba_km2 / lag(uba_km2) - 1), growth_km2 = uba_km2 - lag(uba_km2))
 }
     

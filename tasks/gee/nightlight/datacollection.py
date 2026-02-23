@@ -8,7 +8,7 @@ import xarray as xr
 import rioxarray
 import xee
 
-from . import fns
+from .. import fns
 
 
 def datacollection(

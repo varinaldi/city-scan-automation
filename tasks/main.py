@@ -238,6 +238,65 @@ if menu.get("burned_area"):
     except Exception as e:
         logger.error(f"Error: {e}")
 
+if menu.get("forest"):
+    try:
+        from tasks.gee.forest import datacollection as forest_collect
+        logger.info("Running forest workflow...")
+        forest_collect.datacollection(aoi=aoi, city_name=city_name, output_dir=output_dir)
+        logger.info("Done with forest data collection")
+    except Exception as e:
+        logger.error(f"Error: {e}")
+
+if menu.get("landcover"):
+    try:
+        from tasks.gee.landcover import datacollection as lc_collect
+        from tasks.gee.landcover import dataanalysis as lc_analysis
+        logger.info("Running land cover workflow...")
+        lc_collect.datacollection(aoi=aoi, city_name=city_name, output_dir=output_dir)
+        lc_analysis.dataanalysis(city_name=city_name, output_dir=output_dir)
+        logger.info("Done with land cover analysis")
+    except Exception as e:
+        logger.error(f"Error: {e}")
+
+if menu.get("lst_summer") or menu.get("lst_winter"):
+    try:
+        from tasks.gee.lst import datacollection as lst_collect
+        composite = []
+        if menu.get("lst_summer"): composite.append('summer')
+        if menu.get("lst_winter"): composite.append('winter')
+        logger.info(f"Running LST workflow ({composite})...")
+        lst_collect.datacollection(aoi=aoi, city_name=city_name, output_dir=output_dir, composite=composite)
+        logger.info("Done with LST data collection")
+    except Exception as e:
+        logger.error(f"Error: {e}")
+
+if menu.get("green"):
+    try:
+        from tasks.gee.ndxi import datacollection as ndvi_collect
+        logger.info("Running NDVI workflow...")
+        ndvi_collect.datacollection(aoi=aoi, city_name=city_name, output_dir=output_dir, index_type='ndvi')
+        logger.info("Done with NDVI data collection")
+    except Exception as e:
+        logger.error(f"Error: {e}")
+
+if menu.get("ndmi"):
+    try:
+        from tasks.gee.ndxi import datacollection as ndmi_collect
+        logger.info("Running NDMI workflow...")
+        ndmi_collect.datacollection(aoi=aoi, city_name=city_name, output_dir=output_dir, index_type='ndmi')
+        logger.info("Done with NDMI data collection")
+    except Exception as e:
+        logger.error(f"Error: {e}")
+
+if menu.get("nightlight"):
+    try:
+        from tasks.gee.nightlight import datacollection as nl_collect
+        logger.info("Running nightlight workflow...")
+        nl_collect.datacollection(aoi=aoi, city_name=city_name, output_dir=output_dir)
+        logger.info("Done with nightlight data collection")
+    except Exception as e:
+        logger.error(f"Error: {e}")
+
 #####################################################################
 ################ RUN MULTI-LAYER TASKS COMPONENTS ###################
 #####################################################################

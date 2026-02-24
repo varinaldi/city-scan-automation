@@ -242,9 +242,11 @@ if menu.get("ghs_population"):
     try:
         from tasks.ghs_population import datacollection as ghspop_collect
         from tasks.ghs_population import dataanalysis as ghspop_analysis
+        from tasks.ghs_population import datavisualization as ghspop_vis
         logger.info("Running ghs population workflow..")
-        # ghspop_collect.datacollection(aoi=aoi, city_name=city_name, output_dir=output_dir)
+        ghspop_collect.datacollection(aoi=aoi, city_name=city_name, output_dir=output_dir)
         ghspop_analysis.compute_stats(city_name=city_name, output_dir=output_dir, start_year=1975, end_year=2030)
+        ghspop_vis.run_viz(city_name=city_name, output_dir=output_dir, start_year=1975, end_year=2030)
     except Exception as e:
         logger.error(f"Error: {e}")
 

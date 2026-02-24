@@ -250,6 +250,20 @@ if menu.get("ghs_population"):
     except Exception as e:
         logger.error(f"Error: {e}")
 
+
+if menu.get("ghs_builtup"):
+    try:
+        from tasks.ghs_builtup import datacollection as ghsbu_collect
+        from tasks.ghs_builtup import dataanalysis as ghsbu_analysis
+        from tasks.ghs_builtup import datavisualization as ghsbu_vis
+        logger.info("Running ghs builtup workflow..")
+        ghsbu_collect.datacollection(aoi=aoi, city_name=city_name, output_dir=output_dir)
+        ghsbu_analysis.builtup_overtime(aoi=aoi, output_dir=output_dir, city_name=city_name, threshold=1200)
+        ghsbu_analysis.compute_stats(city_name=city_name, output_dir=output_dir, start_year=1975, end_year=2030)
+        ghsbu_vis.run_viz(city_name=city_name, output_dir=output_dir, start_year=1975, end_year=2030)
+    except Exception as e:
+        logger.error(f"Error: {e}")
+
 #####################################################################
 ################ RUN MULTI-LAYER TASKS COMPONENTS ###################
 #####################################################################

@@ -3,7 +3,7 @@ basic_info: False
 burned_area: False
 demographics: False
 population: False
-ghs_population: True
+ghs_population: False
 wsf: False
 earthquake: False   # under development
 elevation: False
@@ -32,4 +32,4 @@ lst_summer: False
 lst_winter: False
 ndmi: False
 nightlight: False
-ghs_builtup: False
+ghs_builtup: True

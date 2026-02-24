@@ -238,6 +238,14 @@ if menu.get("burned_area"):
     except Exception as e:
         logger.error(f"Error: {e}")
 
+if menu.get("ghs_population"):
+    try:
+        from tasks.ghs_population import datacollection as ghspop_collect
+        logger.info("Running ghs population workflow..")
+        ghspop_collect.datacollection(aoi=aoi, city_name=city_name, output_dir=output_dir)
+    except Exception as e:
+        logger.error(f"Error: {e}")
+
 #####################################################################
 ################ RUN MULTI-LAYER TASKS COMPONENTS ###################
 #####################################################################

@@ -1,9 +1,9 @@
 accessibility: False
 basic_info: False
-burned_area: True
+burned_area: False
 demographics: False
 population: False
-ghs_population: False
+ghs_population: True
 wsf: False
 earthquake: False   # under development
 elevation: False

@@ -1,6 +1,6 @@
 accessibility: False
 basic_info: False
-burned_area: True
+burned_area: False
 demographics: False
 population: False
 ghs_population: False
@@ -32,4 +32,4 @@ lst_summer: False
 lst_winter: False
 ndmi: False
 nightlight: False
-ghs_builtup: False
+ghs_builtup: True

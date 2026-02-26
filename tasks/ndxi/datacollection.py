@@ -8,7 +8,7 @@ import xarray as xr
 import rioxarray
 import xee
 
-from .. import fns
+from utils import gee_fns as fns
 
 INDEX_BANDS = {
     'ndvi': ('B8', 'B4'),   # NIR - Red

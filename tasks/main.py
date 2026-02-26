@@ -20,6 +20,8 @@ city_inputs_path = INPUTS / "city_inputs.yml"
 with open(city_inputs_path) as f:
     city_inputs = yaml.safe_load(f)
 city_name = city_inputs['city_name'].replace(' ', '_').replace("'", "").lower()
+first_year = city_inputs['first_year']
+last_year = city_inputs['last_year']
 
 # load AOI
 aoi_path = INPUTS / f"AOI/{city_inputs['AOI_shp_name']}.shp"
@@ -39,10 +41,12 @@ logger.info(f'working on {cityscan_id}')
 input_dir = OUTPUTS / f'{cityscan_id}/01-user-input'
 output_dir = OUTPUTS / f'{cityscan_id}/02-process-output'
 render_dir = OUTPUTS / f'{cityscan_id}/03-render-output'
+spatial_dir = f'{output_dir}/spatial'
+tabular_dir = f'{output_dir}/tabular'
 os.makedirs(input_dir, exist_ok=True)
 os.makedirs(f'{output_dir}/images/', exist_ok=True)
-os.makedirs(f'{output_dir}/spatial/', exist_ok=True)
-os.makedirs(f'{output_dir}/tabular/', exist_ok=True)
+os.makedirs(spatial_dir, exist_ok=True)
+os.makedirs(tabular_dir, exist_ok=True)
 os.makedirs(render_dir, exist_ok=True)
 os.makedirs(f'{render_dir}/plots/png', exist_ok=True)
 os.makedirs(f'{render_dir}/plots/html', exist_ok=True)
@@ -73,10 +77,12 @@ if menu.get("population"):
         from tasks.population_worldpop import dataanalysis as wp_analysis
         from tasks.population_worldpop import datavisualization as wp_vis
         logger.info("Running WorldPop population workflow...")
-        pop_array, pop_meta = wp_collect.datacollection(aoi=aoi, city_name=city_name, country_iso3=country_iso3, output_dir=output_dir, return_raster=True)
-        wp_analysis.compute_stats(city_name=city_name, output_dir=output_dir, clipped_image=pop_array, clipped_meta=pop_meta, return_df=False)
-        wp_vis.plot_rastermap(city_name=city_name, output_dir=output_dir, clipped_image=pop_array, clipped_meta=pop_meta)
-        wp_vis.plot_histogram(city_name=city_name, output_dir=output_dir, clipped_image=pop_array, clipped_meta=pop_meta)
+        pop_arrays, pop_metas = wp_collect.datacollection(aoi=aoi, city_name=city_name, country_iso3=country_iso3, output_dir=output_dir, return_raster=True)
+        wp_analysis.compute_stats(city_name=city_name, output_dir=output_dir, clipped_image=pop_arrays["g1_2020"], clipped_meta=pop_metas["g1_2020"], return_df=False)
+        wp_analysis.stats_worldpop(city_name=city_name, output_dir=output_dir, dataset="worldpop_2000_2020")
+        wp_analysis.stats_worldpop(city_name=city_name, output_dir=output_dir, dataset="worldpop_2015_2030")
+        wp_vis.plot_rastermap(city_name=city_name, output_dir=output_dir, clipped_image=pop_arrays["g1_2020"], clipped_meta=pop_metas["g1_2020"])
+        wp_vis.plot_histogram(city_name=city_name, output_dir=output_dir, clipped_image=pop_arrays["g1_2020"], clipped_meta=pop_metas["g1_2020"])
         logger.info("Done with population WorldPop analysis")
     except Exception as e:
         logger.error(f"Error: {e}")
@@ -260,6 +266,21 @@ if menu.get("ghs_builtup"):
         ghsbu_analysis.builtup_overtime(aoi=aoi, output_dir=output_dir, city_name=city_name, threshold=1200)
         ghsbu_analysis.compute_stats(city_name=city_name, output_dir=output_dir, start_year=1975, end_year=2030)
         ghsbu_vis.run_viz(city_name=city_name, output_dir=output_dir, start_year=1975, end_year=2030)
+    except Exception as e:
+        logger.error(f"Error: {e}")
+
+if menu.get("wsf"):
+    try:
+        from tasks.wsf import datacollection as wsf_collect
+        from tasks.wsf import dataanalysis as wsf_analysis
+        logger.info("Running WSF workflow...")
+        wsf_arrays, wsf_metas = wsf_collect.datacollection(aoi=aoi, city_name=city_name, output_dir=output_dir, return_raster=True)
+        wsf_analysis.stats_wsf(city_name=city_name, output_dir=output_dir, dataset="tracker")
+        wsf_analysis.stats_wsf(city_name=city_name, output_dir=output_dir, dataset="evolution")
+        harm_array, harm_meta = wsf_analysis.harmonize_wsf(city_name=city_name, output_dir=output_dir)
+        logger.info("Done with WSF analysis")
+    except Exception as e:
+        logger.error(f"Error: {e}")
 
 if menu.get("forest"):
     try:
@@ -288,7 +309,7 @@ if menu.get("lst_summer") or menu.get("lst_winter"):
         if menu.get("lst_summer"): composite.append('summer')
         if menu.get("lst_winter"): composite.append('winter')
         logger.info(f"Running LST workflow ({composite})...")
-        lst_collect.datacollection(aoi=aoi, city_name=city_name, output_dir=output_dir, composite=composite)
+        lst_collect.datacollection(aoi=aoi, city_name=city_name, output_dir=output_dir, composite=composite, first_year=first_year, last_year=last_year)
         logger.info("Done with LST data collection")
     except Exception as e:
         logger.error(f"Error: {e}")
@@ -297,7 +318,7 @@ if menu.get("green"):
     try:
         from tasks.gee.ndxi import datacollection as ndvi_collect
         logger.info("Running NDVI workflow...")
-        ndvi_collect.datacollection(aoi=aoi, city_name=city_name, output_dir=output_dir, index_type='ndvi')
+        ndvi_collect.datacollection(aoi=aoi, city_name=city_name, output_dir=output_dir, index_type='ndvi', first_year=first_year, last_year=last_year)
         logger.info("Done with NDVI data collection")
     except Exception as e:
         logger.error(f"Error: {e}")
@@ -306,7 +327,7 @@ if menu.get("ndmi"):
     try:
         from tasks.gee.ndxi import datacollection as ndmi_collect
         logger.info("Running NDMI workflow...")
-        ndmi_collect.datacollection(aoi=aoi, city_name=city_name, output_dir=output_dir, index_type='ndmi')
+        ndmi_collect.datacollection(aoi=aoi, city_name=city_name, output_dir=output_dir, index_type='ndmi', first_year=first_year, last_year=last_year)
         logger.info("Done with NDMI data collection")
     except Exception as e:
         logger.error(f"Error: {e}")

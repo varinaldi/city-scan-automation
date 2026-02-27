@@ -15,13 +15,18 @@ def collect(scan):
 
 def analyze(scan):
     from .dataanalysis import demographic_aggregate
-    from .datavisualization import age_distribution_plot
 
     logger.info("Analyzing demographic data...")
     demographic_aggregate(
         city_name=scan.city_name, output_dir=scan.output_dir,
         return_df=True
     )
+
+
+def visualize(scan):
+    from .datavisualization import age_distribution_plot
+
+    logger.info("Visualizing demographic data...")
     age_distribution_plot(
         city_name=scan.city_name, output_dir=scan.output_dir,
         render_dir=scan.render_dir, font_dict=scan.font_dict

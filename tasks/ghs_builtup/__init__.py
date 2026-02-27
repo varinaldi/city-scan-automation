@@ -14,7 +14,6 @@ def collect(scan):
 
 def analyze(scan):
     from .dataanalysis import builtup_overtime, compute_stats
-    from .datavisualization import run_viz
 
     logger.info("Analyzing GHS builtup data...")
     builtup_overtime(
@@ -25,6 +24,12 @@ def analyze(scan):
         city_name=scan.city_name, output_dir=scan.output_dir,
         start_year=1975, end_year=2030
     )
+
+
+def visualize(scan):
+    from .datavisualization import run_viz
+
+    logger.info("Visualizing GHS builtup data...")
     run_viz(
         city_name=scan.city_name, output_dir=scan.output_dir,
         start_year=1975, end_year=2030

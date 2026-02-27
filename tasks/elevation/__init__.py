@@ -15,7 +15,6 @@ def collect(scan):
 
 def analyze(scan):
     from .dataanalysis import generate_contours, elevation_stats, elevation_interpretation
-    from .datavisualization import plot_elevation_rastermap, plot_elevation_stats
 
     logger.info("Analyzing elevation data...")
     generate_contours(
@@ -28,6 +27,12 @@ def analyze(scan):
     elevation_interpretation(
         city_name=scan.city_name, output_dir=scan.output_dir
     )
+
+
+def visualize(scan):
+    from .datavisualization import plot_elevation_rastermap, plot_elevation_stats
+
+    logger.info("Visualizing elevation data...")
     plot_elevation_rastermap(
         city_name=scan.city_name, output_dir=scan.output_dir
     )

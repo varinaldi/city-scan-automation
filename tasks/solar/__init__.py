@@ -18,7 +18,6 @@ def collect(scan):
 
 def analyze(scan):
     from .dataanalysis import compute_stats, plot_solar_seasonality
-    from .datavisualization import plot_rastermap, plot_histogram
 
     logger.info("Analyzing solar data...")
     compute_stats(
@@ -30,6 +29,12 @@ def analyze(scan):
         render_dir=scan.render_dir, font_dict=scan.font_dict,
         return_df=False
     )
+
+
+def visualize(scan):
+    from .datavisualization import plot_rastermap, plot_histogram
+
+    logger.info("Visualizing solar data...")
     plot_rastermap(city_name=scan.city_name, output_dir=scan.output_dir)
     plot_histogram(city_name=scan.city_name, output_dir=scan.output_dir)
 

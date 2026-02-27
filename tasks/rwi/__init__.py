@@ -15,13 +15,18 @@ def collect(scan):
 
 def analyze(scan):
     from .dataanalysis import compute_stats_gdf
-    from .datavisualization import run_viz_gdf
 
     logger.info("Analyzing relative wealth index data...")
     compute_stats_gdf(
         city_name=scan.city_name, output_dir=scan.output_dir,
         value_col='rwi'
     )
+
+
+def visualize(scan):
+    from .datavisualization import run_viz_gdf
+
+    logger.info("Visualizing relative wealth index data...")
     run_viz_gdf(
         city_name=scan.city_name, output_dir=scan.output_dir,
         value_col='rwi'

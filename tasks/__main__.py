@@ -7,6 +7,7 @@ Usage:
     python -m tasks wsf population forest                      # multiple tasks
     python -m tasks wsf --collect                              # collect only
     python -m tasks wsf --analyze                              # analyze only
+    python -m tasks wsf --visualize                            # visualize only
     python -m tasks --all                                      # all tasks enabled in menu.yml
     python -m tasks --all --scan-id 2026-02-malta-malta        # all tasks for existing city
     python -m tasks --list                                     # show available tasks
@@ -23,41 +24,41 @@ GEE_TASKS = {"forest", "landcover", "lst", "green", "ndmi", "nightlight"}
 # Tasks that require private GCS authentication
 GCS_TASKS = {"wsf"}
 
-# Registry: CLI name -> (module_path, collect_func, analyze_func, run_func)
+# Registry: CLI name -> (module_path, collect_func, analyze_func, visualize_func, run_func)
 # Order follows migrate.notes Part 5: Backend Task Index
 TASK_REGISTRY = {
     # 0 — accessibility
-    "accessibility":  ("tasks.accessibility", "collect", "analyze", "run"),
+    "accessibility":  ("tasks.accessibility", "collect", "analyze", None, "run"),
     # 1-5 — burned area
-    "burned_area":    ("tasks.burned_area", "collect", "analyze", "run"),
+    "burned_area":    ("tasks.burned_area", "collect", "analyze", None, "run"),
     # 6 — demographics
-    "demographics":   ("tasks.demography", "collect", "analyze", "run"),
+    "demographics":   ("tasks.demography", "collect", "analyze", "visualize", "run"),
     # 7 — population (WorldPop)
-    "population":     ("tasks.population_worldpop", "collect", "analyze", "run"),
+    "population":     ("tasks.population_worldpop", "collect", "analyze", "visualize", "run"),
     # 8 — WSF
-    "wsf":            ("tasks.wsf", "collect", "analyze", "run"),
+    "wsf":            ("tasks.wsf", "collect", "analyze", None, "run"),
     # 9 — elevation + slope
-    "elevation":      ("tasks.elevation", "collect", "analyze", "run"),
-    "slope":          ("tasks.slope", "collect", "analyze", "run"),
+    "elevation":      ("tasks.elevation", "collect", "analyze", "visualize", "run"),
+    "slope":          ("tasks.slope", "collect", "analyze", "visualize", "run"),
     # 11 — FWI
-    "fwi":            ("tasks.fwi", "collect", "analyze", "run"),
+    "fwi":            ("tasks.fwi", "collect", "analyze", None, "run"),
     # 14 — RWI
-    "rwi":            ("tasks.rwi", "collect", "analyze", "run"),
+    "rwi":            ("tasks.rwi", "collect", "analyze", "visualize", "run"),
     # 15 — raster masking (air, landslide, liquefaction, solar)
-    "air":            ("tasks.air_quality", "collect", "analyze", "run"),
-    "landslide":      ("tasks.landslide", "collect", "analyze", "run"),
-    "liquefaction":   ("tasks.liquefaction", "collect", "analyze", "run"),
-    "solar":          ("tasks.solar", "collect", "analyze", "run"),
+    "air":            ("tasks.air_quality", "collect", "analyze", "visualize", "run"),
+    "landslide":      ("tasks.landslide", "collect", "analyze", "visualize", "run"),
+    "liquefaction":   ("tasks.liquefaction", "collect", "analyze", "visualize", "run"),
+    "solar":          ("tasks.solar", "collect", "analyze", "visualize", "run"),
     # 16 — GEE tasks
-    "forest":         ("tasks.forest", "collect", "analyze", "run"),
-    "landcover":      ("tasks.landcover", "collect", "analyze", "run"),
-    "lst":            ("tasks.lst", "collect", "analyze", "run"),
-    "green":          ("tasks.ndxi", "collect_ndvi", None, "run_ndvi"),
-    "ndmi":           ("tasks.ndxi", "collect_ndmi", None, "run_ndmi"),
-    "nightlight":     ("tasks.nightlight", "collect", "analyze", "run"),
+    "forest":         ("tasks.forest", "collect", "analyze", None, "run"),
+    "landcover":      ("tasks.landcover", "collect", "analyze", None, "run"),
+    "lst":            ("tasks.lst", "collect", "analyze", None, "run"),
+    "green":          ("tasks.ndxi", "collect_ndvi", None, None, "run_ndvi"),
+    "ndmi":           ("tasks.ndxi", "collect_ndmi", None, None, "run_ndmi"),
+    "nightlight":     ("tasks.nightlight", "collect", "analyze", None, "run"),
     # 21-22 — GHS
-    "ghs_population": ("tasks.ghs_population", "collect", "analyze", "run"),
-    "ghs_builtup":    ("tasks.ghs_builtup", "collect", "analyze", "run"),
+    "ghs_population": ("tasks.ghs_population", "collect", "analyze", "visualize", "run"),
+    "ghs_builtup":    ("tasks.ghs_builtup", "collect", "analyze", "visualize", "run"),
 }
 
 # Menu keys that map to each CLI task (for --all mode)
@@ -76,7 +77,7 @@ def run_task(task_name, scan, step=None):
         logger.error(f"Unknown task: {task_name}")
         return False
 
-    module_path, collect_fn, analyze_fn, run_fn = TASK_REGISTRY[task_name]
+    module_path, collect_fn, analyze_fn, visualize_fn, run_fn = TASK_REGISTRY[task_name]
     try:
         module = importlib.import_module(module_path)
 
@@ -88,6 +89,12 @@ def run_task(task_name, scan, step=None):
                 logger.warning(f"Task '{task_name}' has no analyze step")
                 return True
             func = getattr(module, analyze_fn)
+            func(scan)
+        elif step == "visualize":
+            if visualize_fn is None:
+                logger.warning(f"Task '{task_name}' has no visualize step")
+                return True
+            func = getattr(module, visualize_fn)
             func(scan)
         else:
             func = getattr(module, run_fn)
@@ -117,6 +124,8 @@ def main():
         step = "collect"
     elif "--analyze" in args:
         step = "analyze"
+    elif "--visualize" in args:
+        step = "visualize"
 
     # Parse --scan-id
     scan_id = None

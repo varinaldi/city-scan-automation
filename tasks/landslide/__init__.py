@@ -14,13 +14,18 @@ def collect(scan):
 
 def analyze(scan):
     from .dataanalysis import compute_stats
-    from .datavisualization import plot_rastermap, plot_histogram
 
     logger.info("Analyzing landslide data...")
     compute_stats(
         city_name=scan.city_name, output_dir=scan.output_dir,
         return_df=False
     )
+
+
+def visualize(scan):
+    from .datavisualization import plot_rastermap, plot_histogram
+
+    logger.info("Visualizing landslide data...")
     plot_rastermap(city_name=scan.city_name, output_dir=scan.output_dir)
     plot_histogram(city_name=scan.city_name, output_dir=scan.output_dir)
 

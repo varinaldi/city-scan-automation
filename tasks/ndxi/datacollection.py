@@ -21,7 +21,7 @@ def maskS2clouds(image):
     cloudBitMask = 1 << 10
     cirrusBitMask = 1 << 11
     mask = qa.bitwiseAnd(cloudBitMask).eq(0).And(qa.bitwiseAnd(cirrusBitMask).eq(0))
-    return image.updateMask(mask).divide(10000)
+    return image.updateMask(mask).divide(10000).copyProperties(image, ['system:time_start'])
 
 
 def compute_ndxi(ds, index_type):

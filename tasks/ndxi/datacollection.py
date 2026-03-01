@@ -100,7 +100,7 @@ def datacollection(
             ndxi = compute_ndxi(ds, index_type)
             ndxi_rio = fns.xee_to_rio(ndxi)
 
-            fname = f"{city_name}_{index_type}_{comp_type}.tif"
+            fname = f"{city_name}_{index_type}_season.tif"
             tif_path = os.path.join(spatial_dir, fname)
             ndxi_rio.rio.to_raster(tif_path)
             logger.info(f"Saved {comp_type} composite: {tif_path}")

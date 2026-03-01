@@ -190,6 +190,10 @@ def main():
     else:
         logger.info("All tasks completed successfully")
 
+    # Check which layers are present
+    from utils.check_layers import check_layers
+    check_layers(scan.spatial_dir, scan.output_dir)
+
 
 if __name__ == "__main__":
     main()

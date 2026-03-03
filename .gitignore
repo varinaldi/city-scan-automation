@@ -190,6 +190,7 @@ multi-scan-materials/.DS_Store
 output/*_road_network/*
 data/flood/*
 mnt/**
+inputs/secrets.yml
 
 # other
 backend/temp.ipynb
@@ -200,6 +201,7 @@ backend/menu.yml
 backend/global_inputs.yml
 backend/cache/*
 outputs/
+config/secure/
 
 # GitHub Wiki
 city-scan-automation.wiki.gitoutputs/

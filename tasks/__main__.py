@@ -22,7 +22,7 @@ logger = setup_logger("tasks")
 GEE_TASKS = {"forest", "landcover", "lst", "green", "ndmi", "nightlight"}
 
 # Tasks that require private GCS authentication
-GCS_TASKS = {"wsf"}
+GCS_TASKS = {"wsf", "fathom"}
 
 # Registry: CLI name -> (module_path, collect_func, analyze_func, visualize_func, run_func)
 # Order follows migrate.notes Part 5: Backend Task Index
@@ -40,6 +40,8 @@ TASK_REGISTRY = {
     # 9 — elevation + slope
     "elevation":      ("tasks.elevation", "collect", "analyze", "visualize", "run"),
     "slope":          ("tasks.slope", "collect", "analyze", "visualize", "run"),
+    # 10 — fathom
+    "fathom":      ("tasks.fathom", "collect", None, None, "run"),
     # 11 — FWI
     "fwi":            ("tasks.fwi", "collect", "analyze", None, "run"),
     # 14 — RWI
@@ -64,6 +66,7 @@ TASK_REGISTRY = {
 # Menu keys that map to each CLI task (for --all mode)
 MENU_KEYS = {
     "lst": ["lst_summer", "lst_winter"],
+    "fathom": ["flood_pluvial", "flood_fluvial", "flood_comb"],
 }
 
 

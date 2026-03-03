@@ -20,7 +20,7 @@ def collect(scan):
 
 def analyze(scan):
     from .datacollection import graph_collection
-    from .dataanalysis import calc_basic_stats, road_orientation, compute_graph_centralities, compute_accessibility_analysis
+    from .dataanalysis import calc_basic_stats, filter_major_roads, road_orientation, compute_graph_centralities, compute_accessibility_analysis
 
     logger.info("Analyzing accessibility data...")
     network_graph = graph_collection(
@@ -28,6 +28,10 @@ def analyze(scan):
         output_dir=scan.output_dir, buffer=5000,
         network_type='all', simplify=True, return_graph=True
     )
+    filter_major_roads(graph = network_graph, 
+                       output_dir=scan.output_dir, 
+                       city_name=scan.city_name)
+
     calc_basic_stats(
         city_name=scan.city_name, graph=network_graph,
         output_dir=scan.output_dir, return_df=False

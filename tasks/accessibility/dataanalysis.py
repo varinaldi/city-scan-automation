@@ -529,3 +529,26 @@ def road_orientation(graph, city_name, output_dir):
     images_dir = os.path.join(output_dir, "images")
     os.makedirs(images_dir, exist_ok=True)
     fig.savefig(f'{images_dir}/{city_name}_road_orientation.png', dpi=300, bbox_inches='tight')
+
+def filter_major_roads(graph, output_dir, city_name):
+    from os.path import exists
+    spatial_dir = os.path.join(output_dir, "spatial")
+    os.makedirs(spatial_dir, exist_ok=True)
+    if graph is not None:
+        # Ensure G is a MultiDiGraph
+        if not isinstance(graph, nx.MultiDiGraph):
+            graph = nx.MultiDiGraph(graph)
+        
+        graph_gpkg = f'{spatial_dir}/{city_name}_nodes_and_edges.gpkg'
+        if not exists(graph_gpkg):
+            ox.save_graph_geopackage(graph, filepath = graph_gpkg)
+
+        roads_gdf = gpd.read_file(f'{spatial_dir}/{city_name}_nodes_and_edges.gpkg', layer='edges')
+
+        # Filter for major roads based on keywords in the 'highway' attribute
+        major_road_keywords = ['primary', 'trunk', 'motorway', 'primary_link', 'trunk_link', 'motorway_link']
+
+        # Filter for major roads using a lambda function
+        major_roads_gdf = roads_gdf[roads_gdf['highway'].apply(lambda highway_value: any(keyword in highway_value for keyword in major_road_keywords))]
+        major_roads_gdf.to_file(f'{spatial_dir}/{city_name}_major_roads.gpkg', driver='GPKG', layer = 'major_roads')
+        logger.info(f"major roads saved to: {spatial_dir}/{city_name}_major_roads.gpkg")

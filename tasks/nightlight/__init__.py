@@ -5,18 +5,18 @@ logger = setup_logger(__name__)
 def collect(scan):
     from .datacollection import datacollection
 
-    logger.info("Collecting burned area data...")
+    logger.info("Collecting nightlight data...")
     datacollection(
         aoi=scan.aoi, city_name=scan.city_name,
-        output_dir=scan.output_dir, return_gdf=True
+        output_dir=scan.output_dir
     )
 
 
 def analyze(scan):
-    logger.info("Burned area has no separate analysis step")
+    logger.info("Nightlight has no separate analysis step")
 
 
 def run(scan):
     collect(scan)
     analyze(scan)
-    logger.info("Done with burned area data collection")
+    logger.info("Done with nightlight data collection")

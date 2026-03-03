@@ -1,4 +1,5 @@
 import os
+import re
 import numpy as np
 import pandas as pd
 import rasterio
@@ -6,11 +7,12 @@ from utils.log_module import setup_logger
 
 logger = setup_logger(__name__)
 
+
 def compute_stats(
         city_name: str,
         output_dir: str,
         clipped_image=None,
-        clipped_meta=None, 
+        clipped_meta=None,
         return_df: bool = False
     ):
     """
@@ -64,7 +66,7 @@ def compute_stats(
     # -----------------------------------------------------
     # Convert to 1D and remove zeros/nodata
     arr = clipped_image.squeeze().astype(float)
-    valid = arr[arr > 0]   # assume nodata = 0
+    valid = arr[arr > 0]
 
     if valid.size == 0:
         logger.error("Raster contains no valid values. Cannot compute statistics.")
@@ -82,8 +84,8 @@ def compute_stats(
         "p75": float(np.percentile(arr, 75)),
         "p95": float(np.percentile(arr, 95)),
         "max": float(np.max(arr)),
-        "sum": float(np.sum(arr)), 
-        "stdev": float(np.std(arr, ddof=0)), # population std dev
+        "sum": float(np.sum(arr)),
+        "stdev": float(np.std(arr, ddof=0)),
         "count": int(arr.size)
     }
 
@@ -110,6 +112,72 @@ def compute_stats(
     return None
 
 
+def stats_worldpop(
+        city_name: str,
+        output_dir: str,
+        dataset: str = "worldpop_2015_2030",
+        return_df: bool = False
+    ):
+    """
+    Compute total population per year from a multi-band WorldPop raster.
+
+    Works for both Global 1 (2000-2020) and Global 2 (2015-2030).
+    Reads band descriptions to extract years.
+
+    Parameters
+    ----------
+    city_name : str
+        City name for locating raster file.
+    output_dir : str
+        Base output directory.
+    dataset : str
+        "worldpop_2000_2020" or "worldpop_2015_2030".
+    return_df : bool
+        If True, return the DataFrame.
+
+    Returns
+    -------
+    pd.DataFrame or None
+    """
+    raster_path = os.path.join(output_dir, "spatial", f"{city_name}_{dataset}.tif")
+    output_path = os.path.join(output_dir, "tabular", f"{city_name}_{dataset}.csv")
+
+    logger.info(f"Computing WorldPop yearly population stats from: {os.path.basename(raster_path)}")
+
+    if not os.path.exists(raster_path):
+        logger.error(f"WorldPop raster not found at: {raster_path}")
+        return None
+
+    with rasterio.open(raster_path) as src:
+        nodata = src.nodata
+        rows = []
+        for i in range(1, src.count + 1):
+            band = src.read(i).astype(float)
+            desc = src.descriptions[i - 1]  # e.g. "pop_2020"
+
+            # Extract year from band description
+            year_match = re.search(r'\d{4}', desc) if desc else None
+            year = int(year_match.group()) if year_match else i
+
+            # Mask nodata and negative values before summing
+            if nodata is not None:
+                band[band == nodata] = np.nan
+            band[band < 0] = np.nan
+
+            population = float(np.nansum(band))
+            rows.append({"year": year, "population": population})
+
+    df = pd.DataFrame(rows)
+
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    df.to_csv(output_path, index=False)
+    logger.info(f"WorldPop yearly stats saved to: {output_path}")
+
+    if return_df:
+        return df
+
+    return None
+
+
 if __name__ == "__main__":
-    # Example standalone test
     compute_stats(city_name="testcity", output_dir="./outputs")

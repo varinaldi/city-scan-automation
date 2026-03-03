@@ -186,8 +186,8 @@ def datacollection(
                 logger.error(f"Failed to extract {zip_name}: {e}")
 
         if not extracted_tifs:
-            logger.error("No FABDEM TIFFs extracted from ZIP archives")
-            raise RuntimeError("FABDEM ZIPs contained no matching tiles")
+            logger.warning("No FABDEM TIFFs extracted — falling back to GEE SRTM")
+            return gee_elevation(aoi, city_name, output_dir, return_raster, create_raster_buffer)
         # ------------------------------------------------------------------
         # 6. Mosaic tiles
         # ------------------------------------------------------------------
@@ -297,5 +297,55 @@ def datacollection(
     # ------------------------------------------------------------------
     if return_raster:
         return clipped_array, clipped_meta
+
+    return None
+
+
+def gee_elevation(aoi, city_name, output_dir, return_raster=False, create_raster_buffer=True):
+    """Fallback: download SRTM elevation from GEE when FABDEM is unavailable."""
+    import os
+    import ee
+    import geopandas as gpd
+    import xarray as xr
+    import rioxarray
+    import xee
+    from utils import gee_fns as fns
+
+    logger.info("Starting GEE SRTM elevation data collection...")
+
+    AOI, bounds = fns.aoi_to_ee_geometry(aoi)
+    elevation = ee.Image("USGS/SRTMGL1_003")
+
+    ds = xr.open_dataset(
+        elevation, engine='ee', geometry=AOI,
+        scale=30, crs='EPSG:3857'
+    )
+
+    spatial_dir = os.path.join(output_dir, "spatial")
+    os.makedirs(spatial_dir, exist_ok=True)
+
+    # Clipped elevation
+    elev_rio = fns.xee_to_rio(ds['elevation'])
+    tif_path = os.path.join(spatial_dir, f"{city_name}_elevation.tif")
+    elev_rio.rio.to_raster(tif_path)
+    logger.info(f"Elevation raster saved to: {tif_path}")
+
+    # Buffered elevation (for slope analysis)
+    if create_raster_buffer:
+        aoi_buf = gpd.GeoDataFrame(geometry=aoi.buffer(0.001), crs=aoi.crs)
+        AOI_buf, _ = fns.aoi_to_ee_geometry(aoi_buf)
+
+        ds_buf = xr.open_dataset(
+            elevation, engine='ee', geometry=AOI_buf,
+            scale=30, crs='EPSG:3857'
+        )
+
+        elev_buf_rio = fns.xee_to_rio(ds_buf['elevation'])
+        tif_path_buf = os.path.join(spatial_dir, f"{city_name}_elevation_buf.tif")
+        elev_buf_rio.rio.to_raster(tif_path_buf)
+        logger.info(f"Buffered elevation raster saved to: {tif_path_buf}")
+
+    if return_raster:
+        return elev_rio, elev_buf_rio if create_raster_buffer else None
 
     return None

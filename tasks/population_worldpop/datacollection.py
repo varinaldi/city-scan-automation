@@ -1,11 +1,84 @@
 # import
 import os
+import urllib.request
+import numpy as np
 import geopandas as gpd
 import rasterio
 from rasterio.mask import mask
+from rasterio.io import MemoryFile
 from utils.log_module import setup_logger
 
 logger = setup_logger(__name__)
+
+# GCS bucket path for Global 2 (windowed reads, no full download needed)
+GCS_G2_BASE = "/vsicurl/https://storage.googleapis.com/city-scan-global-public/world_population/WorldPop-Global-2"
+
+# URL templates for direct WorldPop download (keyed by dataset name)
+WP_URLS = {
+    "g1": "https://data.worldpop.org/GIS/Population/Global_2000_2020_1km_UNadj/{year}/{ISO}/{iso}_ppp_{year}_1km_Aggregated_UNadj.tif",
+    "g2": "https://data.worldpop.org/GIS/Population/Global_2015_2030/R2025A/{year}/{ISO}/v1/100m/constrained/{iso}_pop_{year}_CN_100m_R2025A_v1.tif",
+}
+
+
+def _wp_direct_download(iso3, years, dataset, aoi_bounds):
+    """Download WorldPop rasters, windowed read of AOI only, return list of (array, meta).
+    Works for both Global 1 and Global 2 — pass dataset='g1' or 'g2'.
+    Note: WorldPop server doesn't support range requests, so full download is needed."""
+    iso_lower = iso3.lower()
+    iso_upper = iso3.upper()
+    url_template = WP_URLS[dataset]
+    results = []
+
+    total = len(years)
+    for idx, year in enumerate(years, 1):
+        url = url_template.format(year=year, ISO=iso_upper, iso=iso_lower)
+
+        # Download to memory, open with MemoryFile, crop to AOI
+        response = urllib.request.urlopen(url)
+        with MemoryFile(response.read()) as memfile:
+            with memfile.open() as src:
+                window = rasterio.windows.from_bounds(*aoi_bounds, src.transform)
+                data = src.read(window=window)
+                transform = src.window_transform(window)
+                meta = src.meta.copy()
+                meta.update({"height": data.shape[1], "width": data.shape[2], "transform": transform})
+
+        results.append((data, meta))
+        print(f"Downloading {dataset.upper()} from WorldPop... {idx}/{total}", end="\r")
+    print()
+
+    return results
+
+
+def _stack_mask(band_list, aoi_shapes):
+    """Stack list of (array, meta) into multi-band array and mask to AOI polygon.
+    Returns (clipped_image, clipped_meta)."""
+    # Collect single-band arrays and use first file's meta as reference
+    bands = [arr.squeeze() for arr, _ in band_list]  # each is (1, H, W) -> (H, W)
+    ref_meta = band_list[0][1].copy()
+
+    # Stack into multi-band: shape (n_years, H, W)
+    stacked = np.stack(bands, axis=0)
+    ref_meta.update({"count": len(bands)})
+
+    # Use MemoryFile so rasterio.mask can read without writing to disk
+    with MemoryFile() as memfile:
+        with memfile.open(**ref_meta) as mem_dst:
+            mem_dst.write(stacked)
+
+        with memfile.open() as mem_src:
+            clipped, clipped_transform = mask(mem_src, shapes=aoi_shapes, crop=True, nodata=np.nan)
+            clipped_meta = mem_src.meta.copy()
+            clipped_meta.update({
+                "height": clipped.shape[1],
+                "width": clipped.shape[2],
+                "transform": clipped_transform,
+                "nodata": -99999,
+                "count": len(bands),
+            })
+
+    return clipped, clipped_meta
+
 
 def datacollection(
         aoi: gpd.GeoDataFrame,
@@ -15,7 +88,8 @@ def datacollection(
         return_raster: bool = True
     ):
     """
-    Download WorldPop raster from global bucket for the AOI country and clip it.
+    Download WorldPop rasters and clip to AOI.
+    Downloads Global 1 (2020 single + 2000-2020 multi-year) and Global 2 (2015-2030).
 
     Parameters
     ----------
@@ -42,19 +116,28 @@ def datacollection(
         logger.error("AOI is empty. Cannot continue.")
         return None
 
-    # Ensure AOI is in correct CRS for raster operations
     if aoi.crs is None:
         logger.error("AOI has no CRS defined.")
         return None
 
     logger.info(f"AOI CRS: {aoi.crs}")
 
-    # Construct GCS URL
+    # Common setup used by all three downloads
+    spatial_dir = os.path.join(output_dir, "spatial")
+    os.makedirs(spatial_dir, exist_ok=True)
+    aoi_bounds = aoi.total_bounds  # (minx, miny, maxx, maxy) for windowed reads
+    aoi_shapes = [geom.__geo_interface__ for geom in aoi.geometry]  # for polygon masking
+    iso_lower = country_iso3.lower()
+
+    # ==================================================================
+    # Global 1 — single year (2020), 1km constrained, from GCS
+    # ==================================================================
+    # Construct GCS URL for single-year 2020 raster
     bucket_base = "https://storage.googleapis.com/city-scan-global-public/"
     worldpop_blob = f"world_population/{country_iso3}_ppp_2020_constrained.tif"
     worldpop_url = bucket_base + worldpop_blob
 
-    # Rasterio requires /vsicurl/ for HTTP-based TIFFs
+    # Rasterio requires /vsicurl/ prefix for HTTP-based TIFFs
     raster_path = f"/vsicurl/{worldpop_url}"
     logger.info(f"Requesting WorldPop raster: {worldpop_url}")
 
@@ -62,11 +145,9 @@ def datacollection(
         with rasterio.open(raster_path) as src:
             logger.info("WorldPop raster opened successfully.")
 
-            shapes = [geom.__geo_interface__ for geom in aoi.geometry]
-
             clipped_image, clipped_transform = mask(
                 src,
-                shapes=shapes,
+                shapes=aoi_shapes,
                 crop=True,
                 nodata=0
             )
@@ -84,13 +165,8 @@ def datacollection(
         logger.error(f"Error reading or clipping WorldPop raster: {e}")
         return None
 
-    # Create output directory
-    spatial_dir = os.path.join(output_dir, "spatial")
-    os.makedirs(spatial_dir, exist_ok=True)
-
     output_path = os.path.join(spatial_dir, f"{city_name}_population.tif")
 
-    # Save clipped raster
     try:
         with rasterio.open(output_path, "w", **clipped_meta) as dst:
             dst.write(clipped_image)
@@ -99,9 +175,68 @@ def datacollection(
         logger.error(f"Error saving clipped raster: {e}")
         return None
 
+    # ==================================================================
+    # Global 1 — 1km UN adjusted, 2000-2020, multi-band TIF
+    # Direct download from WorldPop (not on GCS)
+    # ==================================================================
+    logger.info("Starting WorldPop Global 1 data collection (2000-2020)...")
+
+    g1_years = list(range(2000, 2021))
+
+    # Download and crop each year into memory
+    g1_bands = _wp_direct_download(country_iso3, g1_years, "g1", aoi_bounds)
+    # Stack all years and mask to AOI polygon
+    g1_image, g1_meta = _stack_mask(g1_bands, aoi_shapes)
+
+    # Save multi-band TIF
+    g1_out = os.path.join(spatial_dir, f"{city_name}_worldpop_2000_2020.tif")
+    with rasterio.open(g1_out, "w", **g1_meta) as dst:
+        dst.write(g1_image)
+        for i, year in enumerate(g1_years):
+            dst.set_band_description(i + 1, f"pop_{year}")
+    logger.info(f"WorldPop Global 1 saved to: {g1_out} ({len(g1_years)} bands)")
+
+    # ==================================================================
+    # Global 2 (R2025A) — 100m constrained, 2015-2030, multi-band TIF
+    # GCS primary, WorldPop direct download fallback
+    # ==================================================================
+    logger.info("Starting WorldPop Global 2 data collection (2015-2030)...")
+
+    g2_years = list(range(2015, 2031))
+
+    # Try GCS first (windowed reads, no full download needed)
+    try:
+        g2_bands = []
+        for year in g2_years:
+            fname = f"{iso_lower}_pop_{year}_CN_100m_R2025A_v1.tif"
+            with rasterio.open(f"{GCS_G2_BASE}/{fname}") as src:
+                window = rasterio.windows.from_bounds(*aoi_bounds, src.transform)
+                data = src.read(window=window)
+                transform = src.window_transform(window)
+                meta = src.meta.copy()
+                meta.update({"height": data.shape[1], "width": data.shape[2], "transform": transform})
+            g2_bands.append((data, meta))
+    except Exception as e:
+        # GCS not available for this ISO, download all years from WorldPop
+        logger.info(f"  GCS failed ({e}), downloading from WorldPop directly")
+        g2_bands = _wp_direct_download(country_iso3, g2_years, "g2", aoi_bounds)
+
+    # Stack all years and mask to AOI polygon
+    g2_image, g2_meta = _stack_mask(g2_bands, aoi_shapes)
+
+    # Save multi-band TIF
+    g2_out = os.path.join(spatial_dir, f"{city_name}_worldpop_2015_2030.tif")
+    with rasterio.open(g2_out, "w", **g2_meta) as dst:
+        dst.write(g2_image)
+        for i, year in enumerate(g2_years):
+            dst.set_band_description(i + 1, f"pop_{year}")
+    logger.info(f"WorldPop Global 2 saved to: {g2_out} ({len(g2_years)} bands)")
+
     logger.info("WorldPop complete.")
 
     if return_raster:
-        return clipped_image, clipped_meta
+        arrays = {"g1_2020": clipped_image, "g1_multiyear": g1_image, "g2": g2_image}
+        metas = {"g1_2020": clipped_meta, "g1_multiyear": g1_meta, "g2": g2_meta}
+        return arrays, metas
 
     return None

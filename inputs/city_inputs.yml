@@ -1,14 +1,14 @@
 # city basic info (no need for country name)
-city_name: 'Angeles'
+city_name: 'South_Jakarta'
 
 # optional: AOI shapefile name
 # If no AOI shapefile is provided, an AOI will automatically be identified from
 # the UCDB dataset, OSM, or a 5-km buffer around the city centroid
-AOI_shp_name: 'Angeles-Pampanga'
+AOI_shp_name: 'South_Jakarta-Jakarta'
 
 # optional: use the directory from a previous run by specifying the year and month in the format of yyyy-mm
 # default value is null
-prev_run_date: '2026-01'
+prev_run_date: 
 
 # accessibility analysis parameters
 osm_query:

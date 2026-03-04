@@ -118,8 +118,7 @@ def _process_year(
                 tmp_mosaic_name
             )
         except Exception as e:
-            logger.error(f"Mosaic failed for RP {rp}")
-            logger.exception(e)
+            logger.debug(f"Mosaic failed for RP {rp}: {str(e)}")
             continue
 
         # ---------------------------------------------------
@@ -141,8 +140,7 @@ def _process_year(
                 })
 
         except Exception as e:
-            logger.error(f"Mask failed for RP {rp}")
-            logger.exception(e)
+            logger.debug(f"Mask failed for RP {rp}: {str(e)}")
             continue
 
         # ---------------------------------------------------
@@ -293,20 +291,44 @@ def datacollection(
         for year in flood_years:
 
             if year <= 2020:
-                _process_year(
-                    ft, year, None, flood_rps, lat_tiles, lon_tiles,
-                    flood_type_folder_dict, flood_threshold,
-                    spatial_dir, buffer_aoi, utm_crs, city_name
-                )
+                try:
+                    _process_year(
+                        ft, year, None, flood_rps, lat_tiles, lon_tiles,
+                        flood_type_folder_dict, flood_threshold,
+                        spatial_dir, buffer_aoi, utm_crs, city_name
+                    )
+                except Exception as e:
+                    error_msg = str(e)
+                    if "does not exist" in error_msg or "not recognized" in error_msg:
+                        logger.warning(
+                            f"Data missing or non-existent: {ft} {year}"
+                        )
+                    else:
+                        logger.error(
+                            f"Failed to process {ft} {year}: {error_msg}"
+                        )
+                    continue
 
             else:
                 for ssp in flood_ssps:
-                    _process_year(
-                        ft, year, ssp, flood_rps, lat_tiles, lon_tiles,
-                        flood_type_folder_dict, flood_threshold,
-                        spatial_dir, buffer_aoi, utm_crs, city_name,
-                        flood_ssp_labels
-                    )
+                    try:
+                        _process_year(
+                            ft, year, ssp, flood_rps, lat_tiles, lon_tiles,
+                            flood_type_folder_dict, flood_threshold,
+                            spatial_dir, buffer_aoi, utm_crs, city_name,
+                            flood_ssp_labels
+                        )
+                    except Exception as e:
+                        error_msg = str(e)
+                        if "does not exist" in error_msg or "not recognized" in error_msg:
+                            logger.warning(
+                                f"Data missing or non-existent: {ft} {year} SSP{ssp}"
+                            )
+                        else:
+                            logger.error(
+                                f"Failed to process {ft} {year} SSP{ssp}: {error_msg}"
+                            )
+                        continue
 
     # -----------------------------
     # Combined flood map

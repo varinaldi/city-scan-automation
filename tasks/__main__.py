@@ -40,8 +40,6 @@ TASK_REGISTRY = {
     # 9 — elevation + slope
     "elevation":      ("tasks.elevation", "collect", "analyze", "visualize", "run"),
     "slope":          ("tasks.slope", "collect", "analyze", "visualize", "run"),
-    # 10 — fathom
-    "fathom":      ("tasks.fathom", "collect", None, None, "run"),
     # 11 — FWI
     "fwi":            ("tasks.fwi", "collect", "analyze", None, "run"),
     # 14 — RWI
@@ -61,6 +59,8 @@ TASK_REGISTRY = {
     # 21-22 — GHS
     "ghs_population": ("tasks.ghs_population", "collect", "analyze", "visualize", "run"),
     "ghs_builtup":    ("tasks.ghs_builtup", "collect", "analyze", "visualize", "run"),
+    # 10 — fathom
+    "fathom":      ("tasks.fathom", "collect", "analyze", None, "run"),
 }
 
 # Menu keys that map to each CLI task (for --all mode)

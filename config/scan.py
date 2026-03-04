@@ -39,9 +39,16 @@ class Scan:
         self.last_year = self.city_inputs['last_year']
         self.fwi_first_year = self.city_inputs.get('fwi_first_year')
         self.fwi_last_year = self.city_inputs.get('fwi_last_year')
+        
+        # flood related inputs
+        flood_cfg = self.city_inputs.get("flood", {})
+        self.flood_threshold = flood_cfg.get("threshold")
+        self.flood_year = flood_cfg.get("year")
+        self.flood_ssp = flood_cfg.get("ssp")
+        self.flood_return_periods = flood_cfg.get("return_period", [])
 
         # Load AOI
-        aoi_path = input_source / f"AOI/{self.city_inputs['AOI_shp_name']}.shp"
+        aoi_path = input_source / f"AOI/{self.city_inputs['AOI_shp_name']}.shp" # TO DO: allow geojson, gpkg, KML, KMZ in the future
         self.aoi = gpd.read_file(aoi_path).to_crs(4326)
         logger.info(f'Successfully loaded AOI from: {aoi_path}')
 

@@ -88,7 +88,7 @@ Adjust the files in the `inputs/` folder as necessary for your specific project.
 Execute the main task to run all sequences defined in `tasks/main.py`:
 
 ```bash
-python -m tasks.main
+python -m tasks --all
 ```
 
 This will process the tasks in sequence. Ensure the virtual environment is activated if running manually (though the orchestrator script sets it up).

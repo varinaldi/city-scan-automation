@@ -1,30 +1,27 @@
 # City Scan Automation
 
-This repository provides automation tools for city scanning and analysis.
-The project is currently transitioning toward a fully reproducible local setup on any machine by following the sequence below.
-These instructions are written for first-time users.
+This repository provides automation tools for city scanning and analysis. These instructions are designed for first-time users and will set up a fully reproducible environment on any machine.
 
 ## Prerequisites
 
 - Git (for cloning the repository)
 - Basic command-line knowledge
-- macOS or Linux operating system (Windows is not supported)
 
-For Windows Users
-Native Windows is not supported.
-Please install WSL2 with Ubuntu 22.04, open the Ubuntu terminal, and follow the same instructions below.
+## Installation & Setup
 
-## Setup Overview
-You will run two scripts:
-1. bootstrap.sh → prepares your system & Python runtime
-2. orchestrator.sh → sets up the project environment
-This separation ensures a clean and reproducible setup.
+### Option 1: Via Conda (Recommended for Mac, Windows, Linux)
 
-## Setup Instructions
+#### Step 1: Install Anaconda
 
-### 1. Clone the Repository
+If you don't have Anaconda installed, download and install it from the [official Anaconda website](https://www.anaconda.com/download). 
 
-Clone the repository from GitHub and ensure you are on the `new_structure` branch:
+**General steps:** 
+- Visit https://www.anaconda.com/download and select your operating system
+- Follow the installation wizard and accept the default settings
+- Restart your terminal after installation completes
+- Verify installation by running: `conda --version`
+
+#### Step 2: Clone the Repository
 
 ```bash
 git clone https://github.com/rosemaryturtle/city-scan-automation.git
@@ -32,86 +29,109 @@ cd city-scan-automation
 git checkout new_structure
 ```
 
-### 2. Install Python (if not installed)
+#### Step 3: Create and Activate the Environment
 
-If Python is not installed on your system, run the bootstrap script to install it via pyenv. This script will install Python 3.11.8 and necessary dependencies.
+```bash
+conda create -n cityscan python=3.11.8 -y
+conda activate cityscan
+```
 
-The bootstrap script will:
-- Install system dependencies
-- Install and configure pyenv
-- Install Python 3.11.8
-- Configure your local Python version for this project
+#### Step 4: Install Dependencies
 
-- **On macOS**: It uses Homebrew to install pyenv and system libraries.
-- **On Linux**: It uses apt to install required packages.
+```bash
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
 
-Run the following command:
+#### Step 5: Register Jupyter Kernel (Optional, for notebook use)
+
+```bash
+python -m ipykernel install --user --name cityscan --display-name "Cityscan"
+```
+
+---
+
+### Option 2: Via Bootstrap Script (Alternative Setup -- only for Mac, Linux)
+
+If you prefer automated system setup or Python is not installed, use the bootstrap approach:
+
+#### Step 1: Clone the Repository
+
+```bash
+git clone https://github.com/rosemaryturtle/city-scan-automation.git
+cd city-scan-automation
+git checkout new_structure
+```
+
+#### Step 2: Run Bootstrap Script
+
+This script prepares your system and installs Python 3.11.8 via pyenv:
 
 ```bash
 bash bootstrap.sh
 ```
 
-**Note**: Review the `bootstrap.sh` script to ensure it meets your system's requirements before running.
-The bootstrap script will modify your system by installing system packages,
-pyenv, and Python 3.11, and may update your shell configuration.
-Review the script before running if you are unfamiliar with these tools.
+**Note:** Review the `bootstrap.sh` script first to ensure it meets your system requirements. It will:
+- Install system dependencies
+- Install and configure pyenv
+- Install Python 3.11.8
+- Update your shell configuration
 
-If the script installs pyenv for the first time, restart your terminal and run the command again.
+If pyenv is installed for the first time, restart your terminal and run the script again.
 
-### 3. Set Up Virtual Environment and Dependencies
+#### Step 3: Run Setup Script
 
-Run the orchestrator script to create a virtual environment, install dependencies, and set up the Jupyter kernel.
-
-This script:
-- Enforces Python 3.11 via pyenv
-- Creates a new virtual environment
-- Installs packages from `requirements.txt`
-- Registers a Jupyter kernel named "Cityscan (Python 3.11)"
-
-Execute:
+This script creates the virtual environment, installs dependencies, and registers the Jupyter kernel:
 
 ```bash
 bash orchestrator.sh
 ```
 
 When setup is successful, you should see:
-- Python 3.11.8 installed via pyenv
+- Python 3.11.8 ready via pyenv
 - A new virtual environment created
-- A Jupyter kernel named: Cityscan (Python 3.11)
+- A Jupyter kernel registered: "Cityscan (Python 3.11)"
 
-### 4. Configure Inputs
+---
 
-Adjust the files in the `inputs/` folder as necessary for your specific project. In this folder, you will need to create a new folder in your local called `AOI/`, where you will store your AOI boundary. The inputs folder is also where city_inputs.yml and menu.yml live, which you will need to modify as input parameters according to your analysis needs. 
+### Configure Inputs
 
-### 5. Run the Main Task
+Adjust the files in the `inputs/` folder for your specific project:
+- Create a new folder `AOI/` and store your AOI boundary file there
+- Modify `city_inputs.yml` and `menu.yml` with your analysis parameters
 
-Execute the main task to run all sequences defined in `tasks/main.py`:
+## Running the Analysis
+
+Execute the main task to run all sequences:
 
 ```bash
 python -m tasks --all
 ```
 
-This will process the tasks in sequence. Ensure the virtual environment is activated if running manually (though the orchestrator script sets it up).
+This will process tasks in sequence using your configured environment. If you need to manually activate the environment later, use:
 
-you can do so by:
 ```bash
 source venv/bin/activate
 ```
 
-
 ## Additional Notes
 
-- The project uses Python 3.11 specifically. The scripts enforce this version.
-- If you encounter issues, check the logs in the `logs/` folder.
-- For development, use the registered Jupyter kernel "Cityscan (Python 3.11)" in notebooks.
-
+- The project requires Python 3.11 specifically
+- Check `logs/` folder if you encounter issues
+- Use the "Cityscan" Jupyter kernel for notebook development
 
 ## Troubleshooting
 
-- If pyenv is not found, ensure it's installed via Homebrew (macOS) or apt (Linux).
-- If Python 3.11 is not available, the bootstrap script will install it.
-- For any errors during setup, check the terminal output and ensure all prerequisites are met.
+**Conda-related issues:**
+- Ensure Anaconda/Miniconda is properly installed: `conda --version`
+- Try updating conda: `conda update -n base -c defaults conda`
 
-## Contributing
+**Bootstrap-related issues:**
+- If pyenv is not found, check that it was installed: `pyenv --version`
+- On macOS, ensure Homebrew is installed; on Linux, check apt package manager
+- If Python 3.11 is not available, re-run `bash bootstrap.sh`
 
-Please refer to the repository's contribution guidelines if you plan to contribute.
+**General troubleshooting:**
+- Check terminal output for specific error messages
+- Verify all prerequisites are met before running setup scripts
+- For any remaining issues, consult the logs in `logs/` folder

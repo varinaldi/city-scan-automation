@@ -123,30 +123,15 @@ Reference implementation: `tasks/air_quality`
 
 ---
 
-## Linking a New Module to `main.py`
+## Linking a New Module to `__main__.py`
 
-All task modules are orchestrated from `tasks/main.py`.
+Each datacollection, dataanlysis, and datavisualization functions are orchestrated from each folder's `tasks/{task_name}/__init__.py`. Then, all task modules are orchestrated from `tasks/main.py`.
 
 To integrate a new module:
 
-1. Import the module’s pipeline functions in `main.py`
+1. Import the module’s pipeline functions in `__init__.py`
 2. Call them in the execution sequence
 
-### Example pattern
-
-```python
-from tasks.air_quality.datacollection import datacollection
-from tasks.air_quality.dataanalysis import compute_stats
-from tasks.air_quality.datavisualization import run_viz
-```
-
-Then inside the main workflow:
-
-```python
-clipped_image, clipped_meta = datacollection(aoi, city_name, output_dir)
-compute_stats(city_name, output_dir, clipped_image, clipped_meta)
-run_viz(city_name, output_dir, clipped_image, clipped_meta)
-```
 
 This three-stage pipeline **must be preserved**:
 

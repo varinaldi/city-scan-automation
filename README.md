@@ -137,6 +137,10 @@ python -m tasks --all --scan-id 2026-02-malta-malta
 
 # Show available tasks
 python -m tasks --list
+
+# optional upload outputs to GCS, can be for all tasks or specific tasks
+python -m tasks --all --upload
+python -m accessibility --collect --upload                        
 ```
 
 Tasks will process in sequence using your configured environment. If you need to manually activate the environment later, use:

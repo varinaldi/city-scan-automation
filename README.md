@@ -108,7 +108,38 @@ Execute the main task to run all sequences:
 python -m tasks --all
 ```
 
-This will process tasks in sequence using your configured environment. If you need to manually activate the environment later, use:
+### Alternative Commands for Specific Use Cases
+
+```bash
+# New city (reads from inputs/)
+python -m tasks wsf
+
+# Existing city (reads from mnt/)
+python -m tasks wsf --scan-id 2026-02-malta-malta
+
+# Multiple tasks
+python -m tasks wsf population forest
+
+# Collect step only
+python -m tasks wsf --collect
+
+# Analyze step only
+python -m tasks wsf --analyze
+
+# Visualize step only
+python -m tasks wsf --visualize
+
+# All tasks enabled in menu.yml
+python -m tasks --all
+
+# All tasks for existing city
+python -m tasks --all --scan-id 2026-02-malta-malta
+
+# Show available tasks
+python -m tasks --list
+```
+
+Tasks will process in sequence using your configured environment. If you need to manually activate the environment later, use:
 
 ```bash
 source venv/bin/activate

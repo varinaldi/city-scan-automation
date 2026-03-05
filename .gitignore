@@ -202,6 +202,6 @@ backend/global_inputs.yml
 backend/cache/*
 outputs/
 config/secure/
-
+logs/
 # GitHub Wiki
 city-scan-automation.wiki.gitoutputs/

@@ -1,10 +1,10 @@
 # city basic info (no need for country name)
-city_name: 'angeles'
+city_name: 'Bogura'
 
 # optional: AOI shapefile name
 # If no AOI shapefile is provided, an AOI will automatically be identified from
 # the UCDB dataset, OSM, or a 5-km buffer around the city centroid
-AOI_shp_name: 'Angeles-Pampanga'
+AOI_shp_name: 'Bogura_AOI'
 
 # optional: use the directory from a previous run by specifying the year and month in the format of yyyy-mm
 # default value is null

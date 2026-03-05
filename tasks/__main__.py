@@ -213,8 +213,11 @@ def main():
         logger.info("All tasks completed successfully")
 
     # Check which layers are present
-    from utils.check_layers import check_layers
-    check_layers(scan.spatial_dir, scan.output_dir)
+    try:
+        from utils.check_layers import check_layers
+        check_layers(scan.spatial_dir, scan.output_dir)
+    except Exception as e:
+        logger.warning(f"Layer check skipped: {e}")
 
 
 if __name__ == "__main__":

@@ -7,7 +7,7 @@ import rasterio
 from rasterio.io import MemoryFile
 from rasterio.mask import mask
 from rasterio.warp import reproject, Resampling, calculate_default_transform
-from scipy.ndimage import binary_dilation, binary_erosion
+from scipy.ndimage import distance_transform_edt
 from utils.log_module import setup_logger
 
 logger = setup_logger(__name__)
@@ -116,15 +116,6 @@ def stats_wsf(
     return None
 
 
-def _morphological_closing(binary_mask, kernel_size=7):
-    """Apply morphological closing (dilation then erosion) with square kernel.
-    Input: 2D boolean array. Returns: 2D boolean array."""
-    k = np.ones((kernel_size, kernel_size), dtype=bool)
-    dilated = binary_dilation(binary_mask, structure=k)
-    closed = binary_erosion(dilated, structure=k)
-    return closed
-
-
 def _resample_to_target(data, src_meta, target_meta, method=Resampling.nearest):
     """Resample a raster array to match target raster's resolution and extent.
     Returns (resampled_array, resampled_meta)."""
@@ -160,6 +151,7 @@ def _resample_to_target(data, src_meta, target_meta, method=Resampling.nearest):
 def harmonize_wsf(
         city_name: str,
         output_dir: str,
+        proximity_threshold: int = 5,
         return_df: bool = False
     ):
     """
@@ -167,10 +159,11 @@ def harmonize_wsf(
 
     Process:
     1. Floor tracker era values to integer years
-    2. Morphological closing on tracker (per-year, 7x7 kernel) to bridge gaps
-    3. Resample closed tracker to evolution resolution (nearest neighbor)
-    4. Mask evolution: keep only where tracker has 2016 data (trim to tracker extent)
-    5. Combine: evolution (masked) → tracker 2016 gap-fill → tracker 2017+
+    2. Mode-resample tracker to evolution resolution
+    3. Mask evolution by tracker 2016 extent (overlapping cells keep evolution year)
+    4. Proximity-based backdating: non-overlapping 2016 cells are backdated to
+       their nearest Evolution year; cells beyond proximity_threshold are kept as 2016
+    5. Combine evolution (masked) + backdated 2016 + tracker 2017+
     6. Compute stats for harmonized, evolution-only, and tracker-only
 
     Output:
@@ -184,12 +177,16 @@ def harmonize_wsf(
         City name for locating raster files.
     output_dir : str
         Base output directory.
+    proximity_threshold : int
+        Max pixel distance for backdating non-overlapping 2016 cells.
+        Cells beyond this distance are retained as true 2016 development.
     return_df : bool
         If True, return the harmonized stats DataFrame.
 
     Returns
     -------
-    pd.DataFrame or None
+    tuple or None
+        (harmonized_array, harmonized_meta)
     """
     logger.info("Starting WSF harmonization...")
 
@@ -219,67 +216,83 @@ def harmonize_wsf(
     tracker_floor = np.where(tracker_era > 0, np.floor(tracker_era), 0).astype(float)
 
     # ------------------------------------------------------------------
-    # 2. Morphological closing on tracker (per-year, 7x7 kernel)
-    #    Fills small gaps between built-up pixels to match Landsat resolution
+    # 2. Mode-resample tracker to evolution resolution
     # ------------------------------------------------------------------
-    logger.info("Applying morphological closing to WSF Tracker...")
-    unique_years = np.unique(tracker_floor[tracker_floor > 0]).astype(int)
-    tracker_closed = np.copy(tracker_floor)
-
-    for yr in sorted(unique_years):
-        # Binary mask: pixels with this year
-        yr_mask = (tracker_floor == yr)
-
-        # Morphological closing: dilation then erosion (7x7 = ~70m at 10m resolution)
-        yr_closed = _morphological_closing(yr_mask, kernel_size=7)
-
-        # Fill only where tracker_closed has no data yet
-        fill_mask = yr_closed & (tracker_closed == 0)
-        tracker_closed[fill_mask] = yr
-
-    # ------------------------------------------------------------------
-    # 3. Resample closed tracker to evolution resolution (nearest neighbor)
-    # ------------------------------------------------------------------
-    logger.info("Resampling tracker to evolution resolution...")
-    tracker_closed_3d = tracker_closed[np.newaxis, :, :].astype(np.float32)
-    tracker_resampled_meta = tracker_meta.copy()
-    tracker_resampled_meta.update({"dtype": "float32"})
+    logger.info("Mode-resampling tracker to evolution resolution...")
+    tracker_floor_3d = tracker_floor[np.newaxis, :, :].astype(np.float32)
+    tracker_floor_meta = tracker_meta.copy()
+    tracker_floor_meta.update({"dtype": "float32"})
 
     tracker_resampled, _ = _resample_to_target(
-        tracker_closed_3d, tracker_resampled_meta, evo_meta, method=Resampling.nearest
+        tracker_floor_3d, tracker_floor_meta, evo_meta, method=Resampling.mode
     )
     tracker_resampled = tracker_resampled.squeeze()
 
     # ------------------------------------------------------------------
-    # 4. Mask evolution by tracker's 2016 extent
-    #    Keep evolution only where tracker has 2016 data
+    # 3. Mask evolution by tracker 2016 extent
+    #    Overlapping cells keep their original Evolution year
+    # ------------------------------------------------------------------
+    logger.info("Masking evolution by tracker 2016 extent...")
+    wsf_2016_binary = (tracker_resampled == 2016)
+    evo_masked = np.where(wsf_2016_binary, evolution, 0).astype(float)
+
+    # ------------------------------------------------------------------
+    # 4. Proximity-based backdating of non-overlapping 2016 cells
+    #    Cells in tracker 2016 but NOT in evolution → backdate to nearest
+    #    evolution year if within proximity_threshold, else keep as 2016
+    # ------------------------------------------------------------------
+    logger.info("Proximity-based backdating of non-overlapping 2016 cells...")
+
+    # Non-overlapping: tracker says 2016 but evolution has no data
+    non_overlapping = wsf_2016_binary & (evo_masked == 0)
+    n_non_overlap = int(non_overlapping.sum())
+    logger.info(f"  Non-overlapping 2016 cells: {n_non_overlap}")
+
+    if n_non_overlap > 0:
+        # Distance transform from evolution cells — gives distance to nearest evolution pixel
+        evo_binary = (evo_masked > 0)
+        if evo_binary.any():
+            # EDT returns distance (in pixels) and indices of nearest source cell
+            dist, indices = distance_transform_edt(~evo_binary, return_distances=True, return_indices=True)
+
+            # For each non-overlapping cell, find nearest evolution year
+            non_overlap_rows, non_overlap_cols = np.where(non_overlapping)
+            nearest_rows = indices[0][non_overlap_rows, non_overlap_cols]
+            nearest_cols = indices[1][non_overlap_rows, non_overlap_cols]
+            nearest_years = evo_masked[nearest_rows, nearest_cols]
+            distances = dist[non_overlap_rows, non_overlap_cols]
+
+            # Within threshold: backdate to nearest evolution year
+            within = distances <= proximity_threshold
+            n_backdated = int(within.sum())
+            n_kept_2016 = n_non_overlap - n_backdated
+            logger.info(f"  Backdated to nearest evolution year: {n_backdated}")
+            logger.info(f"  Retained as true 2016: {n_kept_2016}")
+
+            # Apply backdating
+            evo_masked[non_overlap_rows[within], non_overlap_cols[within]] = nearest_years[within]
+            # Cells beyond threshold stay as 2016 (will be filled in step 5)
+        else:
+            logger.warning("  No evolution cells found — all 2016 cells retained as-is")
+
+    # ------------------------------------------------------------------
+    # 5. Combine: masked evolution + remaining 2016 + tracker 2017+
     # ------------------------------------------------------------------
     logger.info("Combining Evolution + Tracker...")
+    harmonized = np.copy(evo_masked)
 
-    # Step 1: trim evolution to where tracker has 2016 (matching R: mask by 2016 binary)
-    wsf_2016_binary = (tracker_resampled == 2016)
-    evo_trimmed = np.where(wsf_2016_binary, evolution, 0).astype(float)
-    # Set 0 as nodata
-    evo_trimmed[evo_trimmed == 0] = 0
+    # Fill remaining 2016 cells (those beyond proximity threshold + any not yet filled)
+    tracker_2016_remaining = (tracker_resampled == 2016) & (harmonized == 0)
+    harmonized[tracker_2016_remaining] = 2016
 
-    # Step 2: tracker 2016 pixels NOT already covered by evolution
-    tracker_2016_only = np.copy(tracker_resampled)
-    tracker_2016_only[tracker_resampled != 2016] = 0
-    tracker_2016_only[evo_trimmed > 0] = 0
-
-    # Step 3: combine — evolution first, then 2016 gap-fill, then 2017+
-    harmonized = np.copy(evo_trimmed)
-    # Fill with tracker 2016 where evolution is empty
-    fill_2016 = (harmonized == 0) & (tracker_2016_only > 0)
-    harmonized[fill_2016] = tracker_2016_only[fill_2016]
-    # Fill with tracker 2017+ where harmonized is empty
+    # Fill with tracker 2017+
     tracker_post_2016 = np.copy(tracker_resampled)
     tracker_post_2016[tracker_resampled <= 2016] = 0
     fill_post = (harmonized == 0) & (tracker_post_2016 > 0)
     harmonized[fill_post] = tracker_post_2016[fill_post]
 
     # ------------------------------------------------------------------
-    # 5. Save harmonized raster
+    # 6. Save harmonized raster
     # ------------------------------------------------------------------
     harm_meta = evo_meta.copy()
     harm_meta.update({"dtype": "float32", "count": 1, "nodata": 0})
@@ -289,8 +302,7 @@ def harmonize_wsf(
     logger.info(f"Harmonized WSF saved to: {harm_path}")
 
     # ------------------------------------------------------------------
-    # 6. Compute stats for harmonized, evolution-only, and tracker-only
-    #    Using the same cumulative area method as stats_wsf_evolution
+    # 7. Compute stats for harmonized, evolution-only, and tracker-only
     # ------------------------------------------------------------------
     logger.info("Computing harmonized stats...")
     areas = _cell_areas_km2(evo_meta)
@@ -311,9 +323,7 @@ def harmonize_wsf(
 
     # Stats for each component
     evo_stats = _cumulative_stats(evolution, "WSF Evolution")
-    harm_stats = _cumulative_stats(harmonized, "WSF Evolution (masked)")
-    # Harmonized stats: only pre-2016 portion (evolution-based part)
-    harm_stats = harm_stats[harm_stats["year"] <= 2015]
+    harm_stats = _cumulative_stats(harmonized, "WSF Harmonized")
     tracker_stats = _cumulative_stats(tracker_resampled, "WSF Tracker")
 
     # Combine all stats

@@ -1,11 +1,11 @@
-accessibility: True
+accessibility: False
 basic_info: True
 burned_area: True
 demographics: True
 population: True
 ghs_population: True
 wsf: True
-earthquake: False   # under development
+earthquake: True   # under development
 elevation: True
 # if slope is set to True, please also set elevation to True
 # because slope is derived from elevation
@@ -15,7 +15,7 @@ flood_coastal: True
 flood_fluvial: True
 flood_pluvial: True
 flood_comb: True
-flood_event: False
+flood_event: True
 fwi: True
 landcover_burn: True
 road_network: True

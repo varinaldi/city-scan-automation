@@ -11,6 +11,9 @@ Usage:
     python -m tasks --all                                      # all tasks enabled in menu.yml
     python -m tasks --all --scan-id 2026-02-malta-malta        # all tasks for existing city
     python -m tasks --list                                     # show available tasks
+
+Optional flags:
+    --upload                                                   # upload outputs to GCS after each step
 """
 import sys
 import importlib
@@ -66,7 +69,7 @@ TASK_REGISTRY = {
 # Menu keys that map to each CLI task (for --all mode)
 MENU_KEYS = {
     "lst": ["lst_summer", "lst_winter"],
-    "fathom": ["flood_pluvial", "flood_fluvial", "flood_comb"],
+    "fathom": ["flood_pluvial", "flood_fluvial", "flood_coastal", "flood_comb"],
 }
 
 
@@ -140,6 +143,9 @@ def main():
             logger.error("--scan-id requires a value")
             return
 
+    # Parse --upload flag (default: uploads disabled, opt-in with --upload)
+    upload_enabled = "--upload" in args
+
     # Build scan config (one-time setup)
     from config.scan import Scan
     scan = Scan(scan_id=scan_id)
@@ -176,16 +182,29 @@ def main():
             skip_tasks |= GCS_TASKS
 
     # Run tasks, skip failed auth and failed tasks
+    from utils.gcs_module import get_all_files, upload_task_outputs
+    
     failed = []
     step_label = f" ({step})" if step else ""
     logger.info(f"Running tasks{step_label}: {', '.join(task_names)}")
+    
     for name in task_names:
         if name in skip_tasks:
             logger.warning(f"Skipping '{name}' (auth not available)")
             failed.append(name)
             continue
+        
+        # Track files before task execution (if upload enabled)
+        files_before = get_all_files(scan.output_dir) | get_all_files(scan.render_dir) if upload_enabled else None
+        
+        # Run the task
         if not run_task(name, scan, step=step):
             failed.append(name)
+            continue
+        
+        # Upload outputs if enabled
+        if upload_enabled:
+            upload_task_outputs(scan, name, step=step, files_before=files_before)
 
     # Summary
     if failed:

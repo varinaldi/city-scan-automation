@@ -20,11 +20,11 @@ demographics:
       Reproductive age is defined as 15–49. Working age is defined as 15–64.
   population:
     title: Population Density
-    method: This map estimates population numbers per 10,000 m^2^ grid cell. It provides a more consistent representation of population distributions across different landscapes than administrative unit counts. Knowing where people are is critical for impact assessments and intervention plans, especially those focused on service delivery, food security, climate change, network systems and natural disasters.
+    method: This map estimates population numbers per 10,000 m<sup>2</sup> grid cell. It provides a more consistent representation of population distributions across different landscapes than administrative unit counts. Knowing where people are is critical for impact assessments and intervention plans, especially those focused on service delivery, food security, climate change, network systems and natural disasters.
     footnote: NULL
   rwi:
     title: Relative Wealth
-    method: This map shows micro-estimates of wealth and poverty relative to the whole country that cover the populated surface at a 2.4 km^2^ resolution. Many critical policy decisions, from strategic investments to the allocation of humanitarian aid, rely on data about the geographic distribution of wealth and poverty.
+    method: This map shows micro-estimates of wealth and poverty relative to the whole country that cover the populated surface at a 2.4 km<sup>2</sup> resolution. Many critical policy decisions, from strategic investments to the allocation of humanitarian aid, rely on data about the geographic distribution of wealth and poverty.
     footnote: Map data from Meta Data for Good.
 # SECTION 4
 economic_activity:
@@ -43,6 +43,14 @@ economic_activity:
     method: Population growth measures the annual change resulting from births, deaths, and net migration during the year. Depending on the level of development and income, it is a key factor in the overall economic growth of a city.
   gdp_per_capita_growth:
     method: City GDP per capita is an informal measure of economic performance and a useful unit to compare the standard of living and economic and material well-being between countries.
+  gdp_total:
+    title: Gridded GDP
+    method: This map shows the spatial distribution of Gross Domestic Product at purchasing power parity (PPP, 2017 international USD) on a 30 arc-second (~1 km) grid. The dataset first downscales GDP per capita from national and subnational statistical sources to ~43,500 administrative units using an ensemble machine learning model, then multiplies the result by gridded population counts to produce total GDP at high resolution. PPP adjustment accounts for differences in price levels between countries, enabling meaningful spatial comparisons.
+    footnote: 'Map data from Kummu, M., Kosonen, M. & Masoumzadeh Sayyar, S., 2025, "Downscaled gridded global dataset for GDP per capita PPP over 1990–2022", Scientific Data.'
+  gdp_per_capita:
+    title: Gridded GDP per Capita
+    method: This map shows the spatial distribution of Gross Domestic Product per capita at purchasing power parity (PPP, 2017 international USD) on a 5 arc-minute (~10 km) grid. The dataset combines national GDP figures from the World Bank and IMF with subnational data from OECD, Eurostat, and national statistical offices, then downscales subnational-to-national GDP ratios to ~43,500 administrative units worldwide using an ensemble machine learning model trained on urbanization level, travel time to nearest city, national income inequality, and national GDP per capita. GDP per capita provides a localized measure of economic well-being and living standards, revealing within-city disparities that national or city-level averages may obscure. 
+    footnote: 'Map data from Kummu, M., Kosonen, M. & Masoumzadeh Sayyar, S., 2025, "Downscaled gridded global dataset for GDP per capita PPP over 1990–2022", Scientific Data.'
   economic_activity:
     title: Economic Hotspots
     method: 'This map measures the total emissions of nighttime lights from the monthly average of radiance for 2014 through 2022. Nighttime light radiance is a common proxy for economic activity: where there is more artificial light, there is generally more commercial activity. VIIRS observations are made fairly late at night, as its satellites cross the equator at around 1:30 local time; thus, the observed lights are typically street lights and nights which are left lit all night long. The correlation of nighttime light and economic activity is strongest for urban areas; it is less relevant in agricultural areas and areas with very low population density.'
@@ -59,9 +67,15 @@ economic_activity:
 built_form:
   wsf:
     title: Urban Extent and Change
-    method: NULL
+    method: |
+      This map shows the expansion of human settlement from 1985 to 2015, based on random forest classification of spectral indices such as normalized vegetation index (NDVI), normalized built-up index (NDBI) and modified normalized difference water index (MNDWI) from Landsat-5/7. The expansion of urban area is very relevant to development as urban expansion can increase a cities exposure to natural hazards, require the extension of services and infrastructure, as well as jurisdiction, and disrupt existing non-urban land uses. In addition, many characteristics may differ by era of development, such as building morpholoy, road network form, and household wealth.
     footnote: Map data from DLR, 2015, "World Settlement Footprint Evolution - Landsat 5/7 - Global".
     plot: urban_built_up_area.html|wsf-uba-plot.png
+  wsf_tracker:
+    title: Urban Extent and Change, 2016–2025
+    method: |
+      This map shows the expansion of human settlement from July 2016 to July 2025. It uses a newer, higher resolution methodology than WSF Evolution (1985–2015); because of this, the data should not be combined, and the 2015 and 2016 extents can differ significantly. The expansion of urban area is very relevant to development as urban expansion can increase a cities exposure to natural hazards, require the extension of services and infrastructure, as well as jurisdiction, and disrupt existing non-urban land uses. In addition, many characteristics may differ by era of development, such as building morpholoy, road network form, and household wealth.
+    footnote: Map data from DLR, 2025, "World Settlement Footprint Tracker".
   impervious:
     title: Built-up Density
     method: |
@@ -102,8 +116,15 @@ climate_conditions:
   air_quality:
     title: Air Quality
     method: |
-      The concentration of particulate matter (PM) is a key indicator of air quality since it is the most common air pollutant affecting short and long-term health. This map displays the average annual concentration (µg per m^3^) of ground-level fine particulate matter of 2.5 micrometers or smaller (PM2.5). 
-      PM2.5 particles are of greater concern than PM10 particles because their small size allows them to travel deeper into the cardiopulmonary system. According to the WHO and the United States EPA standards, PM2.5 concentrations should not exceed between 5 µg/m^3^ or 12 µg/m^3^, respectively. Higher concentrations of particulate matter may also reduce the availability of solar energy.
+      The concentration of particulate matter (PM) is a key indicator of air quality since it is the most common air pollutant affecting short and long-term health. This map displays the average annual concentration (µg per m<sup>3</sup>) of ground-level fine particulate matter of 2.5 micrometers or smaller (PM2.5). 
+      PM2.5 particles are of greater concern than PM10 particles because their small size allows them to travel deeper into the cardiopulmonary system. According to the WHO and the United States EPA standards, PM2.5 concentrations should not exceed between 5 µg/m<sup>3</sup> or 12 µg/m<sup>3</sup>, respectively. Higher concentrations of particulate matter may also reduce the availability of solar energy.
+    footnote: |
+      PM2.5 Grids are derived using annual data from 1998-2019 represent near-surface concentrations.
+      Map data from Hammer, 2022, “Global Annual PM2.5 Grids”.
+  air_quality_trend:
+    title: Air Quality Trend
+    method: |
+      The trend for each cell was determined using a linear fit on yearly averages from 2013 to 2022.
     footnote: |
       PM2.5 Grids are derived using annual data from 1998-2019 represent near-surface concentrations.
       Map data from Hammer, 2022, “Global Annual PM2.5 Grids”.

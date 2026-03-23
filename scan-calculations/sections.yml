@@ -5,6 +5,7 @@
 sections:
   - basic_info        # Area, Climate Zone, Setup
   - worldpop          # Population Data, Distribution
+  - demographics      # Age-Sex Distribution, Demographic Indicators
   - oxford            # Benchmark Cities, GDP, Employment, Inequality
   - wsf               # Urban Built-up Area, Tracker, Harmonized
   - landcover         # Landcover

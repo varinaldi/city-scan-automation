@@ -268,9 +268,9 @@ clean_uba <- function(input_file, output_file = NULL) {
       uba = round(`cumulative sq km`, 2)
     ) %>%
     mutate(
-      ubaGrowthPercentage = round((uba - lag(uba)) / lag(uba) * 100, 3)
+      growth_percentage = round((uba - lag(uba)) / lag(uba) * 100, 3)
     ) %>%
-    select(year = year_seq, yearName, uba, ubaGrowthPercentage)
+    select(year = year_seq, yearName, uba, growth_percentage)
 
   if (is.null(output_file)) {
     output_file <- file.path(processed_dir, "uba.csv")
@@ -381,13 +381,13 @@ clean_pug <- function(pg_file = NULL, uba_file = NULL, output_file = NULL) {
     mutate(
       density = round(population / uba, 3),
       populationUrbanGrowthRatio = if_else(
-        ubaGrowthPercentage != 0 & !is.na(ubaGrowthPercentage),
-        round(populationGrowthPercentage / ubaGrowthPercentage, 3),
+        growth_percentage != 0 & !is.na(growth_percentage),
+        round(populationGrowthPercentage / growth_percentage, 3),
         NA_real_
       )
     ) %>%
     select(yearName, population, populationGrowthPercentage, year, uba,
-           ubaGrowthPercentage, density, populationUrbanGrowthRatio)
+           growth_percentage, density, populationUrbanGrowthRatio)
 
   if (is.null(output_file)) {
     output_file <- file.path(chart_data_dir, "pug.csv")

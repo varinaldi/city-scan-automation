@@ -326,10 +326,10 @@ def clean_uba(input_file, output_file=None):
     
     # calculate urban built area growth percentage
     # growth percentage = ((current_year - previous_year) / previous_year) * 100
-    result_df['ubaGrowthPercentage'] = result_df['uba'].pct_change() * 100
+    result_df['growth_percentage'] = result_df['uba'].pct_change() * 100
     
     # round to 3 decimal places
-    result_df['ubaGrowthPercentage'] = result_df['ubaGrowthPercentage'].round(3)
+    result_df['growth_percentage'] = result_df['growth_percentage'].round(3)
     
     # create output filename if not provided
     if output_file is None:
@@ -564,16 +564,16 @@ def clean_pug(pg_file=None, uba_file=None, output_file=None):
     
     # calculate population-urban growth percentage ratio
     # handle division by zero cases
-    mask = pug_df['ubaGrowthPercentage'] != 0
+    mask = pug_df['growth_percentage'] != 0
     pug_df['populationUrbanGrowthRatio'] = None
     pug_df.loc[mask, 'populationUrbanGrowthRatio'] = (
         pug_df.loc[mask, 'populationGrowthPercentage'] / 
-        pug_df.loc[mask, 'ubaGrowthPercentage']
+        pug_df.loc[mask, 'growth_percentage']
     ).round(3)
     
     # reorder columns to match expected output structure
     expected_columns = ['yearName', 'population', 'populationGrowthPercentage', 'year', 'uba', 
-                       'ubaGrowthPercentage', 'density', 'populationUrbanGrowthRatio']
+                       'growth_percentage', 'density', 'populationUrbanGrowthRatio']
     
     # ensure all expected columns exist
     missing_columns = [col for col in expected_columns if col not in pug_df.columns]

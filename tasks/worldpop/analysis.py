@@ -223,7 +223,7 @@ def clean_pug(city_name: str, output_dir: str, return_df: bool = False):
     Merge population growth (pg.csv) and urban built area (uba.csv) to produce {city}_pug.csv.
     Used for urban development dynamics matrix.
 
-    Columns: yearName, population, populationGrowthPercentage, uba, ubaGrowthPercentage,
+    Columns: yearName, population, populationGrowthPercentage, uba, growth_percentage,
              density, populationUrbanGrowthRatio
     """
     tabular_dir = os.path.join(output_dir, "tabular")
@@ -252,15 +252,15 @@ def clean_pug(city_name: str, output_dir: str, return_df: bool = False):
     pug_df['density'] = (pug_df['population'] / pug_df['uba']).round(3)
 
     # population-urban growth ratio (handle division by zero)
-    mask = pug_df['ubaGrowthPercentage'] != 0
+    mask = pug_df['growth_percentage'] != 0
     pug_df['populationUrbanGrowthRatio'] = None
     pug_df.loc[mask, 'populationUrbanGrowthRatio'] = (
         pug_df.loc[mask, 'populationGrowthPercentage'] /
-        pug_df.loc[mask, 'ubaGrowthPercentage']
+        pug_df.loc[mask, 'growth_percentage']
     ).round(3)
 
     expected_columns = ['yearName', 'population', 'populationGrowthPercentage',
-                        'uba', 'ubaGrowthPercentage', 'density', 'populationUrbanGrowthRatio']
+                        'uba', 'growth_percentage', 'density', 'populationUrbanGrowthRatio']
     available_columns = [col for col in expected_columns if col in pug_df.columns]
     pug_df = pug_df[available_columns]
 

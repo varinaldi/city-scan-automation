@@ -2995,7 +2995,7 @@ function plot_ubap(uba, {
     .range([0, innerWidth]);
     
   const yScale = d3.scaleLinear()
-    .domain([0, Math.max(...uba.map(d => d.ubaGrowthPercentage)) * 1.1])
+    .domain([0, Math.max(...uba.map(d => d.growth_percentage)) * 1.1])
     .range([innerHeight, 0]);
 
   // svg
@@ -3055,9 +3055,9 @@ function plot_ubap(uba, {
   
   // line (with defined function to skip null values)
   const line = d3.line()
-    .defined(d => d.ubaGrowthPercentage !== null)
+    .defined(d => d.growth_percentage !== null)
     .x(d => xScale(d.yearName))
-    .y(d => yScale(d.ubaGrowthPercentage));
+    .y(d => yScale(d.growth_percentage));
     
   g.append("path")
     .datum(uba)
@@ -3068,11 +3068,11 @@ function plot_ubap(uba, {
   
   // dots (filter out null values)
   g.selectAll(".dot")
-    .data(uba.filter(d => d.ubaGrowthPercentage !== null))
+    .data(uba.filter(d => d.growth_percentage !== null))
     .enter().append("circle")
     .attr("class", "dot")
     .attr("cx", d => xScale(d.yearName))
-    .attr("cy", d => yScale(d.ubaGrowthPercentage))
+    .attr("cy", d => yScale(d.growth_percentage))
     .attr("r", Math.max(2, Math.min(3, width / 200)))
     .attr("fill", "black")
     .style("cursor", "default")
@@ -3095,7 +3095,7 @@ function plot_ubap(uba, {
         .style("z-index", "1000")
         .style("opacity", 0);
         
-      tooltip.html(`<div>Year: ${d.yearName}</div><div>Growth Percentage: ${d.ubaGrowthPercentage !== null ? d.ubaGrowthPercentage.toFixed(2) + '%' : 'N/A'}</div>`)
+      tooltip.html(`<div>Year: ${d.yearName}</div><div>Growth Percentage: ${d.growth_percentage !== null ? d.growth_percentage.toFixed(2) + '%' : 'N/A'}</div>`)
         .style("left", (event.pageX - 60) + "px")
         .style("top", (event.pageY - 60) + "px")
         .transition()
@@ -3832,7 +3832,7 @@ function plot_uddm(pg, uba, pug, {
       .range([0, innerWidth]);
     
     const yScale = d3.scaleLinear()
-      .domain([0, Math.max(...uba.map(d => d.ubaGrowthPercentage)) * 1.1])
+      .domain([0, Math.max(...uba.map(d => d.growth_percentage)) * 1.1])
       .range([innerHeight, 0]);
     
     // y-axis
@@ -3868,9 +3868,9 @@ function plot_uddm(pg, uba, pug, {
     
     // line
     const line = d3.line()
-      .defined(d => d.ubaGrowthPercentage !== null)
+      .defined(d => d.growth_percentage !== null)
       .x(d => xScale(d.yearName))
-      .y(d => yScale(d.ubaGrowthPercentage));
+      .y(d => yScale(d.growth_percentage));
     
     g.append("path")
       .datum(uba)
@@ -3881,10 +3881,10 @@ function plot_uddm(pg, uba, pug, {
     
     // dots with tooltips
     g.selectAll(".dot")
-      .data(uba.filter(d => d.ubaGrowthPercentage !== null))
+      .data(uba.filter(d => d.growth_percentage !== null))
       .enter().append("circle")
       .attr("cx", d => xScale(d.yearName))
-      .attr("cy", d => yScale(d.ubaGrowthPercentage))
+      .attr("cy", d => yScale(d.growth_percentage))
       .attr("r", dotRadius)
       .attr("fill", "black")
       .style("cursor", "default")
@@ -3904,7 +3904,7 @@ function plot_uddm(pg, uba, pug, {
           .style("pointer-events", "none")
           .style("z-index", "1000")
           .style("opacity", 0);
-        tooltip.html(`<div>Year: ${d.yearName}</div><div>Growth Percentage: ${d.ubaGrowthPercentage.toFixed(2)}%</div>`)
+        tooltip.html(`<div>Year: ${d.yearName}</div><div>Growth Percentage: ${d.growth_percentage.toFixed(2)}%</div>`)
           .style("left", (event.pageX - 50) + "px")
           .style("top", (event.pageY - 50) + "px")
           .transition().duration(200).style("opacity", 1);

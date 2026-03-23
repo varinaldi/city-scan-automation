@@ -1,9 +1,9 @@
-from utils.log_module import setup_logger
+from core.py.log_module import setup_logger
 logger = setup_logger(__name__)
 
 
 def collect(scan):
-    from .datacollection import datacollection
+    from .collection import datacollection
 
     logger.info("Collecting forest data...")
     datacollection(
@@ -13,7 +13,12 @@ def collect(scan):
 
 
 def analyze(scan):
-    logger.info("Forest has no separate analysis step")
+    from .analysis import compute_histogram
+
+    logger.info("Analyzing forest data...")
+    compute_histogram(
+        city_name=scan.city_name, output_dir=scan.output_dir
+    )
 
 
 def run(scan):

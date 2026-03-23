@@ -1,9 +1,9 @@
-from utils.log_module import setup_logger
+from core.py.log_module import setup_logger
 logger = setup_logger(__name__)
 
 
 def collect(scan):
-    from .datacollection import datacollection
+    from .collection import datacollection
 
     logger.info("Collecting WSF data...")
     datacollection(
@@ -13,12 +13,13 @@ def collect(scan):
 
 
 def analyze(scan):
-    from .dataanalysis import stats_wsf, harmonize_wsf
+    from .analysis import stats_wsf, harmonize_wsf, compute_histogram
 
     logger.info("Analyzing WSF data...")
     stats_wsf(city_name=scan.city_name, output_dir=scan.output_dir, dataset="tracker")
     stats_wsf(city_name=scan.city_name, output_dir=scan.output_dir, dataset="evolution")
     harmonize_wsf(city_name=scan.city_name, output_dir=scan.output_dir)
+    compute_histogram(city_name=scan.city_name, output_dir=scan.output_dir)
 
 
 def run(scan):

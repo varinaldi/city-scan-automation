@@ -1,0 +1,12 @@
+project:
+  type: default
+  pre-render: Rscript generate-index.R
+  render:
+    - index.qmd
+
+engine: knitr
+
+format:
+  html:
+    theme: [default, ../source/pagedtable-fix.scss]
+    self-contained: true

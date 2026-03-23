@@ -1,9 +1,9 @@
-from utils.log_module import setup_logger
+from core.py.log_module import setup_logger
 logger = setup_logger(__name__)
 
 
 def collect(scan):
-    from .datacollection import graph_collection, POI_collection
+    from .collection import graph_collection, POI_collection
 
     logger.info("Collecting accessibility data...")
     graph_collection(
@@ -19,8 +19,8 @@ def collect(scan):
 
 
 def analyze(scan):
-    from .datacollection import graph_collection
-    from .dataanalysis import calc_basic_stats, filter_major_roads, road_orientation, compute_graph_centralities, compute_accessibility_analysis
+    from .collection import graph_collection
+    from .analysis import calc_basic_stats, filter_major_roads, road_orientation, compute_graph_centralities, compute_accessibility_analysis
 
     logger.info("Analyzing accessibility data...")
     network_graph = graph_collection(

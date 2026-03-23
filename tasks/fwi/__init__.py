@@ -1,9 +1,9 @@
-from utils.log_module import setup_logger
+from core.py.log_module import setup_logger
 logger = setup_logger(__name__)
 
 
 def collect(scan):
-    from .datacollection import datacollection
+    from .collection import datacollection
 
     logger.info("Collecting FWI data...")
     datacollection(
@@ -16,8 +16,8 @@ def collect(scan):
 
 
 def analyze(scan):
-    from .datacollection import datacollection
-    from .dataanalysis import generate_nth_raster, calculate_weekly_nth
+    from .collection import datacollection
+    from .analysis import generate_nth_raster, calculate_weekly_nth
 
     logger.info("Analyzing FWI data...")
     fwi_raster_dict, fwi_meta = datacollection(

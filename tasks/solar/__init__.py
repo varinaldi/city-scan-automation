@@ -1,9 +1,9 @@
-from utils.log_module import setup_logger
+from core.py.log_module import setup_logger
 logger = setup_logger(__name__)
 
 
 def collect(scan):
-    from .datacollection import datacollection, datacollection_monthly
+    from .collection import datacollection, datacollection_monthly
 
     logger.info("Collecting solar data...")
     datacollection(
@@ -17,7 +17,7 @@ def collect(scan):
 
 
 def analyze(scan):
-    from .dataanalysis import compute_stats, plot_solar_seasonality
+    from .analysis import compute_stats, plot_solar_seasonality, compute_histogram
 
     logger.info("Analyzing solar data...")
     compute_stats(
@@ -29,10 +29,13 @@ def analyze(scan):
         render_dir=scan.render_dir, font_dict=scan.font_dict,
         return_df=False
     )
+    compute_histogram(
+        city_name=scan.city_name, output_dir=scan.output_dir
+    )
 
 
 def visualize(scan):
-    from .datavisualization import plot_rastermap, plot_histogram
+    from .visualization import plot_rastermap, plot_histogram
 
     logger.info("Visualizing solar data...")
     plot_rastermap(city_name=scan.city_name, output_dir=scan.output_dir)

@@ -218,3 +218,16 @@ check_files.ipynb
 firebase-debug.log
 # GitHub Wiki
 city-scan-automation.wiki.gitoutputs/
+
+# Old folders (migrated to core/ and tasks/)
+# config/
+utils/
+frontend/
+backend/
+backend-local/
+cache/
+temp/
+data/
+gcs-user-input/
+# docs/
+.here

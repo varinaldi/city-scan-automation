@@ -1,9 +1,9 @@
-from utils.log_module import setup_logger
+from core.py.log_module import setup_logger
 logger = setup_logger(__name__)
 
 
 def collect(scan):
-    from .datacollection import datacollection
+    from .collection import datacollection
 
     logger.info("Collecting GHS population data...")
     datacollection(
@@ -13,7 +13,7 @@ def collect(scan):
 
 
 def analyze(scan):
-    from .dataanalysis import compute_stats
+    from .analysis import compute_stats
 
     logger.info("Analyzing GHS population data...")
     compute_stats(
@@ -23,7 +23,7 @@ def analyze(scan):
 
 
 def visualize(scan):
-    from .datavisualization import run_viz
+    from .visualization import run_viz
 
     logger.info("Visualizing GHS population data...")
     run_viz(

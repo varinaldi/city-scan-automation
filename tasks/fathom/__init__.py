@@ -1,9 +1,9 @@
-from utils.log_module import setup_logger
+from core.py.log_module import setup_logger
 logger = setup_logger(__name__)
 
 
 def collect(scan):
-    from .datacollection import datacollection
+    from .collection import datacollection
 
     logger.info("Collecting fathom data...")
     datacollection(
@@ -16,7 +16,7 @@ def collect(scan):
 
 
 def analyze(scan):
-    from .dataanalysis import (
+    from .analysis import (
         exposure_flood_wsf,
         exposure_flood_pop,
         exposure_flood_osm,

@@ -1,9 +1,9 @@
-from utils.log_module import setup_logger
+from core.py.log_module import setup_logger
 logger = setup_logger(__name__)
 
 
 def collect(scan):
-    from .datacollection import datacollection
+    from .collection import datacollection
 
     logger.info("Collecting slope data...")
     datacollection(
@@ -13,7 +13,7 @@ def collect(scan):
 
 
 def analyze(scan):
-    from .dataanalysis import compute_slope_histogram, generate_slope_yaml
+    from .analysis import compute_slope_histogram, generate_slope_yaml
 
     logger.info("Analyzing slope data...")
     bins = [0, 2, 5, 10, 20, 90]
@@ -27,7 +27,7 @@ def analyze(scan):
 
 
 def visualize(scan):
-    from .datavisualization import plot_slope_rastermap, render_slope_treemap_png, render_slope_treemap_html
+    from .visualization import plot_slope_rastermap, render_slope_treemap_png, render_slope_treemap_html
 
     logger.info("Visualizing slope data...")
     bins = [0, 2, 5, 10, 20, 90]

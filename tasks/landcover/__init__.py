@@ -1,9 +1,9 @@
-from utils.log_module import setup_logger
+from core.py.log_module import setup_logger
 logger = setup_logger(__name__)
 
 
 def collect(scan):
-    from .datacollection import datacollection
+    from .collection import datacollection
 
     logger.info("Collecting land cover data...")
     datacollection(
@@ -13,7 +13,7 @@ def collect(scan):
 
 
 def analyze(scan):
-    from .dataanalysis import dataanalysis
+    from .analysis import dataanalysis
 
     logger.info("Analyzing land cover data...")
     dataanalysis(

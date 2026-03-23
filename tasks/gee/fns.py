@@ -146,7 +146,7 @@ class Composite:
         ).flatten())
 
 
-def to_geotiff(da, output_path, bands=None, resampling=None):
+def to_geotiff(da, output_path, bands=None, resampling=None, aoi=None):
     """
     Export xarray Dataset/DataArray to GeoTIFF via xee_to_rio.
 
@@ -154,22 +154,24 @@ def to_geotiff(da, output_path, bands=None, resampling=None):
     output_path: path to save the .tif file
     bands: list of band names to export (Dataset only), e.g. ['B4', 'B3', 'B2']
     resampling: rasterio.enums.Resampling for categorical data (e.g. Resampling.nearest)
+    aoi: GeoDataFrame to clip the raster to (optional)
     """
     import rioxarray
 
     if bands:
         da = da[bands]
 
-    da = xee_to_rio(da, resampling=resampling)
+    da = xee_to_rio(da, resampling=resampling, aoi=aoi)
     da.rio.to_raster(output_path)
     
 
 
-def xee_to_rio(da, resampling=None):
+def xee_to_rio(da, resampling=None, aoi=None):
     """Convert xee xarray DataArray/Dataset to rasterio-compatible format.
-    Handles: time dim drop, transpose to (Y, X), CRS, reproject to 4326.
+    Handles: time dim drop, transpose to (Y, X), CRS, reproject to 4326, clip to AOI.
 
     resampling: rasterio.enums.Resampling, use Resampling.nearest for categorical data
+    aoi: GeoDataFrame to clip the raster to (optional)
     """
     x_dim = 'X' if 'X' in da.dims else 'lon'
     y_dim = 'Y' if 'Y' in da.dims else 'lat'
@@ -185,5 +187,9 @@ def xee_to_rio(da, resampling=None):
     if resampling:
         reproject_kwargs['resampling'] = resampling
     da = da.rio.reproject(**reproject_kwargs)
+
+    if aoi is not None:
+        aoi_4326 = aoi.to_crs("EPSG:4326") if aoi.crs != "EPSG:4326" else aoi
+        da = da.rio.clip(aoi_4326.geometry, aoi_4326.crs)
 
     return da

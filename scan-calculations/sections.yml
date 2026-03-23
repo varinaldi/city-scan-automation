@@ -1,0 +1,18 @@
+# Section order for scan-calculations assembler
+# Follows the order from scan-calculations-original (Malta)
+# Each entry maps to tasks/{name}/charts/index.qmd
+
+sections:
+  - basic_info        # Area, Climate Zone, Setup
+  - worldpop          # Population Data, Distribution
+  - oxford            # Benchmark Cities, GDP, Employment, Inequality
+  - wsf               # Urban Built-up Area, Tracker, Harmonized
+  - landcover         # Landcover
+  - elevation         # Elevation
+  - slope             # Slope
+  - fathom            # Fluvial, Pluvial, Coastal, Combined Flooding
+  - flood_events      # Flood Events (Dartmouth)
+  - earthquake        # Earthquakes (NGDC)
+  - cyclones          # Cyclones (IBTrACS)
+  - solar             # Photovoltaic Potential
+  - fwi               # Fire Weather Index

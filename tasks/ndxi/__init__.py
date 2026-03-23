@@ -1,9 +1,9 @@
-from utils.log_module import setup_logger
+from core.py.log_module import setup_logger
 logger = setup_logger(__name__)
 
 
 def collect_ndvi(scan):
-    from .datacollection import datacollection
+    from .collection import datacollection
 
     logger.info("Collecting NDVI data...")
     datacollection(
@@ -14,7 +14,7 @@ def collect_ndvi(scan):
 
 
 def collect_ndmi(scan):
-    from .datacollection import datacollection
+    from .collection import datacollection
 
     logger.info("Collecting NDMI data...")
     datacollection(
@@ -24,8 +24,18 @@ def collect_ndmi(scan):
     )
 
 
+def analyze_ndvi(scan):
+    from .analysis import compute_histogram
+
+    logger.info("Analyzing NDVI data...")
+    compute_histogram(
+        city_name=scan.city_name, output_dir=scan.output_dir
+    )
+
+
 def run_ndvi(scan):
     collect_ndvi(scan)
+    analyze_ndvi(scan)
     logger.info("Done with NDVI data collection")
 
 

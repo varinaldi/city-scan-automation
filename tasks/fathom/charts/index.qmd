@@ -1,0 +1,273 @@
+---
+df-print: paged
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+## Urban Flooding
+
+```{r}
+#| label: setup-fathom
+#| include: false
+if (!exists("aoi")) {
+  USE_GCS <<- FALSE
+  source(here::here("core/R/setup.R"))
+}
+```
+
+```{r}
+#| label: data-loading-fathom
+#| include: false
+source(here::here("tasks/fathom/multianalysis.R"))
+```
+
+### Fluvial
+
+```{r}
+#| label: fluvial-flood
+#| results: asis
+
+if (!exists('fu') || is.null(fu) || nrow(fu) == 0) print_text(paste_bold('No Fluvial flood data available')) else {
+
+  fu_plot <- fu %>%
+    ggplot() +
+    geom_line(aes(x = year, y = exposed_km2)) +
+    scale_x_continuous(
+      breaks = seq(1985, 2020, 5),
+      minor_breaks = seq(1985, 2021, 1)) +
+    scale_y_continuous(labels = scales::comma, limits = c(0, NA), expand = expansion(c(0, 0.05))) +
+    theme_minimal() +
+    labs(title = "",
+         y = bquote('Exposed'~km^2)) +
+    theme(axis.line = element_line(linewidth = .5, color = "black"),
+          axis.title.x = element_blank())
+
+  ggplot2:::print.ggplot(fu_plot)
+
+  ggsave(here("03-render-output", "plots", "wsf-fu-plot.png"), plot = fu_plot, device = "png",
+         width = 4, height = 3.5, units = "in", dpi = "print")
+
+  print_paged_df(bind_rows(head(fu, 1), tail(fu, 1)))
+
+  print_text(glue("In {paste_bold(fu$year[1])}, {paste_bold(round(fu$exposed_km2[1], 2)) } km² of the built-up area ({paste_bold(fu$percent_exposed[1])}) was exposed to river flooding at a minimum depth of 15 cm"))
+  print_text(glue("In { paste_bold(tail(fu$year, 1))}, {paste_bold(round(tail(fu$exposed_km2, 1), 2))} km² of the built-up area ({paste_bold(tail(fu$percent_exposed, 1))}) was exposed"))
+
+  print_text(flood_pop_area("fluvial"))
+  print_text(flood_string("fluvial"))
+}
+```
+
+### Pluvial
+
+```{r}
+#| label: pluvial-flood
+#| results: asis
+
+if (!exists('pu') || is.null(pu) || nrow(pu) == 0) print_text(paste_bold('No Pluvial flood data available')) else {
+
+  pu_plot <- pu %>%
+    ggplot +
+    geom_line(aes(x = year, y = exposed_km2)) +
+    scale_x_continuous(
+      breaks = seq(1985, 2020, 5),
+      minor_breaks = seq(1985, 2021, 1)) +
+    scale_y_continuous(labels = scales::comma, limits = c(0, NA), expand = expansion(c(0, 0.05))) +
+    theme_minimal() +
+    labs(title = "",
+         y = bquote('Exposed'~km^2)) +
+    theme(axis.line = element_line(linewidth = .5, color = "black"),
+          axis.title.x = element_blank())
+  ggplot2:::print.ggplot(pu_plot)
+  ggsave(here("03-render-output", "plots", "wsf-pu-plot.png"), plot = pu_plot, device = "png",
+         width = 4, height = 3.5, units = "in", dpi = "print")
+
+  print_paged_df(bind_rows(head(pu, 1), tail(pu, 1)))
+
+  print_text(glue("In {paste_bold(pu$year[1])}, {paste_bold(round(pu$exposed_km2[1], 2))} km² of the built-up area ({paste_bold(pu$percent_exposed[1])}) was exposed to river flooding at a minimum depth of 15 cm"))
+  print_text(glue("In {paste_bold(tail(pu$year, 1))}, {paste_bold(round(tail(pu$exposed_km2, 1), 2))} km² of the built-up area ({paste_bold(tail(pu$percent_exposed, 1))}) was exposed"))
+
+  print_text(flood_pop_area("pluvial"))
+  print_text(flood_string("pluvial"))
+}
+```
+
+### Coastal
+
+```{r}
+#| label: coastal-flood
+#| results: asis
+
+if (!exists('cu') || is.null(cu) || nrow(cu) == 0) print_text(paste_bold('No Coastal flood data available')) else {
+
+  cu_plot <- cu %>%
+    ggplot() +
+    geom_line(aes(x = year, y = exposed_km2)) +
+    scale_x_continuous(
+      breaks = seq(1985, 2020, 5),
+      minor_breaks = seq(1985, 2021, 1)) +
+    scale_y_continuous(labels = scales::comma, limits = c(0, NA), expand = expansion(c(0, 0.05))) +
+    theme_minimal() +
+    labs(title = "",
+         y = bquote('Exposed'~km^2)) +
+    theme(axis.line = element_line(linewidth = .5, color = "black"),
+          axis.title.x = element_blank())
+  ggplot2:::print.ggplot(cu_plot)
+  ggsave(here("03-render-output", "plots", "wsf-cu-plot.png"), plot = cu_plot, device = "png",
+         width = 4, height = 3.5, units = "in", dpi = "print")
+
+  print_paged_df(bind_rows(head(cu, 1), tail(cu, 1)))
+  print_text(glue("In {paste_bold(cu$year[1])}, {paste_bold(round(cu$exposed_km2[1], 2))} km² of the built-up area ({paste_bold(cu$percent_exposed[1])}) was exposed to river flooding at a minimum depth of 15 cm"))
+  print_text(glue("In {paste_bold(tail(cu$year, 1))}, {paste_bold(round(tail(cu$exposed_km2, 1), 2))} km² of the built-up area ({paste_bold(tail(cu$percent_exposed, 1))}) was exposed"))
+
+  print_text(flood_pop_area("coastal"))
+  print_text(flood_string("coastal"))
+}
+```
+
+### Combined Fluvial, Pluvial & Coastal
+
+```{r}
+#| label: combined-flood
+#| results: asis
+
+if (!exists('pufu') || is.null(pufu) || nrow(pufu) == 0) print_text(paste_bold('No Combined flood data available')) else {
+
+  pufu_plot <- pufu %>%
+    ggplot(aes(x = year, y = exposed_km2, color = type)) +
+    geom_line(data = \(d) filter(d, type == "Combined")) +
+    geom_point(data = \(d) filter(d, type != "Combined")) +
+    scale_x_continuous(
+      breaks = seq(1985, 2020, 5),
+      minor_breaks = seq(1985, 2021, 1)) +
+    scale_y_continuous(labels = scales::comma, limits = c(0, NA), expand = expansion(c(0, 0.05))) +
+    scale_color_manual(values = c(River = "#F8766D", Rainwater = "#619CFF", Coastal = "#00BA38", Combined = "black")) +
+    scale_linetype_manual(values = c(River = "dashed", Rainwater = "dashed", Coastal = "dashed", Combined = "solid")) +
+    scale_size_manual(values = c(River = 1, Rainwater = 1, Coastal = 1, Combined = 0.5)) +
+    theme_minimal() +
+    theme(legend.position = "bottom") +
+    labs(title = "",
+         y = bquote('Exposed'~km^2), color = "", linetype = "", size = "") +
+    theme(axis.line = element_line(linewidth = .5, color = "black"),
+          axis.title.x = element_blank())
+  ggplot2:::print.ggplot(pufu_plot)
+  ggsave(here("03-render-output", "plots", "wsf-pufu-plot.png"), plot = pufu_plot, device = "png",
+         width = 4, height = 3.5, units = "in", dpi = "print")
+
+  print_paged_df(bind_rows(head(comb, 1), tail(comb, 1)))
+  print_text(glue("In {paste_bold(comb$year[1])}, {paste_bold(round(comb$exposed_km2[1], 2))} km² of the built-up area ({paste_bold(comb$percent_exposed[1])}) was exposed to riverine, surface water, or coastal flooding at a minimum depth of 15 cm"))
+  print_text(glue("In {paste_bold(tail(comb$year, 1))}, {paste_bold(round(tail(comb$exposed_km2, 1), 2))} km² of the built-up area ({paste_bold(tail(comb$percent_exposed, 1))}) was exposed"))
+
+  print_text(flood_pop_area("comb"))
+  print_text(flood_string("comb"))
+}
+```
+
+### Combined Flood Exposure (Harmonized WSF, 1985-2025)
+
+```{r}
+#| label: combined-flood-harmonized
+#| results: asis
+
+if (!exists("flood_total_data") || length(flood_total_data) == 0) print_text(paste_bold("No harmonized flood total data available")) else {
+
+  flood_harm_plot <- flood_total %>%
+    ggplot(aes(x = Year, y = uba_km2_exposed, color = type, linetype = type)) +
+    geom_line() +
+    scale_x_continuous(
+      breaks = seq(1985, 2025, 5),
+      minor_breaks = seq(1985, 2025, 1)) +
+    scale_y_continuous(labels = scales::comma, limits = c(0, NA), expand = expansion(c(0, 0.05))) +
+    scale_color_manual(values = c(River = "#F8766D", Rainwater = "#619CFF", Coastal = "#00BA38")) +
+    theme_minimal() +
+    labs(title = "",
+         y = bquote('Exposed Urban Built-up Area,'~km^2),
+         color = NULL, linetype = NULL) +
+    theme(
+      axis.line = element_line(linewidth = .5, color = "black"),
+      axis.title.x = element_blank(),
+      legend.position = "bottom")
+  ggsave(here("03-render-output", "plots", "wsf-flood-harmonized-plot.png"), plot = flood_harm_plot, device = "png",
+         width = 5, height = 4, units = "in", dpi = "print")
+  ggplot2:::print.ggplot(flood_harm_plot)
+
+  for (ft in names(flood_total_data)) {
+    d <- flood_total_data[[ft]]
+    print_text(paste0(
+      paste_bold(ft), ": from ", paste_bold(round(d$uba_km2_exposed[1], 2)), " km² exposed in ",
+      d$Year[1], " to ", paste_bold(round(tail(d$uba_km2_exposed, 1), 2)), " km² in ",
+      tail(d$Year, 1), " (", paste_bold(tail(d$percent_uba_exposed, 1)), " of built-up area)"))
+  }
+
+  print_paged_df(flood_total)
+}
+```
+
+### Flood Exposure by Return Period (Harmonized WSF, 1985-2025)
+
+```{r}
+#| label: flood-probability-harmonized
+#| results: asis
+
+flood_prob_types <- list(
+  fluvial = list(file = "fu_prob.csv", label = "Fluvial"),
+  pluvial = list(file = "pu_prob.csv", label = "Pluvial"),
+  coastal = list(file = "cu_prob.csv", label = "Coastal")
+)
+
+for (ft in names(flood_prob_types)) {
+  ft_info <- flood_prob_types[[ft]]
+  prob_file <- file.path(tabular_dir, ft_info$file)
+
+  if (!file.exists(prob_file)) {
+    print_text(paste_bold(paste("No", ft_info$label, "probability data available")))
+    next
+  }
+
+  prob_df <- read_csv(prob_file, col_types = cols())
+
+  # Rename old column format if needed (only if new names don't already exist)
+  if ("0.1-1%" %in% names(prob_df) && !"1-in-1,000 year" %in% names(prob_df)) {
+    prob_df <- prob_df %>% rename(
+      `1-in-1,000 year` = `0.1-1%`,
+      `1-in-100 year` = `1-10%`,
+      `1-in-10 year` = `>10%`)
+  }
+
+  prob_df <- prob_df %>%
+    pivot_longer(cols = c(`1-in-1,000 year`, `1-in-100 year`, `1-in-10 year`), names_to = "probability", values_to = "area_km2") %>%
+    mutate(probability = factor(probability, levels = c("1-in-1,000 year", "1-in-100 year", "1-in-10 year")))
+
+  prob_df <- prob_df %>%
+    mutate(period = ifelse(yearName <= 2015, "Evolution", "Tracker"))
+
+  prob_plot <- prob_df %>%
+    ggplot(aes(x = yearName, y = area_km2, color = probability, linetype = probability, group = interaction(probability, period))) +
+    geom_line(linewidth = 0.8) +
+    scale_x_continuous(breaks = seq(1984, 2024, 10)) +
+    scale_y_continuous(labels = scales::comma, limits = c(0, NA), expand = expansion(c(0, 0.05))) +
+    scale_color_manual(values = prob_colors) +
+    scale_linetype_manual(values = prob_linetypes) +
+    theme_minimal() +
+    labs(title = paste0("Built-up Area Exposed to ", ft_info$label, " Flooding, 1985-2025"),
+         subtitle = city,
+         y = "Exposed Urban Built-up Area (sq km)",
+         color = NULL, linetype = NULL) +
+    theme(
+      axis.line = element_line(linewidth = .5, color = "black"),
+      axis.title.x = element_blank(),
+      legend.position = c(0.1, 0.85),
+      plot.title = element_text(face = "bold"))
+
+  ggsave(here("03-render-output", "plots", paste0("wsf-", ft, "-prob-plot.png")), plot = prob_plot, device = "png",
+         width = 5, height = 4, units = "in", dpi = "print")
+  ggplot2:::print.ggplot(prob_plot)
+
+  last_row <- prob_df %>% filter(yearName == max(yearName))
+  for (p in c("1-in-1,000 year", "1-in-100 year", "1-in-10 year")) {
+    val <- last_row %>% filter(probability == p) %>% pull(area_km2)
+    print_text(paste0(ft_info$label, " ", paste_bold(p), " probability: ", paste_bold(round(val, 2)), " km² exposed by ", max(prob_df$yearName)))
+  }
+}
+```

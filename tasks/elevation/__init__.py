@@ -1,9 +1,9 @@
-from utils.log_module import setup_logger
+from core.py.log_module import setup_logger
 logger = setup_logger(__name__)
 
 
 def collect(scan):
-    from .datacollection import datacollection
+    from .collection import datacollection
 
     logger.info("Collecting elevation data...")
     datacollection(
@@ -14,7 +14,7 @@ def collect(scan):
 
 
 def analyze(scan):
-    from .dataanalysis import generate_contours, elevation_stats, elevation_interpretation
+    from .analysis import generate_contours, elevation_stats, elevation_interpretation
 
     logger.info("Analyzing elevation data...")
     generate_contours(
@@ -30,7 +30,7 @@ def analyze(scan):
 
 
 def visualize(scan):
-    from .datavisualization import plot_elevation_rastermap, plot_elevation_stats
+    from .visualization import plot_elevation_rastermap, plot_elevation_stats
 
     logger.info("Visualizing elevation data...")
     plot_elevation_rastermap(

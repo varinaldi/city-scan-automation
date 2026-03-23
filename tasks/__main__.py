@@ -337,6 +337,16 @@ def main():
         simple_aliases = {k for k, v in ALIASES.items() if isinstance(v, str)}
         task_names = [name for name in TASK_REGISTRY
                       if _menu_enabled(scan.menu, name) and name not in simple_aliases]
+    # Auto-discover tasks with multianalysis files when --multianalysis and no tasks specified
+    if step == "multianalysis" and not task_names:
+        from pathlib import Path
+        tasks_dir = Path(__file__).parent
+        for task_dir in sorted(tasks_dir.iterdir()):
+            if not task_dir.is_dir():
+                continue
+            if any((task_dir / f"multianalysis{ext}").exists() for ext in [".R", ".py"]):
+                task_names.append(task_dir.name)
+
     if not task_names:
         print("  No tasks to run.")
         return

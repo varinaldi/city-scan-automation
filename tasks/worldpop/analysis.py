@@ -228,7 +228,7 @@ def clean_pug(city_name: str, output_dir: str, return_df: bool = False):
     """
     tabular_dir = os.path.join(output_dir, "tabular")
     pg_path = os.path.join(tabular_dir, f"{city_name}_pg.csv")
-    uba_path = os.path.join(tabular_dir, f"{city_name}_uba.csv")
+    uba_path = os.path.join(tabular_dir, f"{city_name}_wsf_harmonized.csv")
     output_path = os.path.join(tabular_dir, f"{city_name}_pug.csv")
 
     if not os.path.exists(pg_path):
@@ -239,7 +239,7 @@ def clean_pug(city_name: str, output_dir: str, return_df: bool = False):
         return None
 
     pg_df = pd.read_csv(pg_path)
-    uba_df = pd.read_csv(uba_path)
+    uba_df = pd.read_csv(uba_path).rename(columns={"year": "yearName", "cumulative_sq_km": "uba"})
 
     pug_df = pd.merge(pg_df, uba_df, on='yearName', how='inner')
     logger.info(f"Merged datasets: {len(pug_df)} overlapping years")

@@ -8,6 +8,7 @@
 #   shoreline_baseline — raw transect points (define their own coastline)
 #
 # Requires: setup.R already sourced (aoi, city_string, country, spatial_dir, tabular_dir)
+USE_GCS <<- TRUE
 if (!exists("aoi")) source(here::here("core/R/setup.R"))
 
 # Download from GCS private bucket

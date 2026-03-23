@@ -45,10 +45,12 @@ def set_log_dir(log_dir):
     os.makedirs(log_dir, exist_ok=True)
 
     file_format = "%(asctime)s | %(levelname)s | %(name)s | %(filename)s:%(lineno)d | %(message)s"
-    _file_handler = logging.FileHandler(
-        os.path.join(log_dir, "app.log"),
-        mode='w'  # overwrite — each run starts fresh
-    )
+    log_path = os.path.join(log_dir, "app.log")
+    _file_handler = logging.FileHandler(log_path, mode='a')
+    # Write run separator
+    with open(log_path, 'a') as f:
+        from datetime import datetime
+        f.write(f"\n{'='*60}\n  NEW RUN — {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n{'='*60}\n")
     _file_handler.setFormatter(logging.Formatter(file_format))
 
     # Attach to all existing loggers that have a console handler (i.e. ours)

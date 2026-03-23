@@ -17,13 +17,26 @@ if (exists("USE_GCS") && USE_GCS) {
   message("\n=== GCS OVERRIDES DEBUG ===")
   message("Building file lookups for scan_id: ", scan_id)
 
-  # Scan-specific files from GCS
-  gcs_all_files <- gcs_list_objects(GCS_BUCKET, prefix = paste0(scan_id, "/"))
-  gcs_file_lookup <- gcs_all_files$name  # Vector of all file paths
+  # Scan-specific files from GCS (may not exist if running locally)
+  gcs_file_lookup <- tryCatch({
+    gcs_all_files <- gcs_list_objects(GCS_BUCKET, prefix = paste0(scan_id, "/"))
+    if (is.null(gcs_all_files) || nrow(gcs_all_files) == 0) character(0)
+    else gcs_all_files$name
+  }, error = function(e) { message("No scan files on GCS (local mode)"); character(0) })
 
-  # Global data files from GCS
-  gcs_global_files <- gcs_list_objects(GLOBAL_DATA_BUCKET)
-  gcs_global_file_lookup <- gcs_global_files$name
+  # Global private data files from GCS
+  gcs_global_file_lookup <- tryCatch({
+    gcs_global_files <- gcs_list_objects(GLOBAL_DATA_BUCKET)
+    if (is.null(gcs_global_files) || nrow(gcs_global_files) == 0) character(0)
+    else gcs_global_files$name
+  }, error = function(e) { message("Could not list global data bucket"); character(0) })
+
+  # Global public data files from GCS
+  gcs_public_file_lookup <- tryCatch({
+    gcs_public_files <- gcs_list_objects("city-scan-global-public")
+    if (is.null(gcs_public_files) || nrow(gcs_public_files) == 0) character(0)
+    else gcs_public_files$name
+  }, error = function(e) { message("Could not list public bucket"); character(0) })
 
   # Local files
   local_file_lookup <- if (exists("city_dir") && city_dir != ".") {
@@ -33,7 +46,8 @@ if (exists("USE_GCS") && USE_GCS) {
   }
 
   message("Available: ", length(gcs_file_lookup), " scan files, ",
-          length(gcs_global_file_lookup), " global files, ",
+          length(gcs_global_file_lookup), " global private files, ",
+          length(gcs_public_file_lookup), " global public files, ",
           length(local_file_lookup), " local files")
 
   # Show first few scan files for debugging
@@ -140,9 +154,14 @@ list.files <- function(path = ".", pattern = NULL, all.files = FALSE, full.names
           if (gcs_path %in% gcs_file_lookup) return(TRUE)
         }
 
-        # Check global GCS
+        # Check global private GCS
         if (exists("gcs_global_file_lookup")) {
           if (filepath %in% gcs_global_file_lookup) return(TRUE)
+        }
+
+        # Check global public GCS
+        if (exists("gcs_public_file_lookup")) {
+          if (filepath %in% gcs_public_file_lookup) return(TRUE)
         }
       }
 
@@ -188,10 +207,17 @@ read_csv <- function(file, ...) {
       }
     }
 
-    # Check if in global GCS
+    # Check if in global private GCS
     if (exists("gcs_global_file_lookup") && rel_path %in% gcs_global_file_lookup) {
       tmp <- tempfile(fileext = ".csv")
       suppressMessages(gcs_get_object(rel_path, bucket = GLOBAL_DATA_BUCKET, saveToDisk = tmp))
+      return(read_csv_orig(tmp, ...))
+    }
+
+    # Check if in global public GCS
+    if (exists("gcs_public_file_lookup") && rel_path %in% gcs_public_file_lookup) {
+      tmp <- tempfile(fileext = ".csv")
+      suppressMessages(gcs_get_object(rel_path, bucket = "city-scan-global-public", saveToDisk = tmp))
       return(read_csv_orig(tmp, ...))
     }
   }

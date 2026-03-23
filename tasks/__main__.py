@@ -23,18 +23,26 @@ import importlib
 
 
 class ErrorTracker:
-    """Counts ERROR+ log calls across ALL loggers (including lazily-created ones)."""
+    """Counts ERROR+ log calls for the current thread only."""
     def __init__(self):
         self.count = 0
+        self.messages = []
         self._original = None
+        self._thread_id = None
 
     def __enter__(self):
+        import threading
+        self._thread_id = threading.current_thread().ident
         self._original = logging.Logger._log
         tracker = self
         original = self._original
         def _counting_log(logger_self, level, msg, args, **kwargs):
-            if level >= logging.ERROR:
+            if level >= logging.ERROR and threading.current_thread().ident == tracker._thread_id:
                 tracker.count += 1
+                try:
+                    tracker.messages.append(str(msg) % args if args else str(msg))
+                except Exception:
+                    tracker.messages.append(str(msg))
             original(logger_self, level, msg, args, **kwargs)
         logging.Logger._log = _counting_log
         return self
@@ -56,7 +64,7 @@ logger = setup_logger("tasks")
 GEE_TASKS = {"forest", "landcover", "lst", "green", "ndmi", "nightlight"}
 
 # Tasks that require private GCS authentication
-GCS_TASKS = {"wsf", "fathom", "landcover_burn", "basic_info"}
+GCS_TASKS = {"wsf", "fathom", "landcover_burn", "basic_info", "oxford", "coastal_erosion", "sea_level_rise", "elevation"}
 
 # CLI aliases: when CLI/menu name != folder name or functions have non-standard names
 ALIASES = {
@@ -176,6 +184,9 @@ def run_task(task_name, scan, step=None):
             with ErrorTracker() as tracker:
                 getattr(module, fn_name)(scan)
             results[step] = "ERROR" if tracker.count > 0 else "OK"
+            if tracker.messages:
+                for msg in tracker.messages:
+                    logger.error(f"  [{task_name}:{step}] {msg}")
             print()
     else:
         # Full run: collect → analyze (visualize only runs with --visualize flag)
@@ -188,6 +199,9 @@ def run_task(task_name, scan, step=None):
             with ErrorTracker() as tracker:
                 getattr(module, fn_name)(scan)
             results[phase] = "ERROR" if tracker.count > 0 else "OK"
+            if tracker.messages:
+                for msg in tracker.messages:
+                    logger.error(f"  [{task_name}:{phase}] {msg}")
             print()
 
     # Per-task summary
@@ -286,7 +300,12 @@ def main():
             print(f"  City folder not found: {scan_id}")
             return
 
-    scan = Scan(scan_id=scan_id)
+    # Determine if running specific tasks (for selective sync)
+    run_all = "--all" in args
+    _specific_tasks = [a for a in args if not a.startswith("--") and a != scan_id]
+    sync_tasks = None if run_all or not scan_id else (_specific_tasks or None)
+
+    scan = Scan(scan_id=scan_id, sync_tasks=sync_tasks)
 
     # Set up file logging in city folder
     city_dir = os.path.dirname(str(scan.input_dir))
@@ -301,10 +320,42 @@ def main():
     run_all = "--all" in args
     task_names = [a for a in args if not a.startswith("--") and a != scan_id]
     if run_all:
-        task_names = [name for name in TASK_REGISTRY if _menu_enabled(scan.menu, name)]
+        # Exclude simple aliases (e.g. population→worldpop) but keep function aliases (green, ndmi)
+        simple_aliases = {k for k, v in ALIASES.items() if isinstance(v, str)}
+        task_names = [name for name in TASK_REGISTRY
+                      if _menu_enabled(scan.menu, name) and name not in simple_aliases]
     if not task_names:
         print("  No tasks to run.")
         return
+
+    # Sort tasks so dependencies run first
+    TASK_DEPENDENCIES = {
+        "fathom": {"wsf"},
+        "slope": {"elevation"},
+        "worldpop": {"wsf"},
+        "landcover_burn": {"landcover"},
+    }
+
+    def _topo_sort(names, deps):
+        """Sort tasks so dependencies come before dependents."""
+        name_set = set(names)
+        sorted_list = []
+        visited = set()
+
+        def visit(n):
+            if n in visited:
+                return
+            visited.add(n)
+            for dep in deps.get(n, set()):
+                if dep in name_set:
+                    visit(dep)
+            sorted_list.append(n)
+
+        for n in names:
+            visit(n)
+        return sorted_list
+
+    task_names = _topo_sort(task_names, TASK_DEPENDENCIES)
 
     # Config summary
     print(f"\n  City:      {scan.city_inputs.get('city_name', scan.city_name)}")

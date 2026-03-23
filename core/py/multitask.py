@@ -21,6 +21,15 @@ RESOURCE_LIMITS = {
     "default": 3,
 }
 
+# Task dependencies — imported from __main__ at runtime to avoid duplication
+# Fallback defined here in case of direct import
+TASK_DEPENDENCIES = {
+    "fathom": {"wsf"},
+    "slope": {"elevation"},
+    "worldpop": {"ghs_builtup"},
+    "landcover_burn": {"landcover"},
+}
+
 TASK_RESOURCES = {
     "forest": "gee",
     "landcover": "gee",
@@ -91,13 +100,23 @@ class TaskLogHandler(logging.Handler):
             state.last_log = msg[:55]
             if record.levelno >= logging.ERROR:
                 state.error_count += 1
-            msg_lower = msg.lower()
-            if "collect" in msg_lower:
+            # Detect phase from logger name or __init__.py log messages
+            rname = record.name or ""
+            if ".collection" in rname:
                 state.phase = "collect"
-            elif "analyz" in msg_lower:
+            elif ".analysis" in rname or ".analyze" in rname:
                 state.phase = "analyze"
-            elif "visualiz" in msg_lower:
+            elif ".visualization" in rname:
                 state.phase = "visualize"
+            elif f"tasks.{task_name}" == rname:
+                # Messages from __init__.py — detect from message text
+                ml = msg.lower()
+                if "collect" in ml:
+                    state.phase = "collect"
+                elif "analyz" in ml:
+                    state.phase = "analyze"
+                elif "visualiz" in ml:
+                    state.phase = "visualize"
             return
 
         # Fallback: match on logger name (e.g. "tasks.fwi.collection")
@@ -254,6 +273,9 @@ def run_parallel(task_names, scan, step=None, run_task_fn=None, skip_tasks=None)
 
     _subprocess.run = _capturing_subprocess_run
 
+    # Events for dependency tracking — each task gets an event that's set when it finishes
+    task_done_events = {name: threading.Event() for name in task_names}
+
     def worker(name):
         # Tag thread so subprocess wrapper knows which task owns it
         threading.current_thread()._task_name = name
@@ -262,7 +284,15 @@ def run_parallel(task_names, scan, step=None, run_task_fn=None, skip_tasks=None)
 
         state = task_states[name]
         if state.status == TaskState.SKIPPED:
+            task_done_events[name].set()
             return name, {"skipped": True}
+
+        # Wait for dependencies to finish
+        deps = TASK_DEPENDENCIES.get(name, set())
+        for dep in deps:
+            if dep in task_done_events:
+                state.phase = f"waiting for {dep}"
+                task_done_events[dep].wait()
 
         resource = state.resource_type
         sem = semaphores.get(resource, semaphores["default"])
@@ -284,18 +314,14 @@ def run_parallel(task_names, scan, step=None, run_task_fn=None, skip_tasks=None)
             return name, {"error": str(e)}
         finally:
             sem.release()
+            task_done_events[name].set()
 
-    # Start workers
+    # Start all workers — dependencies are handled inside worker via events
     runnable = [n for n in task_names if n not in skip_tasks]
     pool = ThreadPoolExecutor(max_workers=sum(RESOURCE_LIMITS.values()))
     futures = {pool.submit(worker, name): name for name in runnable}
 
-    result_thread = threading.Thread(target=lambda: [
-        all_results.update({future.result()[0]: future.result()[1]})
-        for future in futures if not future.exception()
-    ], daemon=True)
-
-    # Collect results properly
+    # Collect results in background
     def collect_results():
         for future in futures:
             try:

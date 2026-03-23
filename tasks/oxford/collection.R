@@ -6,21 +6,15 @@
 # Requires: setup.R already sourced (city, country, tabular_dir)
 #           benchmark-helper.R already sourced (bm_cities, in_oxford)
 
+USE_GCS <<- TRUE
 if (!exists("aoi")) source(here::here("core/R/setup.R"))
 source(here::here("core/R/benchmark-helper.R"))
 
 message("\n=== Oxford datacollection ===")
 
-# Download from GCS private bucket
-gcs_bucket <- "city-scan-global-data"
-oxford_file <- tempfile(fileext = ".csv")
-oxford_areas_file <- tempfile(fileext = ".csv")
-googleCloudStorageR::gcs_get_object("oxford-economics/Oxford Global Cities Data.csv", bucket = gcs_bucket, saveToDisk = oxford_file)
-googleCloudStorageR::gcs_get_object("oxford-economics/oxford-economics-areas.csv", bucket = gcs_bucket, saveToDisk = oxford_areas_file)
-
-# Load oxford_full ----------------------------------------------------------------------------
+# Load oxford_full — read_csv override reads from GCS global bucket
 oxford_full <- tryCatch({
-  read_csv(oxford_file,
+  read_csv("oxford-economics/Oxford Global Cities Data.csv",
     col_types = "cccccccccdddddddddddddddddddddddddddddddddddddddddcllldlcclcc") %>%
   mutate(Location = case_when(Location == "Lom\u00e9" ~ "Lomé",
                               Location == "Yaound\u00e9" ~ "Yaoundé",
@@ -77,7 +71,7 @@ get_oxford_pop <- function(cities) {
   # Get area data for Oxford cities
   if (nrow(oxford_subset) > 0) {
     oxford_areas <- tryCatch({
-      read_csv(oxford_areas_file, col_types = "ccd") %>%
+      read_csv("oxford-economics/oxford-economics-areas.csv", col_types = "ccd") %>%
         mutate(Location = str_to_title(Location)) %>%
         filter(Location %in% str_to_title(oxford_subset$Location)) %>%
         select(-Country)

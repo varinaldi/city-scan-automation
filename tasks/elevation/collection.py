@@ -21,12 +21,14 @@ def download_public_zip(url, output_path):
 
 def normalize_fabdem_tile_name(tile_name: str) -> str:
     """
-    Normalize FABDEM tile name by removing zero-padding in latitude/longitude.
+    Normalize FABDEM tile name to match filenames inside ZIP archives.
+    FABDEM uses 2-digit latitude, 3-digit longitude (e.g. N36E010).
 
     Examples
     --------
-    N015E120 -> N15E120
-    S003W098 -> S3W98
+    N036E010 -> N36E010
+    S003W098 -> S3W098
+    N15E120  -> N15E120
     """
     import re
 
@@ -35,7 +37,7 @@ def normalize_fabdem_tile_name(tile_name: str) -> str:
         return tile_name
 
     lat_hem, lat_deg, lon_hem, lon_deg = match.groups()
-    return f"{lat_hem}{int(lat_deg)}{lon_hem}{int(lon_deg)}"
+    return f"{lat_hem}{int(lat_deg)}{lon_hem}{int(lon_deg):03d}"
 
 
 

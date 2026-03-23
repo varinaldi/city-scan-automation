@@ -8,5 +8,6 @@ engine: knitr
 
 format:
   html:
+    output-file: scan-calculation.html
     theme: [default, ../source/pagedtable-fix.scss]
     self-contained: true

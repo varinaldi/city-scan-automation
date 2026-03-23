@@ -16,8 +16,9 @@ age_file <- list.files(tabular_dir, full.names = TRUE) %>% str_subset(".*_demogr
 has_age_data <- length(age_file) > 0
 
 if (has_age_data) {
-  pop_dist_group_wp <- read_csv(age_file[1], col_types = "ffd") %>%
-    rename(Age_Bracket = age_group, Sex = sex, Count = population) %>%
+  pop_dist_group_wp <- read_csv(age_file[1], show_col_types = FALSE) %>%
+    select(Age_Bracket = age_group, Sex = sex, Count = population) %>%
+    mutate(Age_Bracket = as.factor(Age_Bracket), Sex = as.factor(Sex)) %>%
     mutate(Sex = fct_recode(Sex, "Female" = "f", "Male" = "m")) %>%
     mutate(Age_Bracket = forcats::fct_collapse(Age_Bracket, "0-4" = c("0-1", "1-4"))) %>%
     group_by(Age_Bracket, Sex) %>% summarize(Count = sum(Count), .groups = "drop") %>%

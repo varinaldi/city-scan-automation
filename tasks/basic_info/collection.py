@@ -55,19 +55,20 @@ def datacollection(aoi, city_name, country_name, output_dir):
 
     koeppen = get_koeppen_classification(aoi)
 
-    # Check if city is in Oxford Economics
+    # Check if city is in Oxford Economics (download locations list from GCS)
     in_oxford = False
     try:
-        oxford_locations_path = os.path.join(
-            os.path.dirname(output_dir), "..", "..", "..", "03-multi-scan-materials", "oxford-locations.csv"
-        )
-        oxford_locations_path = os.path.normpath(oxford_locations_path)
-        if os.path.exists(oxford_locations_path):
-            oxford_df = pd.read_csv(oxford_locations_path)
-            in_oxford = city_name in oxford_df['Location'].values
-            logger.info(f"Oxford Economics: {city_name} {'found' if in_oxford else 'not found'}")
-        else:
-            logger.info(f"Oxford locations file not found at {oxford_locations_path}")
+        from google.cloud import storage
+        client = storage.Client()
+        bucket = client.bucket("city-scan-global-data")
+        blob = bucket.blob("oxford-economics/oxford-locations.csv")
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as tmp:
+            blob.download_to_filename(tmp.name)
+            oxford_df = pd.read_csv(tmp.name)
+        in_oxford = city_name in oxford_df['Location'].values
+        logger.info(f"Oxford Economics: {city_name} {'found' if in_oxford else 'not found'}")
+        os.unlink(tmp.name)
     except Exception as e:
         logger.info(f"Could not check Oxford Economics: {e}")
 

@@ -26,7 +26,7 @@ RESOURCE_LIMITS = {
 TASK_DEPENDENCIES = {
     "fathom": {"wsf"},
     "slope": {"elevation"},
-    "worldpop": {"ghs_builtup"},
+    "worldpop": {"wsf", "oxford"},
     "landcover_burn": {"landcover"},
 }
 
@@ -234,12 +234,22 @@ def run_parallel(task_names, scan, step=None, run_task_fn=None, skip_tasks=None)
     old_getLogger = logging.getLogger
     def patched_getLogger(name=None):
         lg = old_getLogger(name)
-        if name and lg.handlers:
+        if name:
             for h in list(lg.handlers):
                 lg.removeHandler(h)
             lg.propagate = True
         return lg
     logging.getLogger = patched_getLogger
+
+    # Patch setup_logger so newly-imported modules propagate to our handler
+    _original_setup_logger = _log_mod.setup_logger
+    def _patched_setup_logger(name=None):
+        lg = _original_setup_logger(name)
+        for h in list(lg.handlers):
+            lg.removeHandler(h)
+        lg.propagate = True
+        return lg
+    _log_mod.setup_logger = _patched_setup_logger
 
     all_results = {}
 
@@ -499,8 +509,10 @@ def run_parallel(task_names, scan, step=None, run_task_fn=None, skip_tasks=None)
     pool.shutdown(wait=True)
     result_thread.join(timeout=10)
 
-    # Restore subprocess.run and log handlers
+    # Restore subprocess.run, setup_logger, and log handlers
     _subprocess.run = _original_subprocess_run
+    _log_mod.setup_logger = _original_setup_logger
+    logging.getLogger = old_getLogger
     root_logger.removeHandler(capture)
     for h in saved_handlers:
         root_logger.addHandler(h)

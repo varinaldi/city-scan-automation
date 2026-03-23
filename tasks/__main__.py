@@ -335,7 +335,7 @@ def main():
     TASK_DEPENDENCIES = {
         "fathom": {"wsf"},
         "slope": {"elevation"},
-        "worldpop": {"wsf"},
+        "worldpop": {"wsf", "oxford"},
         "landcover_burn": {"landcover"},
     }
 

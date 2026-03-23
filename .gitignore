@@ -186,6 +186,7 @@ multi-scan-materials/.DS_Store
 *.gpkg
 *.zip
 *.csv
+!source/*.csv
 *.png
 output/*_road_network/*
 data/flood/*

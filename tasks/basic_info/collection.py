@@ -66,7 +66,7 @@ def datacollection(aoi, city_name, country_name, output_dir):
         with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as tmp:
             blob.download_to_filename(tmp.name)
             oxford_df = pd.read_csv(tmp.name)
-        in_oxford = city_name in oxford_df['Location'].values
+        in_oxford = city_name.lower() in oxford_df['Location'].str.lower().values
         logger.info(f"Oxford Economics: {city_name} {'found' if in_oxford else 'not found'}")
         os.unlink(tmp.name)
     except Exception as e:

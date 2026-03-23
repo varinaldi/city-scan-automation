@@ -92,12 +92,19 @@ class TaskLogHandler(logging.Handler):
     def emit(self, record):
         msg = self.format(record)
 
+        # Split multi-line messages into separate log entries
+        lines = [line for line in msg.split('\n') if line.strip()]
+        if not lines:
+            lines = [msg]
+
         # Route by thread name (set by worker) — most reliable
         task_name = getattr(threading.current_thread(), '_task_name', None)
         if task_name and task_name in self.task_states:
             state = self.task_states[task_name]
-            state.logs.append(msg)
-            state.last_log = msg[:55]
+            for line in lines:
+                state.logs.append(line)
+            if lines:
+                state.last_log = lines[-1][:55]
             if record.levelno >= logging.ERROR:
                 state.error_count += 1
             # Detect phase from logger name or __init__.py log messages
@@ -122,8 +129,10 @@ class TaskLogHandler(logging.Handler):
         # Fallback: match on logger name (e.g. "tasks.fwi.collection")
         for name, state in self.task_states.items():
             if f"tasks.{name}" in record.name:
-                state.logs.append(msg)
-                state.last_log = msg[:55]
+                for line in lines:
+                    state.logs.append(line)
+                if lines:
+                    state.last_log = lines[-1][:55]
                 if record.levelno >= logging.ERROR:
                     state.error_count += 1
                 return

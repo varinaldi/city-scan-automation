@@ -144,6 +144,9 @@ def run_task(task_name, scan, step=None):
     module_path, collect_fn, analyze_fn, visualize_fn, run_fn = TASK_REGISTRY[task_name]
     results = {}
 
+    # Task header — visible in both sequential and parallel log views
+    logger.info(f"\n{'='*50}\n  {task_name.upper()}\n{'='*50}")
+
     try:
         module = importlib.import_module(module_path)
     except Exception as e:
@@ -413,7 +416,6 @@ def main():
 
             files_before = get_all_files(scan.output_dir) | get_all_files(scan.render_dir) if upload_enabled else None
 
-            logger.info(f"\n{'='*50}\n  {name.upper()}\n{'='*50}")
             results = run_task(name, scan, step=step)
             all_results[name] = results
 

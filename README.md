@@ -11,47 +11,7 @@ This repository provides automation tools for city scanning and analysis. The ne
 
 See [docs/getting-started.md](docs/getting-started.md) for setup, configuration, and usage instructions.
 
-```
-  city-scan-automation/                      mnt/2026-03-tunisia-tunis/                03-render-output/
- - - - - - - - - - - - -                    - - - - - - - - - - - - - -             - - - - - - - - - - - -
-  inputs/             ──────── copy ──────▶   01-user-input/
-    city_inputs.yml                             city_inputs.yml
-    menu.yml                                    menu.yml
-    AOI/                                        AOI/
-
-  tasks/             `python -m tasks --all`  02-process-output/
-    elevation/        ───── --collect ────▶     spatial/            ──▶ `Rscript 
-    fathom/           ───── --analyze ────▶     tabular/                  core/R/maps-static.R` ──▶ maps/*.png
-    worldpop/
-    ...               ── --multianalysis ─▶     tabular/
-      charts/
-        index.qmd ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  ─ ─ ─ ─ ─  ┐
-                                                                            ▼
-        └──────────────────── copy ───────▶  tasks/                      includes      ──▶ plots/*.png
-  core/                                      core/                          :
-  source/                                    source/                        :
-  scan-calculations/                         scan-calculations/    ──▶ `quarto render` ──▶ scan-calculations.html
-  .here (R Path Resolution)
-                                          
-```
-
-### Workflow
-
-While this repository provides a modular structure, the general workflow is as follow:
-1. **Configure** — set up AOI boundary and city parameters in `inputs/`
-2. **Collect** — download and clip global datasets to the AOI
-3. **Analyze** — compute statistics, generate CSVs and processed data
-4. **Map** — generate static maps from spatial data using `layers.yml` styling
-5. **Chart** — render / sandbox per-topic Quarto charts
-6. **Compile** — assemble charts into a single scan-calculations referece sheet
-
-Steps 2–3 are handled per task via `python -m tasks`. Steps 4–6 are handled by `Rscripts` and the `quarto render`, and must be run from the city root (e.g. `mnt/2026-03-tunisia-tunis/`).
-
-
-
-
-### Structure
-
+## Structure
 The main components to run a city scan are
 
 - **`inputs/`** — User config for new scans (city_inputs.yml, menu.yml, AOI/)
@@ -82,7 +42,43 @@ See [docs/structure.md](docs/structure.md) for detailed breakdown of each folder
 
 
 
-### Path Resolution
+## Workflow
+```
+  city-scan-automation/                      mnt/2026-03-tunisia-tunis/                03-render-output/
+ - - - - - - - - - - - -                    - - - - - - - - - - - - - -             - - - - - - - - - - - -
+  inputs/             ──────── copy ──────▶   01-user-input/
+    city_inputs.yml                             city_inputs.yml
+    menu.yml                                    menu.yml
+    AOI/                                        AOI/
+
+  tasks/             `python -m tasks --all`  02-process-output/
+    elevation/        ───── --collect ────▶     spatial/            ──▶ `Rscript 
+    fathom/           ───── --analyze ────▶     tabular/                  core/R/maps-static.R` ──▶ maps/*.png
+    worldpop/
+    ...               ── --multianalysis ─▶     tabular/
+      charts/
+        index.qmd ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  ─ ─ ─ ─ ─  ┐
+                                                                            ▼
+        └──────────────────── copy ───────▶  tasks/                      includes      ──▶ plots/*.png
+  core/                                      core/                          :
+  source/                                    source/                        :
+  scan-calculations/                         scan-calculations/    ──▶ `quarto render` ──▶ scan-calculations.html
+  .here (R Path Resolution)
+                                          
+```
+
+While this repository provides a modular structure, the general workflow is as follow:
+1. **Configure** — set up AOI boundary and city parameters in `inputs/`
+2. **Collect** — download and clip global datasets to the AOI
+3. **Analyze** — compute statistics, generate CSVs and processed data
+4. **Map** — generate static maps from spatial data using `layers.yml` styling
+5. **Chart** — render / sandbox per-topic Quarto charts
+6. **Compile** — assemble charts into a single scan-calculations referece sheet
+
+Steps 2–3 are handled per task via `python -m tasks`. Steps 4–6 are handled by `Rscripts` and the `quarto render`, and must be run from the city root (e.g. `mnt/2026-03-tunisia-tunis/`).
+
+
+## Path Resolution
 
 The CLI and scripts can run from two locations:
 

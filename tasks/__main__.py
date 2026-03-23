@@ -306,7 +306,17 @@ def main():
     # Determine if running specific tasks (for selective sync)
     run_all = "--all" in args
     _specific_tasks = [a for a in args if not a.startswith("--") and a != scan_id]
-    sync_tasks = None if run_all or not scan_id else (_specific_tasks or None)
+    # Resolve aliases to actual folder names for sync (e.g. population → worldpop)
+    _resolved = []
+    for t in _specific_tasks:
+        alias = ALIASES.get(t)
+        if isinstance(alias, str):
+            _resolved.append(alias)
+        elif isinstance(alias, tuple):
+            _resolved.append(alias[0])
+        else:
+            _resolved.append(t)
+    sync_tasks = None if run_all or not scan_id else (_resolved or None)
 
     scan = Scan(scan_id=scan_id, sync_tasks=sync_tasks)
 

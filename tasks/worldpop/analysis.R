@@ -2,6 +2,7 @@
 # Sources benchmark-helper.R, oxford/datacollection.R, pop-backup.R
 # Saves: {city}_pop_benchmark.csv, {city}_density_benchmark.csv
 #
+USE_GCS <<- TRUE
 if (!exists("aoi")) source(here::here("core/R/setup.R"))
 if (!exists("in_oxford")) source(here::here("core/R/benchmark-helper.R"))
 if (!exists("get_oxford_pop")) source(here::here("tasks/oxford/collection.R"))

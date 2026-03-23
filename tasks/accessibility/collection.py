@@ -179,19 +179,27 @@ def POI_collection(
         logger.info(f"Collecting: {name}")
 
         try:
-            import signal
+            import threading
 
-            def _timeout_handler(signum, frame):
+            result_container = [None]
+            error_container = [None]
+
+            def _query():
+                try:
+                    result_container[0] = ox.features_from_polygon(buffered_geom, tags)
+                except Exception as e:
+                    error_container[0] = e
+
+            query_thread = threading.Thread(target=_query, daemon=True)
+            query_thread.start()
+            query_thread.join(timeout=120)
+
+            if query_thread.is_alive():
                 raise TimeoutError(f"OSM query for {name} timed out after 120s")
+            if error_container[0] is not None:
+                raise error_container[0]
 
-            old_handler = signal.signal(signal.SIGALRM, _timeout_handler)
-            signal.alarm(120)  # 2 min timeout
-
-            try:
-                gdf = ox.features_from_polygon(buffered_geom, tags)
-            finally:
-                signal.alarm(0)  # cancel alarm
-                signal.signal(signal.SIGALRM, old_handler)
+            gdf = result_container[0]
 
             if gdf.empty:
                 logger.info(f"⚠️  No features found for {name}")

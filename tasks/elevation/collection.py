@@ -326,8 +326,9 @@ def gee_elevation(aoi, city_name, output_dir, return_raster=False, create_raster
     spatial_dir = os.path.join(output_dir, "spatial")
     os.makedirs(spatial_dir, exist_ok=True)
 
-    # Clipped elevation
+    # Clipped elevation — mask to AOI boundary (not just bbox)
     elev_rio = fns.xee_to_rio(ds['elevation'])
+    elev_rio = elev_rio.rio.clip(aoi.to_crs(elev_rio.rio.crs).geometry, drop=True)
     tif_path = os.path.join(spatial_dir, f"{city_name}_elevation.tif")
     elev_rio.rio.to_raster(tif_path)
     logger.info(f"Elevation raster saved to: {tif_path}")

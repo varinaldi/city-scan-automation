@@ -127,27 +127,46 @@ if (!is.null(wsf_flood)) {
 calculate_flood_by_prob <- function(flood_tif, wsf_tif, output_file = NULL) {
   flood_r <- rast(flood_tif)
   wsf_r <- rast(wsf_tif)
+
+  # Map RP bands to output columns (nested: each includes all higher-severity pixels)
+  # Band 1 = max_probability, Band 2+ = r{rp} binary (0/1)
+  # r10 = flooded at 1-in-10yr → also flooded at 1-in-100 and 1-in-1000
+  # r100 = flooded at 1-in-100yr → also flooded at 1-in-1000
+  # r1000 = flooded at 1-in-1000yr
+  rp_col_map <- c(
+    "r10" = ">10%",
+    "r100" = "1-10%",
+    "r1000" = "0.1-1%"
+  )
+
+  return_period_map <- c(
+    `>10%` = "1-in-10 year",
+    `1-10%` = "1-in-100 year",
+    `0.1-1%` = "1-in-1,000 year"
+  )
+
+  # Check if multi-band TIF with RP bands
+  n_bands <- nlyr(flood_r)
+  if (n_bands < 2) stop("Flood TIF must be multi-band with RP layers (band 1=max_prob, band 2+=r{rp}). Re-collect fathom data.")
+
   flood_r <- crop(flood_r, aoi, mask = TRUE)
   wsf_r <- crop(wsf_r, aoi, mask = TRUE)
   utm_crs <- paste0("+proj=utm +zone=", floor((mean(ext(wsf_r)[1:2]) + 180) / 6) + 1, " +datum=WGS84")
   flood_r <- project(flood_r, utm_crs, method = "near")
   wsf_r <- project(wsf_r, flood_r, method = "near")
 
-  flood_vals <- values(flood_r)[, 1]
   wsf_vals <- values(wsf_r)[, 1]
   pixel_area_sqkm <- prod(res(flood_r)) / 1e6
 
-  bins <- list(
-    `0.1-1%` = list(min = 0.1, max = 1),
-    `1-10%` = list(min = 1, max = 10),
-    `>10%` = list(min = 10, max = Inf)
-  )
-
-  return_period_map <- c(
-    `0.1-1%` = "1-in-1,000 year",
-    `1-10%` = "1-in-100 year",
-    `>10%` = "1-in-10 year"
-  )
+  # Read each RP band by matching band name
+  band_names <- names(flood_r)
+  rp_vals <- list()
+  for (rp_name in names(rp_col_map)) {
+    idx <- which(band_names == rp_name)
+    if (length(idx) > 0) {
+      rp_vals[[rp_col_map[[rp_name]]]] <- values(flood_r)[, idx[1]]
+    }
+  }
 
   wsf_max <- max(wsf_vals, na.rm = TRUE)
   years <- 1985:floor(wsf_max)
@@ -157,18 +176,21 @@ calculate_flood_by_prob <- function(flood_tif, wsf_tif, output_file = NULL) {
     built_mask <- wsf_vals <= yr & !is.na(wsf_vals)
     row_data <- list(year = yr - 1984, yearName = yr)
 
-    for (bin_name in names(bins)) {
-      bin <- bins[[bin_name]]
-      if (is.infinite(bin$max)) {
-        exposed_mask <- built_mask & flood_vals >= bin$min & !is.na(flood_vals)
-      } else {
-        exposed_mask <- built_mask & flood_vals >= bin$min & flood_vals < bin$max & !is.na(flood_vals)
-      }
-      row_data[[bin_name]] <- round(sum(exposed_mask, na.rm = TRUE) * pixel_area_sqkm, 2)
+    for (col_name in names(rp_vals)) {
+      band_v <- rp_vals[[col_name]]
+      exposed_mask <- built_mask & band_v > 0 & !is.na(band_v)
+      row_data[[col_name]] <- round(sum(exposed_mask, na.rm = TRUE) * pixel_area_sqkm, 2)
     }
 
-    total_exposed_mask <- built_mask & flood_vals >= 0.1 & !is.na(flood_vals)
-    row_data[["total"]] <- round(sum(total_exposed_mask, na.rm = TRUE) * pixel_area_sqkm, 2)
+    # Total = same as 1-in-1000 (widest net)
+    if (!is.null(rp_vals[["0.1-1%"]])) {
+      total_v <- rp_vals[["0.1-1%"]]
+      total_mask <- built_mask & total_v > 0 & !is.na(total_v)
+      row_data[["total"]] <- round(sum(total_mask, na.rm = TRUE) * pixel_area_sqkm, 2)
+    } else {
+      row_data[["total"]] <- 0
+    }
+
     results[[length(results) + 1]] <- row_data
   }
 

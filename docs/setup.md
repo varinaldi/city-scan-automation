@@ -100,9 +100,8 @@ If you prefer automated system setup or Python is not installed, use the bootstr
 ##### Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/rosemaryturtle/city-scan-automation.git
+git clone --single-branch --branch unified https://github.com/rosemaryturtle/city-scan-automation.git
 cd city-scan-automation
-git checkout new_structure
 ```
 
 ##### Step 2: Run Bootstrap Script

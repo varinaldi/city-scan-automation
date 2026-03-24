@@ -290,7 +290,7 @@ def elevation_stats(
     # ------------------------------------------------------------------
     with open(out_csv, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["Elevation_Band", "Pixel_Count"])
+        writer.writerow(["Bin", "Pixel_Count"])
 
         for i, count in enumerate(hist):
             band_label = f"{bin_edges[i]}-{bin_edges[i+1]}"
@@ -334,7 +334,7 @@ def elevation_interpretation(city_name: str, output_dir: str):
     df = pd.read_csv(csv_path)
 
     # Expected columns:
-    # - Elevation_Band (e.g. "0-25")
+    # - Bin (e.g. "0-25")
     # - Pixel_Count
 
     if df.empty:
@@ -356,7 +356,7 @@ def elevation_interpretation(city_name: str, output_dir: str):
     # ------------------------------------------------------------------
     interpretation_text = (
         f"The most common elevation range in the city is "
-        f"{highest_percent_row['Elevation_Band']} meters, "
+        f"{highest_percent_row['Bin']} meters, "
         f"covering approximately {highest_percent_row['percent']:.2f}% "
         f"of the total area."
     )

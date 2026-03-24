@@ -199,12 +199,12 @@ def plot_elevation_stats(city_name: str, output_dir: str, render_dir: str):
     # --------------------------------------------------
     elev = pd.read_csv(csv_path)
 
-    required_cols = {"Elevation_Band", "Pixel_Count"}
+    required_cols = {"Bin", "Pixel_Count"}
     if not required_cols.issubset(elev.columns):
         raise ValueError(f"CSV must contain columns: {required_cols}")
 
     elev = elev.copy()
-    elev["Elevation_Band"] = elev["Elevation_Band"].astype(str).str.strip()
+    elev["Bin"] = elev["Bin"].astype(str).str.strip()
     elev = elev[elev["Pixel_Count"] > 0]
 
     total = elev["Pixel_Count"].sum()
@@ -214,9 +214,9 @@ def plot_elevation_stats(city_name: str, output_dir: str, render_dir: str):
     elev["percent"] = elev["Pixel_Count"] / total * 100
 
     # Preserve bin order as-is (important!)
-    elev["Elevation_Band"] = pd.Categorical(
-        elev["Elevation_Band"],
-        categories=elev["Elevation_Band"].tolist(),
+    elev["Bin"] = pd.Categorical(
+        elev["Bin"],
+        categories=elev["Bin"].tolist(),
         ordered=True
     )
 
@@ -248,7 +248,7 @@ def plot_elevation_stats(city_name: str, output_dir: str, render_dir: str):
     squarify.plot(
         sizes=elev["percent"],
         label=[
-            f"{row.Elevation_Band}\n{row.percent:.1f}%"
+            f"{row.Bin}\n{row.percent:.1f}%"
             for row in elev.itertuples()
         ],
         color=colors,
@@ -269,7 +269,7 @@ def plot_elevation_stats(city_name: str, output_dir: str, render_dir: str):
     # --------------------------------------------------
     fig = px.treemap(
         elev,
-        path=["Elevation_Band"],
+        path=["Bin"],
         values="percent",
         color="percent",
         color_continuous_scale=base_palette,

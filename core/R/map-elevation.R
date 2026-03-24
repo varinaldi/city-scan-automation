@@ -1,7 +1,9 @@
 tryCatch_named("elevation", {
-  elevation_breaks <- fuzzy_read(tabular_dir, "elevation.csv", read_csv, col_types = "cd")$Bin %>%
+  elev_csv <- fuzzy_read(tabular_dir, "elevation.csv", read_csv, col_types = "cd")
+  elevation_breaks <- (elev_csv$Bin %||% elev_csv$Elevation_Band) %>%
     str_extract_all("\\d+") %>% unlist() %>% unique() %>% as.numeric()
   elevation_data <- fuzzy_read(spatial_dir, layer_params$elevation$fuzzy_string) %>%
+          crop(aoi, mask = TRUE) %>%
           # aggregate_if_too_fine(threshold = 1e6, fun = \(x) Mode(x, na.rm = T)) %>%
           vectorize_if_coarse(threshold = 1e6)
   plots$elevation <- plot_static_layer(

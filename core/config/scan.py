@@ -103,26 +103,44 @@ class Scan:
         def _ignore(dir, files):
             return [f for f in files if f in skip_patterns]
 
-        # Sync code folders from repo root to city folder (skip if running from city folder)
-        sync_folders = ["core", "source", "scan-calculations"]
         create_once = ["logs"]
 
         if PROJECT_ROOT.resolve() != city_root.resolve():
-            for folder in sync_folders:
-                src = PROJECT_ROOT / folder
-                dst = city_root / folder
-                if src.exists():
-                    shutil.copytree(src, dst, ignore=_ignore, dirs_exist_ok=True)
+            # Check if city folder already has synced code
+            has_existing = (city_root / "source").exists() or (city_root / "core").exists()
 
-            # Sync task folders — all tasks or only specific ones
+            if has_existing:
+                print("\n  City folder already has project files.")
+                print("  [c] Copy tasks only")
+                print("  [o] Override tasks + core + source (WARNING: overwrites city configs!)")
+                print("  [a] Abort")
+                choice = input("  Choose [c/o/a]: ").strip().lower()
+
+                if choice == 'a':
+                    logger.info("Aborted by user.")
+                    raise SystemExit("Aborted.")
+                elif choice == 'o':
+                    sync_all = True
+                else:
+                    sync_all = False
+            else:
+                # First run — copy everything
+                sync_all = True
+
+            if sync_all:
+                for folder in ["core", "source", "scan-calculations"]:
+                    src = PROJECT_ROOT / folder
+                    dst = city_root / folder
+                    if src.exists():
+                        shutil.copytree(src, dst, ignore=_ignore, dirs_exist_ok=True)
+
+            # Sync task folders — always copied
             if sync_tasks is None:
-                # First run or --all: copy entire tasks/
                 src = PROJECT_ROOT / "tasks"
                 dst = city_root / "tasks"
                 if src.exists():
                     shutil.copytree(src, dst, ignore=_ignore, dirs_exist_ok=True)
             else:
-                # Selective: copy only __main__.py + requested task folders
                 tasks_dst = city_root / "tasks"
                 tasks_dst.mkdir(exist_ok=True)
                 main_src = PROJECT_ROOT / "tasks" / "__main__.py"

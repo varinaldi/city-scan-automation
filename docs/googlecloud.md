@@ -16,10 +16,16 @@ The City Scan automation uses Google Cloud for:
 
 Download and install from https://cloud.google.com/sdk/docs/install
 
+Make sure to follow the installation until initialization with:
+
+```
+# gcloud auth login
+gcloud init
+```
+
 #### 2. Authenticate
 
-```bash
-gcloud auth login
+```
 gcloud auth application-default login
 ```
 

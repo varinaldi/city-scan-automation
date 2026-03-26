@@ -17,9 +17,8 @@ See [setup.md](setup.md) for detailed instruction.
 #### Step 2: Clone the Repository
 
 ```
-git clone https://github.com/varinaldi/city-scan-automation.git
+git clone -b unified https://github.com/varinaldi/city-scan-automation.git
 cd city-scan-automation
-git checkout unified
 ```
 
 

@@ -9,7 +9,11 @@ combine_infrastructure_points <- function() {
   police_points <- fuzzy_read(spatial_dir, "osm_police(?=.shp$|.gpkg$|$)") %>% mutate(Feature = "Police station") %>% tryCatch(error = \(e) {return(NULL)})
   rbind_if_non_null <- \(...) Reduce(rbind, unlist(list(...)))
   infrastructure_points <- rbind_if_non_null(health_points, school_points, fire_points, police_points)
-  if (!is.null(infrastructure_points)) writeVector(select(infrastructure_points, !contains("fid")), filename = file.path(spatial_dir, "infrastructure.gpkg"), overwrite = T)
+  if (!is.null(infrastructure_points)) {
+    infrastructure_points <- centroids(infrastructure_points)
+    infrastructure_points <- crop(infrastructure_points, aoi)
+    writeVector(select(infrastructure_points, !contains("fid")), filename = file.path(spatial_dir, "infrastructure.gpkg"), overwrite = T)
+  }
 }
 
 message("Combining infrastructure points...")
@@ -115,8 +119,9 @@ if (!file.exists(file.path(spatial_dir, "school-journeys.gpkg"))) {
 rename_school_points <- function() {
   school_points <- fuzzy_read(spatial_dir, "schools(?=.shp$|.gpkg$|$)", FUN = vect)
   if (inherits(school_points, "SpatVector")) {
+    school_points <- centroids(school_points)
+    school_points <- crop(school_points, aoi)
     school_points <- school_points %>%
-    # rename(School = amenity)
     mutate(Feature = "School") %>%
     select(!contains("fid"))
   writeVector(school_points, filename = file.path(spatial_dir, "school-points.gpkg"), overwrite = T)
@@ -157,8 +162,9 @@ if (!file.exists(file.path(spatial_dir, "health-journeys.gpkg"))) {
 rename_health_points <- function() {
   health_points <- fuzzy_read(spatial_dir, "health(?=.shp$|.gpkg$|$)", FUN = vect)
   if (inherits(health_points, "SpatVector")) {
+    health_points <- centroids(health_points)
+    health_points <- crop(health_points, aoi)
     health_points <- health_points %>%
-    # rename(`Health Facility` = amenity)
     mutate(Feature = "Health facility") %>%
     select(!contains("fid"))
   writeVector(health_points, filename = file.path(spatial_dir, "health-points.gpkg"), overwrite = T)

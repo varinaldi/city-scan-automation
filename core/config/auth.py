@@ -22,7 +22,11 @@ def init_gee():
         ee.Initialize(project=GEE_PROJECT)
     except Exception:
         logger.info("GEE credentials not found, authenticating via gcloud...")
-        ee.Authenticate(auth_mode="gcloud")
+        ee.Authenticate(auth_mode="gcloud",  scopes=[
+                "https://www.googleapis.com/auth/earthengine",
+                "https://www.googleapis.com/auth/cloud-platform",
+                "https://www.googleapis.com/auth/devstorage.full_control",
+            ],)
         ee.Initialize(project=GEE_PROJECT)
     logger.info(f"GEE initialized (project={GEE_PROJECT})")
 

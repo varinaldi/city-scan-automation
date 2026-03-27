@@ -187,41 +187,23 @@ def datacollection(
     logger.info(f"WorldPop Global 2 saved to: {g2_out} ({len(g2_years)} bands)")
 
     # ==================================================================
-    # Single year 2020 population raster
-    # Try GCS first, fallback: extract 2020 band from G2
+    # Single year population raster (current year, from Global 2)
     # ==================================================================
+    from datetime import datetime
+    current_year = datetime.now().year
+    # Clamp to G2 range (2015-2030)
+    pop_year = min(max(current_year, 2015), 2030)
+
     output_path = os.path.join(spatial_dir, f"{city_name}_population.tif")
+    logger.info(f"Extracting {pop_year} population from Global 2 (100m)...")
 
-    bucket_base = "https://storage.googleapis.com/city-scan-global-public/"
-    worldpop_blob = f"world_population/{country_iso3}_ppp_2020_constrained.tif"
-    worldpop_url = bucket_base + worldpop_blob
-    raster_path = f"/vsicurl/{worldpop_url}"
-    logger.info(f"Requesting WorldPop raster: {worldpop_url}")
-
-    try:
-        with rasterio.open(raster_path) as src:
-            clipped_image, clipped_transform = mask(src, shapes=aoi_shapes, crop=True, nodata=0)
-            clipped_meta = src.meta.copy()
-            clipped_meta.update({
-                "driver": "GTiff",
-                "height": clipped_image.shape[1],
-                "width": clipped_image.shape[2],
-                "transform": clipped_transform,
-                "nodata": 0
-            })
-        with rasterio.open(output_path, "w", **clipped_meta) as dst:
-            dst.write(clipped_image)
-        logger.info(f"Clipped WorldPop saved to: {output_path}")
-    except Exception:
-        # Fallback: extract 2020 band from Global 1
-        logger.info("GCS single-year failed, extracting 2020 from Global 1...")
-        band_idx = g1_years.index(2020)
-        clipped_image = g1_image[band_idx:band_idx+1, :, :]
-        clipped_meta = g1_meta.copy()
-        clipped_meta.update({"count": 1})
-        with rasterio.open(output_path, "w", **clipped_meta) as dst:
-            dst.write(clipped_image)
-        logger.info(f"WorldPop 2020 (from G1) saved to: {output_path}")
+    band_idx = g2_years.index(pop_year)
+    clipped_image = g2_image[band_idx:band_idx+1, :, :]
+    clipped_meta = g2_meta.copy()
+    clipped_meta.update({"count": 1})
+    with rasterio.open(output_path, "w", **clipped_meta) as dst:
+        dst.write(clipped_image)
+    logger.info(f"WorldPop {pop_year} (G2, 100m) saved to: {output_path}")
 
     logger.info("WorldPop complete.")
 

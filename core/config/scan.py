@@ -112,7 +112,7 @@ class Scan:
             if has_existing:
                 print("\n  City folder already has project files.")
                 print("  [c] Copy tasks only")
-                print("  [o] Override tasks + core + source (WARNING: overwrites city configs!)")
+                print("  [o] Override tasks + core + source (city inputs are not affected)")
                 print("  [a] Abort")
                 choice = input("  Choose [c/o/a]: ").strip().lower()
 

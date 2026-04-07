@@ -28,27 +28,26 @@ source(here("core/R/pre-mapping.R"), local = T)
 
 message("\n=== Generating City Scan Static Maps ===")
 
-static_map_bounds <- tryCatch({
-    lc <- fuzzy_read(spatial_dir, "_lc\\.tif$")
-    if (!inherits(lc, "SpatRaster")) stop("No LC raster")
-
-    urban_mask <- lc == 50
-    ratio <- sum(values(urban_mask) == 1, na.rm = TRUE) / sum(!is.na(values(lc)))
-    cat(sprintf("\nBuilt-up ratio: %.2f\n", ratio))
-
-    if (ratio < 0.10) {
-      message("Centering on built-up core\n")
-      urban_extent <- get_built_extent(urban_mask)
-      aspect_buffer(vect(urban_extent, crs = crs(lc)), aspect_ratio, buffer_percent = 0.15)
-    } else {
-      message("Using full AOI (built-up > 10%)\n")
-      aspect_buffer(aoi, aspect_ratio, buffer_percent = 0.05)
-    }
-
-  }, error = function(e) {
-    message("Using full AOI (fallback: ", e$message, ")\n")
-    aspect_buffer(aoi, aspect_ratio, buffer_percent = 0.05)
-  })
+# Autozoom: center on built-up core if <10% of AOI — disabled for now
+# static_map_bounds <- tryCatch({
+#     lc <- fuzzy_read(spatial_dir, "_lc\\.tif$")
+#     if (!inherits(lc, "SpatRaster")) stop("No LC raster")
+#     urban_mask <- lc == 50
+#     ratio <- sum(values(urban_mask) == 1, na.rm = TRUE) / sum(!is.na(values(lc)))
+#     cat(sprintf("\nBuilt-up ratio: %.2f\n", ratio))
+#     if (ratio < 0.10) {
+#       message("Centering on built-up core\n")
+#       urban_extent <- get_built_extent(urban_mask)
+#       aspect_buffer(vect(urban_extent, crs = crs(lc)), aspect_ratio, buffer_percent = 0.15)
+#     } else {
+#       message("Using full AOI (built-up > 10%)\n")
+#       aspect_buffer(aoi, aspect_ratio, buffer_percent = 0.05)
+#     }
+#   }, error = function(e) {
+#     message("Using full AOI (fallback: ", e$message, ")\n")
+#     aspect_buffer(aoi, aspect_ratio, buffer_percent = 0.05)
+#   })
+static_map_bounds <- aspect_buffer(aoi, aspect_ratio, buffer_percent = 0.05)
 
 zoom_adjustment <- 0
 
@@ -100,10 +99,14 @@ if (inherits(landmarks, "SpatVector")) {
 # Standard plots ---------------------------------------------------------------
 unlist(lapply(layer_params, \(x) x$fuzzy_string)) %>%
   discard_at(c("fluvial", "pluvial", "coastal", "combined_flooding", "burnt_area", "elevation",
-               "coastal_erosion_baseline", "transect_coastline")) %>%
+               "coastal_erosion_baseline", "transect_coastline", "seismic_hazard")) %>%
   map2(names(.), \(fuzzy_string, yaml_key) {
     tryCatch_named(yaml_key, {
       data <- fuzzy_read(spatial_dir, fuzzy_string)
+      if (!inherits(data, c("SpatRaster", "SpatVector"))) {
+        message(paste("No data for:", yaml_key))
+        return(NULL)
+      }
       # Changed from direct pipe to vectorize_if_coarse() — now selects
       # data_variable band first for multi-band rasters (e.g. air quality)
       dv <- layer_params[[yaml_key]]$data_variable
@@ -123,27 +126,46 @@ unlist(lapply(layer_params, \(x) x$fuzzy_string)) %>%
     })
   }) %>% unlist() -> plot_log
 
+# Built-up hatch overlays for hazard maps --------------------------------------
+for (layer_name in c("landslides", "liquefaction")) {
+  if (!is.null(plots[[layer_name]])) {
+    plots[[paste0(layer_name, "_builtup")]] <- add_builtup_hatch(plots[[layer_name]])
+  }
+}
+# Infrastructure has points — hatch goes underneath
+if (!is.null(plots[["infrastructure"]])) {
+  plots[["infrastructure_builtup"]] <- add_builtup_hatch(plots[["infrastructure"]], underlay = TRUE)
+}
+
 # Non-standard static plots ----------------------------------------------------
-# source(here("core/R/map-isochrones.R"), local = T) 
-source(here("core/R/map-schools-health-proximity.R"), local = T) # Could be standard if layers.yml included baseplot # nolint: line_length_linter.
-source(here("core/R/map-elevation.R"), local = T) # Could be standard if we wrote city-specific breakpoints to layers.yml
-source(here("core/R/map-deforestation.R"), local = T) # Could be standard if layers.yml included baseplot and source data had 2000 added
-source(here("core/R/map-flooding.R"), local = T)
-source(here("core/R/map-historical-burnt-area.R"), local = T)
-source(here("core/R/map-coastal-erosion.R"), local = T)
+message("\nCustom maps:")
+# message("  schools & health proximity"); source(here("core/R/map-isochrones.R"), local = T)
+message("  schools & health proximity"); source(here("core/R/map-schools-health-proximity.R"), local = T)
+message("  elevation"); source(here("core/R/map-elevation.R"), local = T)
+message("  deforestation"); source(here("core/R/map-deforestation.R"), local = T)
+message("  flooding"); source(here("core/R/map-flooding.R"), local = T)
+message("  historical burnt area"); source(here("core/R/map-historical-burnt-area.R"), local = T)
+message("  seismic hazard"); source(here("core/R/map-seismic-hazard.R"), local = T)
+message("  coastal erosion"); source(here("core/R/map-coastal-erosion.R"), local = T)
+message("  building footprints"); source(here("core/R/plot-building-footprints.R"), local = T)
 
 # source(here("core/R/map-ghs-expansion.R"), local = T)
 # source(here("core/R/map-economic-activity-freq.R"), local = T)
 # source(here("core/R/map-economic-activity-kde.R"), local = T)
 
+
 # Save plots -------------------------------------------------------------------
 # Switched to for loop because walk required too much memory; uncertain if helps
 # For Algeria, reduced time from 1,100 seconds to 1,000 seconds
+message(glue("\nSaving {length(plots)} maps to {styled_maps_dir}..."))
 for (name in names(plots)) {
-  tryCatch(
+  message(glue("  Saving: {name}.png"), appendLF = FALSE)
+  tryCatch({
     save_plot(plots[[name]], filename = glue("{name}.png"), directory = styled_maps_dir,
-      map_height = map_height + ifelse(include_captions, .2, 0), map_width = map_width, dpi = 200, rel_widths = map_portions),
-    error = function(e) message("Failed to save plot '", name, "': ", e$message)
+      map_height = map_height + ifelse(include_captions, .2, 0), map_width = map_width, dpi = 200, rel_widths = map_portions)
+    message(" ✔")
+  },
+    error = function(e) message(glue(" ✗ {e$message}"))
   )
 }
 

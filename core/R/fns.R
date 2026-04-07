@@ -156,7 +156,7 @@ create_layer_function <- function(data, yaml_key = NULL, params = NULL, color_sc
       }
       params$breaks <- break_pretty2(
                   data = vals, n = params$bins + 1, FUN = signif,
-                  method = params$breaks_method %>% {if(is.null(.)) "quantile" else .})
+                  method = params$binning_method %>% {if(is.null(.)) "quantile" else .})
     }
     if (!is.null(params$breaks)) {
       # sig_digits <- max(nchar(str_replace_all(as.character(abs(breaks)), c("^[0\\.]*|\\." = ""))))
@@ -336,7 +336,7 @@ plot_static_layer <- function(
       }
       params$breaks <- break_pretty2(
         data = vals, n = params$bins + 1, FUN = signif,
-        method = params$breaks_method %>% {if(is.null(.)) "quantile" else .})
+        method = params$binning_method %>% {if(is.null(.)) "quantile" else .})
     }
     geom <- create_geom(data, params)
     data_type <- type_data(data)
@@ -395,9 +395,9 @@ plot_static_layer <- function(
   if (plot_roads) p <- p +
     geom_spatvector(data = roads, aes(linewidth = road_type), color = "white") +
     scale_linewidth_manual(values = c("Secondary" = 0.25, "Primary" = 1), guide = "none")
-  if (plot_aoi) p <- p + geom_spatvector(data = aoi, color = aoi_stroke$color, fill = NA, linetype = "solid", linewidth = aoi_stroke$linewidth)
+  if (plot_aoi) p <- p + geom_spatvector(data = aoi, color = aoi_stroke$color, fill = NA, linetype = "solid", linewidth = 0.6)
   if (plot_wards) {
-    p <- p + geom_spatvector(data = wards, color = aoi_stroke$color, fill = NA, linetype = "solid", linewidth = .25) 
+    p <- p + geom_spatvector(data = wards, color = "grey40", fill = NA, linetype = "solid", linewidth = 0.25)
 
     if (exists("ward_labels") && exists("ward_label_column")) p <- p + 
       geom_text_repel(data =ward_labels, aes(label = ward_label_column, geometry = geometry),stat = "sf_coordinates", size = 2, fontface = "bold") 
@@ -405,6 +405,30 @@ plot_static_layer <- function(
   }
   p <- p + coord_3857_bounds(static_map_bounds)
   return(p)
+}
+
+# Helper: add built-up area 2025 hatch overlay to a plot
+# underlay = TRUE inserts hatch beneath data layers (for point/line maps)
+add_builtup_hatch <- function(p, underlay = FALSE) {
+  if (!exists("builtup_extent_2025") || is.null(builtup_extent_2025)) return(p)
+  builtup_clipped <- sf::st_intersection(sf::st_as_sf(builtup_extent_2025), sf::st_as_sf(aoi))
+  hatch_layer <- ggpattern::geom_sf_pattern(
+    data = builtup_clipped, color = NA, fill = NA,
+    aes(pattern = "2025 built-up area"),
+    pattern_spacing = 0.0125, pattern_fill = NA,
+    pattern_density = 0.5, pattern_size = 0.25)
+  if (underlay) {
+    # Insert hatch before data layers (after basemap/tile layers)
+    p$layers <- c(list(hatch_layer), p$layers)
+    p <- p +
+      ggpattern::scale_pattern_manual(values = "stripe", name = "") +
+      coord_3857_bounds(static_map_bounds)
+  } else {
+    p <- p + hatch_layer +
+      ggpattern::scale_pattern_manual(values = "stripe", name = "") +
+      coord_3857_bounds(static_map_bounds)
+  }
+  p
 }
 
 type_data <- function(data) {
@@ -459,6 +483,7 @@ fill_scale <- function(data_type, params) {
       colors = params$palette,
       limits = if (is.null(params$domain)) NULL else params$domain,
       rescaler = if (!is.null(params$center)) ~ scales::rescale_mid(.x, mid = params$center) else scales::rescale,
+      labels = scales::label_number(big.mark = ","),
       na.value = "transparent",
       name = format_title(params$title, params$subtitle))
   } else if (params$bins > 0) {
@@ -468,7 +493,7 @@ fill_scale <- function(data_type, params) {
       breaks = if (is.null(params$breaks)) waiver() else if (diff(lengths(list(params$labels, params$breaks))) == 1) params$breaks[-1] else params$breaks,
       # breaks_midpoints() is important for getting the legend colors to match the specified colors
       values = if (is.null(params$breaks)) NULL else breaks_midpoints(params$breaks, rescaler = if (!is.null(params$center)) scales::rescale_mid else scales::rescale, mid = params$center),
-      labels = if (is.null(params$labels)) waiver() else params$labels,
+      labels = if (is.null(params$labels)) scales::label_number(big.mark = ",") else params$labels,
       limits = if (is.null(params$breaks)) NULL else range(params$breaks),
       rescaler = if (!is.null(params$center)) scales::rescale_mid else scales::rescale,
       na.value = "transparent",
@@ -1100,7 +1125,7 @@ normalize <- function(x, na.rm = T) {
 }
 
 
-ggdonut <- function(data, category_column, quantities_column, colors, title) {
+ggdonut <- function(data, category_column, quantities_column, colors, title = NULL, show_legend = FALSE) {
   data <- as.data.frame(data) # tibble does weird things with data frame, not fixing now
   data <- data[!is.na(data[,quantities_column]),]
   data <- data[data[,quantities_column] > 0,]
@@ -1122,14 +1147,11 @@ ggdonut <- function(data, category_column, quantities_column, colors, title) {
       ymin = 0, ymax = 1),
       color = "white") +
     geom_text(y = 0.5, aes(x = label_position, label = label)) +
-    # theme_void() +
-    # scale_x_continuous(guide = "none", name = NULL) +
     scale_y_continuous(guide = "none", name = NULL) +
-    scale_fill_manual(values = colors) +
-    scale_x_continuous(breaks = breaks, name = NULL) +
+    scale_fill_manual(values = colors, guide = if (show_legend) "legend" else "none") +
+    scale_x_continuous(guide = "none", name = NULL) +
     coord_radial(expand = F, inner.radius = 0.3) +
-    guides(theta = guide_axis_theta(angle = 0)) +
-    labs(title = paste(city, title)) +
+    labs(title = title) +
     theme(axis.ticks = element_blank())
   return(donut_plot)
 }
@@ -1187,7 +1209,7 @@ density_rast <- \(points, n = 100, aoi = NULL) {
 
 tryCatch_named <- \(name, expr) {
   tryCatch(expr, error = \(e) {
-    message(paste("Failure:", name))
+    message(paste("Failure:", name, "-", e$message))
     warning(glue("Error on {name}: {e}"))
   })
 }
@@ -1228,6 +1250,30 @@ zoom_on_extent <- function(p, extent_vect, aspect_ratio, buffer_percent = 0.05, 
     change_zoom(get_zoom_level(bounds) + zoom_adj)
 }
 
+
+# Filled histogram — color bins match map, width bins match data
+# Based on Ben's prototype. Reusable for RWI, air quality, LST, etc.
+# x: numeric vector of values
+# breaks: break points for color bins (from layers.yml)
+# palette: color palette matching breaks (from layers.yml)
+# labels: optional labels for color bins
+# full_domain: if TRUE, x-axis spans full break range; if FALSE, spans data range
+# domain: override x-axis limits (e.g., c(-2, 2) for RWI, c(0, 100) for PM2.5)
+filled_histo <- function(x, breaks, palette, labels = NULL, full_domain = FALSE, domain = NULL) {
+  fill_bins <- sort(c(Inf, -Inf, breaks, head(breaks, -1) + diff(breaks)/2)) %>%
+    cut(breaks = breaks) %>% na.omit() %>% unique()
+  if (is.null(labels)) labels <- fill_bins
+  df <- tibble(x = x, fill_group = cut(x, breaks = breaks, labels = labels))
+  if (is.null(domain)) {
+    domain <- if (full_domain) c(min(breaks[is.finite(breaks)]), max(breaks[is.finite(breaks)])) else c(min(x, na.rm = TRUE), max(x, na.rm = TRUE))
+  }
+  df %>%
+    ggplot() +
+    geom_histogram(aes(x = x, fill = fill_group), show.legend = TRUE) +
+    scale_x_continuous(breaks = c(breaks[is.finite(breaks)], domain), limits = domain) +
+    scale_fill_manual(values = setNames(palette, labels), na.translate = TRUE, drop = FALSE, na.value = "transparent") +
+    theme_minimal()
+}
 
 get_built_extent <- function(urban_mask) {
     # Apply opening morphological operation to remove thin lines (roads)

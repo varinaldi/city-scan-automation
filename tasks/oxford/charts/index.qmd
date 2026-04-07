@@ -9,13 +9,13 @@ execute:
 ## Oxford Economics
 
 ```{r setup, message=FALSE, warning=FALSE, results='hide'}
+if (file.exists("_quarto.yml")) here::i_am("tasks/oxford/charts/index.qmd")
 if (!exists("aoi")) source(here::here("core/R/setup.R"))
 
 # Load benchmark-helper for in_oxford flag
 source(here::here("core/R/benchmark-helper.R"))
 
-hues <- c("black", "dark grey") %>% setNames(c(city, "Benchmark"))
-hues[1] <- "#000000"
+hues <- c("#000000", "dark grey") %>% setNames(c(city, "Benchmark - Oxford"))
 
 # Load CSVs produced by oxford/datacollection.R
 if (in_oxford) {
@@ -105,7 +105,8 @@ if (in_oxford && nrow(pop_dist_group) > 0) {
 
   ggsave(here("03-render-output", "plots", "oxford-pop-distro.png"), plot = pop_distro_plot, device = "png",
          width = 8, height = 6.5, units = "in", dpi = "print")
-  ggplot2:::print.ggplot(pop_distro_plot)
+  print(pop_distro_plot)
+  cat("\n\n")
 }
 ```
 
@@ -146,7 +147,8 @@ if (in_oxford && nrow(pop_dist_structure) > 0) {
 
   ggsave(here("03-render-output", "plots", "oxford-age-structure-area.png"), plot = pop_dist_plot, device = "png",
          width = 4, height = 3.5, units = "in", dpi = "print")
-  ggplot2:::print.ggplot(pop_dist_plot)
+  print(pop_dist_plot)
+  cat("\n\n")
 }
 ```
 
@@ -182,7 +184,8 @@ if (in_oxford && nrow(national_shares_long) > 0) {
 
   ggsave(here("03-render-output", "plots", "oxford-national-shares.png"), plot = national_shares_plot, device = "png",
          width = 8, height = 6.5, units = "in", dpi = "print")
-  ggplot2:::print.ggplot(national_shares_plot)
+  print(national_shares_plot)
+  cat("\n\n")
 }
 ```
 
@@ -260,7 +263,8 @@ if (in_oxford && nrow(emp_longitude) > 0) {
 
   ggsave(here("03-render-output", "plots", "oxford-emp_line.png"), device = "png", plot = multi_city_emp_plot,
          width = 5, height = 4.6, units = "in", dpi = "print")
-  ggplot2:::print.ggplot(multi_city_emp_plot)
+  print(multi_city_emp_plot)
+  cat("\n\n")
 }
 ```
 
@@ -297,7 +301,8 @@ if (in_oxford && nrow(gdp_longitude) > 0) {
 
   ggsave(here("03-render-output", "plots", "oxford-gdp_line.png"), device = "png",
          width = 5, height = 4.6, units = "in", dpi = "print")
-  ggplot2:::print.ggplot(multi_city_gdp_plot)
+  print(multi_city_gdp_plot)
+  cat("\n\n")
 }
 ```
 
@@ -321,7 +326,8 @@ if (in_oxford && nrow(gdppc) > 0) {
 
   ggsave(here("03-render-output", "plots", "oxford-gdp-per-capita.png"), plot = gdppc_plot, device = "png",
          width = 8, height = 5, units = "in", dpi = "print")
-  ggplot2:::print.ggplot(gdppc_plot)
+  print(gdppc_plot)
+  cat("\n\n")
 
   print_paged_df(subset(gdppc, Location == city))
 
@@ -360,7 +366,8 @@ if (in_oxford && nrow(gdppc_longitude) > 0) {
 
   ggsave(here("03-render-output", "plots", "oxford-gdp-per-capita_line.png"), gdppc_longitude_plot, device = "png",
          width = 8, height = 6.5, units = "in", dpi = "print")
-  ggplot2:::print.ggplot(gdppc_longitude_plot)
+  print(gdppc_longitude_plot)
+  cat("\n\n")
 }
 ```
 
@@ -394,7 +401,8 @@ if (in_oxford && nrow(emp_shares2) > 0) {
 
   ggsave(here("03-render-output", "plots", "oxford-employment-sectors.png"), plot = emp_shares_plot, device = "png",
          width = 16, height = 5, units = "in", dpi = "print")
-  ggplot2:::print.ggplot(emp_shares_plot)
+  print(emp_shares_plot)
+  cat("\n\n")
 }
 ```
 
@@ -428,7 +436,8 @@ if (in_oxford && nrow(gva_shares2) > 0) {
 
   ggsave(here("03-render-output", "plots", "oxford-gva-sectors.png"), plot = gva_shares_plot, device = "png",
          width = 16, height = 5, units = "in", dpi = "print")
-  ggplot2:::print.ggplot(gva_shares_plot)
+  print(gva_shares_plot)
+  cat("\n\n")
 }
 ```
 
@@ -456,7 +465,8 @@ if (in_oxford && nrow(incomes) > 0) {
          y = "Income Group")
   ggsave(here("03-render-output", "plots", "oxford-household-incomes-bar.png"), plot = household_incomes_bar_plot, device = "png",
          width = 8, height = 5, units = "in", dpi = "print")
-  ggplot2:::print.ggplot(household_incomes_bar_plot)
+  print(household_incomes_bar_plot)
+  cat("\n\n")
 }
 
 if (in_oxford && nrow(incomes_city2) > 0) {
@@ -478,6 +488,7 @@ if (in_oxford && nrow(incomes_city2) > 0) {
 
   ggsave(here("03-render-output", "plots", "oxford-household-incomes-area.png"), plot = household_incomes_area_plot, device = "png",
          width = 4, height = 3.5, units = "in", dpi = "print")
-  ggplot2:::print.ggplot(household_incomes_area_plot)
+  print(household_incomes_area_plot)
+  cat("\n\n")
 }
 ```

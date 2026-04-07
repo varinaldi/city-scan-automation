@@ -26,7 +26,7 @@ if (is.null(shoreline_csv) || length(shoreline_csv) == 0 || !file.exists(shoreli
   message("\n=== Processing coastal erosion data ===")
 
   shoreline <- readr::read_csv(shoreline_csv, show_col_types = FALSE) %>%
-    filter(country_name == country) %>%
+    filter(tolower(country_name) == tolower(country)) %>%
     arrange(transect_id)
 
   if (nrow(shoreline) == 0) {

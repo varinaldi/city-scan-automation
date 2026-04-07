@@ -60,6 +60,9 @@ def datacollection(
     try:
         # Build geometry from lat/lon
         rwi_df = pd.read_csv(rwi_url)
+        # RWI values are already z-scored by Meta (mean=0, sd=1 within each country)
+        # See: https://www.pnas.org/doi/10.1073/pnas.2113658119
+
         rwi_gdf = gpd.GeoDataFrame(
             rwi_df,
             geometry=gpd.points_from_xy(rwi_df.longitude, rwi_df.latitude),
@@ -139,6 +142,18 @@ def datacollection(
         except ValueError as e:
             logger.warning(f"Could not create wealth categories: {e}")
             rwi_tiles["wealth_cat_en"] = "Average"
+
+        # Standardized categories (fixed SD breaks, comparable across cities)
+        labels_std = ['< -1.0', '-1.0 – -0.5', '-0.5 – 0.5', '0.5 – 1.0', '> 1.0']
+        try:
+            rwi_tiles["wealth_cat_std"] = pd.cut(
+                rwi_tiles["rwi"],
+                bins=[-np.inf, -1.0, -0.5, 0.5, 1.0, np.inf],
+                labels=labels_std, include_lowest=True
+            )
+        except ValueError as e:
+            logger.warning(f"Could not create standardized wealth categories: {e}")
+            rwi_tiles["wealth_cat_std"] = "-0.5 – 0.5"
 
 
 

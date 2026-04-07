@@ -84,7 +84,9 @@ def datacollection(
                 if aoi_native.crs != src.crs:
                     aoi_native = aoi_native.to_crs(src.crs)
 
-                bounds = aoi_native.total_bounds
+                # Buffer AOI by 1 degree for broader context (low-res data)
+                aoi_buffered = aoi_native.buffer(1.0)
+                bounds = aoi_buffered.total_bounds
                 window = rasterio.windows.from_bounds(
                     *bounds, transform=src.transform
                 )

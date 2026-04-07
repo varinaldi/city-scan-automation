@@ -6,15 +6,18 @@ execute:
   message: false
 ---
 
+## Population
+
 ```{r setup, message=FALSE, warning=FALSE, results='hide'}
+if (file.exists("_quarto.yml")) here::i_am("tasks/worldpop/charts/index.qmd")
 if (!exists("aoi")) source(here::here("core/R/setup.R"))
-source(here::here("tasks/worldpop/analysis.R"))
+source(here::here("core/R/benchmark-assembly.R"))
 source("https://raw.githubusercontent.com/compoundrisk/monitor/databricks/src/fns/helpers.R")
 ```
 
 ```{r data-loading, message=FALSE, warning=FALSE, results='hide'}
 # All data comes from CSVs produced by dataanalysis.R
-wpop_df <- tryCatch(
+wp_ridge <- tryCatch(
   read_csv(file.path(tabular_dir, paste0(city_string, "_pop_density_pixels.csv")), show_col_types = FALSE),
   error = function(e) tibble())
 
@@ -82,7 +85,8 @@ if (nrow(pop_growth) > 0 && "Year" %in% names(pop_growth)) {
 
   ggsave(here("03-render-output", "plots", "oxford-pop-growth.png"), plot = pop_growth_plot, device = "png",
          width = 8, height = 5, units = "in", dpi = "print")
-  ggplot2:::print.ggplot(pop_growth_plot)
+  print(pop_growth_plot)
+  cat("\n\n")
 
   pop_growth_summary <- pop_growth %>%
     arrange(Year) %>%
@@ -140,8 +144,7 @@ if (nrow(pop_g1) > 0) {
       labels = scales::label_comma(scale_cut = scales::cut_short_scale()),
       expand = expansion(c(0, .1))) +
     theme_minimal() +
-    labs(title = paste0(city, " — WorldPop Global 1 (1km, UN-adjusted)"),
-         subtitle = "2000–2020", x = "", y = "Population") +
+    labs(title = "Population growth, 2000–2020", x = "", y = "Population") +
     theme(
       axis.line = element_line(linewidth = .5, color = "black"),
       panel.grid.major = element_line(linewidth = .125, color = "dark gray"),
@@ -149,7 +152,7 @@ if (nrow(pop_g1) > 0) {
 
   ggsave(here("03-render-output", "plots", "worldpop-g1-growth.png"), plot = g1_plot, device = "png",
          width = 8, height = 5, units = "in", dpi = "print")
-  ggplot2:::print.ggplot(g1_plot)
+  print(g1_plot)
 
   print_paged_df(pop_g1 %>% select(Year, Population))
 }
@@ -171,8 +174,7 @@ if (nrow(pop_g2) > 0) {
       labels = scales::label_comma(scale_cut = scales::cut_short_scale()),
       expand = expansion(c(0, .1))) +
     theme_minimal() +
-    labs(title = paste0(city, " — WorldPop Global 2 (100m, constrained)"),
-         subtitle = "2015–2030", x = "", y = "Population") +
+    labs(title = "Population growth, 2015–2030", x = "", y = "Population") +
     theme(
       axis.line = element_line(linewidth = .5, color = "black"),
       panel.grid.major = element_line(linewidth = .125, color = "dark gray"),
@@ -180,7 +182,7 @@ if (nrow(pop_g2) > 0) {
 
   ggsave(here("03-render-output", "plots", "worldpop-g2-growth.png"), plot = g2_plot, device = "png",
          width = 8, height = 5, units = "in", dpi = "print")
-  ggplot2:::print.ggplot(g2_plot)
+  print(g2_plot)
 
   print_paged_df(pop_g2 %>% select(Year, Population))
 }
@@ -191,14 +193,14 @@ if (nrow(pop_g2) > 0) {
 ```{r chart-worldpop-density-ridge, message=FALSE, warning=FALSE}
 #| label: chart-worldpop-density-ridge
 
-if (nrow(wpop_df) > 0) {
+if (nrow(wp_ridge) > 0) {
   librarian::shelf(ggridges)
 
   # Calculate x-axis limit (cap at 99th percentile)
-  x_max <- quantile(wpop_df$pop, 0.99)
+  x_max <- quantile(wp_ridge$pop, 0.99)
 
   # Create ridge plot with quantile coloring
-  p_density <- wpop_df %>%
+  p_density <- wp_ridge %>%
     ggplot(aes(x = pop, y = 1, fill = factor(after_stat(quantile)) )) +
     stat_density_ridges(
       geom = "density_ridges_gradient",
@@ -235,24 +237,6 @@ if (nrow(wpop_df) > 0) {
 }
 ```
 
-### Benchmark Cities
-
-```{r benchmark-source-note, message=FALSE, warning=FALSE}
-#| label: benchmark-source-note
-#| results: asis
-
-if (nrow(pop_longitude) > 0) {
-  bm_sources <- pop_longitude %>% filter(Group == "Benchmark") %>% pull(Source) %>% unique()
-  if (any(str_detect(bm_sources, "WorldPop"))) {
-    print_text(paste0(
-      paste_bold("Note:"), " ", city, " is not available in the Oxford Economics database. ",
-      "Population data for benchmark cities is sourced from ",
-      paste_bold("WorldPop Global 2 (R2025A)"),
-      " using GHS Urban Centre Database boundaries for spatial clipping."))
-  }
-}
-```
-
 ### Population Density
 
 ```{r population-density, message=FALSE, warning=FALSE}
@@ -260,9 +244,15 @@ if (nrow(pop_longitude) > 0) {
 #| results: asis
 
 if (nrow(density) > 0 && any(!is.na(density$Density))) {
-  hues <- c("black", "dark grey") %>%
-    setNames(c(city, "Benchmark"))
-  hues[1] <- "#000000"
+  # If many siblings and only 1 Oxford city, skip Oxford
+  n_sibling <- density %>% filter(str_detect(Group, "sibling")) %>% nrow()
+  n_oxford <- density %>% filter(str_detect(Group, "Oxford")) %>% nrow()
+  if (n_sibling > 1 && n_oxford == 1) {
+    density <- density %>% filter(!str_detect(Group, "Oxford"))
+  }
+
+  bm_groups <- setdiff(unique(density$Group), city)
+  hues <- c("#000000", rep("dark grey", length(bm_groups))) %>% setNames(c(city, bm_groups))
 
   density_plot <- density %>%
     filter(!is.na(Density)) %>%
@@ -278,7 +268,7 @@ if (nrow(density) > 0 && any(!is.na(density$Density))) {
       axis.line = element_line(linewidth = .5, color = "black"),
       panel.grid.major = element_line(linewidth = .125, color = "dark gray"),
       panel.grid.minor = element_line(linewidth = .125, linetype = 2, color = "dark gray")) +
-    labs(title = paste("Population density of", city, "and benchmark cities"),
+    labs(title = "Population density comparison",
          y = bquote('Population density, people per '~km^2),
          x = "Population") +
     scale_y_continuous(labels = scales::label_comma(),
@@ -289,7 +279,8 @@ if (nrow(density) > 0 && any(!is.na(density$Density))) {
 
   ggsave(here("03-render-output", "plots", "oxford-pop-density-scatter.png"), plot = density_plot, device = "png",
          width = 8, height = 5, units = "in", dpi = "print")
-  ggplot2:::print.ggplot(density_plot)
+  print(density_plot)
+  cat("\n\n")
 
   density %>% arrange(-Density) %>% print_paged_df()
 }
@@ -301,12 +292,13 @@ if (nrow(density) > 0 && any(!is.na(density$Density))) {
 #| label: chart-multi-city-pop-g1
 #| results: asis
 
-bm_data <- pop_longitude %>% filter(Group != city)
 city_g1 <- pop_longitude %>% filter(Group == city & Source == "WorldPop Global 1")
-pop_g1_bm <- bind_rows(city_g1, bm_data)
+bm_g1 <- pop_longitude %>% filter(Group != city & Source == "WorldPop Global 1")
+pop_g1_bm <- bind_rows(city_g1, bm_g1)
 
 if (nrow(pop_g1_bm) > 0 && nrow(city_g1) > 0) {
-  hues <- c("black", "dark grey") %>% setNames(c(city, "Benchmark"))
+  bm_groups <- setdiff(unique(pop_g1_bm$Group), city)
+  hues <- c("black", rep("dark grey", length(bm_groups))) %>% setNames(c(city, bm_groups))
 
   multi_g1_plot <- ggplot(pop_g1_bm) +
     geom_line(aes(x = Year, y = Population, group = Location, color = Group)) +
@@ -316,8 +308,7 @@ if (nrow(pop_g1_bm) > 0 && nrow(city_g1) > 0) {
           panel.grid.minor = element_line(linewidth = .125, linetype = 2, color = "dark gray"),
           axis.line = element_line(linewidth = .5, color = "black"),
           legend.position = "none") +
-    labs(title = paste("Population of", city, "and benchmark cities"),
-         subtitle = "WorldPop Global 1 (1km, UN-adjusted, 2000–2020)", x = "") +
+    labs(title = paste("Population of", city, "and benchmark cities"), x = "") +
     scale_y_continuous(limits = c(0, NA),
       labels = scales::label_comma(scale_cut = scales::cut_short_scale()),
       expand = c(0,0)) +
@@ -333,7 +324,7 @@ if (nrow(pop_g1_bm) > 0 && nrow(city_g1) > 0) {
 
   ggsave(here("03-render-output", "plots", "benchmark-pop-g1.png"), device = "png",
          width = 5, height = 4.6, units = "in", dpi = "print")
-  ggplot2:::print.ggplot(multi_g1_plot)
+  print(multi_g1_plot)
 
   # Find comparison year: mode year across locations, closest to current year
   current_year <- as.numeric(format(Sys.Date(), "%Y"))
@@ -341,13 +332,72 @@ if (nrow(pop_g1_bm) > 0 && nrow(city_g1) > 0) {
     mutate(dist = abs(Year - current_year)) %>% slice_min(dist, n = 1) %>% pull(Year)
   compare_year <- common_years[1]
 
-  print_text(paste0("Population comparison (", compare_year, ")"))
   pop_g1_bm %>%
     group_by(Location) %>%
     slice_min(abs(Year - compare_year), n = 1) %>%
     ungroup() %>%
     arrange(-Population) %>%
-    select(Group, Location, Year, Population) %>%
+    select(Group, Location, Year, Population, Source) %>%
+    arrange(Group, Population) %>%
+    print_paged_df()
+}
+```
+
+### Benchmark Cities Population (WorldPop G1 + Oxford)
+
+```{r multi-city-pop-g1-oxford, message=FALSE, warning=FALSE}
+#| label: chart-multi-city-pop-g1-oxford
+#| results: asis
+
+# Combine WorldPop G1 (city + siblings) with Oxford (non-sibling benchmarks)
+city_g1 <- pop_longitude %>% filter(Group == city & Source == "WorldPop Global 1")
+bm_g1 <- pop_longitude %>% filter(Group != city & Source == "WorldPop Global 1")
+bm_oxford <- pop_longitude %>% filter(Group != city & Source == "Oxford")
+pop_g1_ox <- bind_rows(city_g1, bm_g1, bm_oxford) %>%
+  distinct(Location, Year, .keep_all = TRUE)
+
+if (nrow(pop_g1_ox) > 0 && nrow(city_g1) > 0 && (nrow(bm_g1) > 0 || nrow(bm_oxford) > 0)) {
+  bm_groups <- setdiff(unique(pop_g1_ox$Group), city)
+  hues <- c("black", rep("dark grey", length(bm_groups))) %>% setNames(c(city, bm_groups))
+
+  g1_ox_plot <- ggplot(pop_g1_ox) +
+    geom_line(aes(x = Year, y = Population, group = Location, color = Group)) +
+    scale_color_manual(values = hues) +
+    theme_minimal() +
+    theme(panel.grid.major = element_line(linewidth = .125, color = "dark gray"),
+          panel.grid.minor = element_line(linewidth = .125, linetype = 2, color = "dark gray"),
+          axis.line = element_line(linewidth = .5, color = "black"),
+          legend.position = "none") +
+    labs(title = paste("Population of", city, "and benchmark cities"), x = "") +
+    scale_y_continuous(limits = c(0, NA),
+      labels = scales::label_comma(scale_cut = scales::cut_short_scale()),
+      expand = c(0,0)) +
+    scale_x_continuous(
+      breaks = seq(min(pop_g1_ox$Year), max(pop_g1_ox$Year), 5),
+      minor_breaks = seq(1995, 2025, 1), expand = c(0,0)) +
+    ggrepel::geom_text_repel(
+      data = \(x) slice_max(x, order_by = Year, by = Location),
+      aes(label = Location, x = max(pop_g1_ox$Year), y = Population, color = Group),
+      hjust = 0, size = 2.5, xlim = c(max(pop_g1_ox$Year) + 0.25, NA), box.padding = 0.05,
+      direction = "y", segment.linetype = "dotted", max.overlaps = 20, force_pull = 1) +
+    coord_cartesian(xlim = c(min(pop_g1_ox$Year), max(pop_g1_ox$Year) + 7))
+
+  ggsave(here("03-render-output", "plots", "benchmark-pop-g1-oxford.png"), device = "png",
+         width = 5, height = 4.6, units = "in", dpi = "print")
+  print(g1_ox_plot)
+  cat("\n\n")
+
+  current_year <- as.numeric(format(Sys.Date(), "%Y"))
+  common_years <- pop_g1_ox %>% count(Year) %>% filter(n == max(n)) %>%
+    mutate(dist = abs(Year - current_year)) %>% slice_min(dist, n = 1) %>% pull(Year)
+  compare_year <- common_years[1]
+
+  pop_g1_ox %>%
+    group_by(Location) %>%
+    slice_min(abs(Year - compare_year), n = 1) %>%
+    ungroup() %>%
+    arrange(-Population) %>%
+    select(Group, Location, Year, Population, Source) %>%
     arrange(Group, Population) %>%
     print_paged_df()
 }
@@ -360,10 +410,12 @@ if (nrow(pop_g1_bm) > 0 && nrow(city_g1) > 0) {
 #| results: asis
 
 city_g2 <- pop_longitude %>% filter(Group == city & Source == "WorldPop Global 2")
-pop_g2_bm <- bind_rows(city_g2, bm_data)
+bm_g2 <- pop_longitude %>% filter(Group != city & Source == "WorldPop Global 2")
+pop_g2_bm <- bind_rows(city_g2, bm_g2)
 
 if (nrow(pop_g2_bm) > 0 && nrow(city_g2) > 0) {
-  hues <- c("black", "dark grey") %>% setNames(c(city, "Benchmark"))
+  bm_groups <- setdiff(unique(pop_g2_bm$Group), city)
+  hues <- c("black", rep("dark grey", length(bm_groups))) %>% setNames(c(city, bm_groups))
 
   multi_g2_plot <- ggplot(pop_g2_bm) +
     geom_line(aes(x = Year, y = Population, group = Location, color = Group)) +
@@ -373,8 +425,7 @@ if (nrow(pop_g2_bm) > 0 && nrow(city_g2) > 0) {
           panel.grid.minor = element_line(linewidth = .125, linetype = 2, color = "dark gray"),
           axis.line = element_line(linewidth = .5, color = "black"),
           legend.position = "none") +
-    labs(title = paste("Population of", city, "and benchmark cities"),
-         subtitle = "WorldPop Global 2 (100m, constrained, 2015–2030)", x = "") +
+    labs(title = paste("Population of", city, "and benchmark cities"), x = "") +
     scale_y_continuous(limits = c(0, NA),
       labels = scales::label_comma(scale_cut = scales::cut_short_scale()),
       expand = c(0,0)) +
@@ -390,7 +441,7 @@ if (nrow(pop_g2_bm) > 0 && nrow(city_g2) > 0) {
 
   ggsave(here("03-render-output", "plots", "benchmark-pop-g2.png"), device = "png",
          width = 5, height = 4.6, units = "in", dpi = "print")
-  ggplot2:::print.ggplot(multi_g2_plot)
+  print(multi_g2_plot)
 
   # Find comparison year: mode year across locations, closest to current year
   current_year <- as.numeric(format(Sys.Date(), "%Y"))
@@ -398,13 +449,12 @@ if (nrow(pop_g2_bm) > 0 && nrow(city_g2) > 0) {
     mutate(dist = abs(Year - current_year)) %>% slice_min(dist, n = 1) %>% pull(Year)
   compare_year <- common_years[1]
 
-  print_text(paste0("Population comparison (", compare_year, ")"))
   pop_g2_bm %>%
     group_by(Location) %>%
     slice_min(abs(Year - compare_year), n = 1) %>%
     ungroup() %>%
     arrange(-Population) %>%
-    select(Group, Location, Year, Population) %>%
+    select(Group, Location, Year, Population, Source) %>%
     arrange(Group, Population) %>%
     print_paged_df()
 }

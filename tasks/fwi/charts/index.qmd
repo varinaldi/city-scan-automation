@@ -11,6 +11,7 @@ execute:
 ```{r}
 #| label: setup-fwi
 #| include: false
+if (file.exists("_quarto.yml")) here::i_am("tasks/fwi/charts/index.qmd")
 if (!exists("aoi")) {
   USE_GCS <<- FALSE
   source(here::here("core/R/setup.R"))
@@ -72,7 +73,8 @@ if (is.null(fwi) || nrow(fwi) == 0) print_text(paste_bold('No FWI data available
           panel.grid.minor = element_line(linewidth = .125, color = "dark gray"),
           axis.title.x = element_blank()) +
     geom_vline(xintercept = 0)
-  ggplot2:::print.ggplot(fwi_plot)
+  print(fwi_plot)
+  cat("\n\n")
   ggsave(here("03-render-output", "plots", "nasa-fwi.png"), plot = fwi_plot, device = "png",
         width = 4, height = 3.5, units = "in", dpi = "print")
 }

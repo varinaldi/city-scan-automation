@@ -6,9 +6,12 @@ execute:
   message: false
 ---
 
+## Basic Information
+
 ```{r}
 #| label: setup-basic-info
 #| include: false
+if (file.exists("_quarto.yml")) here::i_am("tasks/basic_info/charts/index.qmd")
 if (!exists("aoi")) source(here::here("core/R/setup.R"))
 source(here::here("core/R/benchmark-helper.R"))
 

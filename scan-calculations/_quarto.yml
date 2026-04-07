@@ -8,6 +8,9 @@ engine: knitr
 
 format:
   html:
-    output-file: scan-calculation.html
+    output-file: scan-calculations.html
     theme: [default, ../source/pagedtable-fix.scss]
     self-contained: true
+    toc: true
+    toc-location: left
+    toc-depth: 3

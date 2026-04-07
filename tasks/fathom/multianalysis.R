@@ -7,18 +7,27 @@
 if (!exists("aoi")) source(here::here("core/R/setup.R"))
 
 # Read WSF data (needed for flood exposure calculations)
-wsf_file <- str_subset(list.files(tabular_dir, full.names = T), "(?<!flood_)wsf(?!.*(tracker|stats|evolution)).*(csv|xlsx)")
+# Prefer harmonized (filtered to "WSF Harmonized" source), fall back to evolution
+wsf_harm_file <- str_subset(list.files(tabular_dir, full.names = T), "wsf_harmonized\\.csv$")
+wsf_evo_file <- str_subset(list.files(tabular_dir, full.names = T), "wsf_evolution\\.csv$")
 
-if (length(wsf_file) > 0) {
-  if (str_detect(wsf_file[1], "xlsx$")) wsf_flood_base <- read_xlsx(wsf_file[1], sheet = "WSF")
-  if (str_detect(wsf_file[1], "csv$")) wsf_flood_base <- read_csv(wsf_file[1], col_types = "dd")
+if (length(wsf_harm_file) > 0) {
+  wsf_flood_base <- read_csv(wsf_harm_file[1], show_col_types = FALSE) %>%
+    filter(source == "WSF Harmonized") %>%
+    select(year, cumulative_sq_km)
+} else if (length(wsf_evo_file) > 0) {
+  wsf_flood_base <- read_csv(wsf_evo_file[1], col_types = "dd") %>%
+    rename(year = 1, cumulative_sq_km = 2)
+} else {
+  wsf_flood_base <- NULL
 }
 
 # Read flood_wsf and join with wsf
 wsf_flood <- tryCatch({
+  if (is.null(wsf_flood_base)) stop("No WSF data")
   flood_file <- str_subset(list.files(tabular_dir, full.names = T), "flood_wsf.csv")
-  full_join(wsf_flood_base, read_csv(flood_file), by = "year")
-}, error = function(e) { message("wsf_flood not available"); NULL })
+  inner_join(wsf_flood_base, read_csv(flood_file, show_col_types = FALSE), by = "year")
+}, error = function(e) { message("wsf_flood not available: ", e$message); NULL })
 
 # Flood OSM data
 flood_osm <- tryCatch({
@@ -133,12 +142,22 @@ calculate_flood_by_prob <- function(flood_tif, wsf_tif, output_file = NULL) {
   # r10 = flooded at 1-in-10yr → also flooded at 1-in-100 and 1-in-1000
   # r100 = flooded at 1-in-100yr → also flooded at 1-in-1000
   # r1000 = flooded at 1-in-1000yr
+  # rp_col_map <- c(
+  #   "r10" = ">10%",
+  #   "r100" = "1-10%",
+  #   "r1000" = "0.1-1%"
+  # )
   rp_col_map <- c(
-    "r10" = ">10%",
-    "r100" = "1-10%",
-    "r1000" = "0.1-1%"
+    "r10" = "1-in-10 year",
+    "r100" = "1-in-100 year",
+    "r1000" = "1-in-1,000 year"
   )
 
+  # return_period_map <- c(
+  #   `>10%` = "1-in-10 year",
+  #   `1-10%` = "1-in-100 year",
+  #   `0.1-1%` = "1-in-1,000 year"
+  # )
   return_period_map <- c(
     `>10%` = "1-in-10 year",
     `1-10%` = "1-in-100 year",
@@ -183,8 +202,10 @@ calculate_flood_by_prob <- function(flood_tif, wsf_tif, output_file = NULL) {
     }
 
     # Total = same as 1-in-1000 (widest net)
-    if (!is.null(rp_vals[["0.1-1%"]])) {
-      total_v <- rp_vals[["0.1-1%"]]
+    # if (!is.null(rp_vals[["0.1-1%"]])) {
+    #   total_v <- rp_vals[["0.1-1%"]]
+    if (!is.null(rp_vals[["1-in-1,000 year"]])) {
+      total_v <- rp_vals[["1-in-1,000 year"]]
       total_mask <- built_mask & total_v > 0 & !is.na(total_v)
       row_data[["total"]] <- round(sum(total_mask, na.rm = TRUE) * pixel_area_sqkm, 2)
     } else {
@@ -259,17 +280,18 @@ if (!is.null(wsf_tif) && length(wsf_tif) > 0) {
   flood_types <- list(
     fluvial = list(pattern = "fluvial_2020\\.tif$", prob_out = "fu_prob.csv", total_out = "fu_total.csv"),
     pluvial = list(pattern = "pluvial_2020\\.tif$", prob_out = "pu_prob.csv", total_out = "pu_total.csv"),
-    coastal = list(pattern = "coastal_2020\\.tif$", prob_out = "cu_prob.csv", total_out = "cu_total.csv")
+    coastal = list(pattern = "coastal_2020\\.tif$", prob_out = "cu_prob.csv", total_out = "cu_total.csv"),
+    combined = list(pattern = "combined_flooding_2020\\.tif$", prob_out = "comb_prob.csv", total_out = "comb_total.csv")
   )
 
   flood_total_data <- list()
-  flood_type_labels <- c(fluvial = "River", pluvial = "Rainwater", coastal = "Coastal")
+  flood_type_labels <- c(fluvial = "River", pluvial = "Rainwater", coastal = "Coastal", combined = "Combined")
 
   for (ft_name in names(flood_types)) {
     ft <- flood_types[[ft_name]]
     flood_tif <- list.files(spatial_dir, pattern = ft$pattern, full.names = TRUE, ignore.case = TRUE)[1]
 
-    if (!is.null(flood_tif) && length(flood_tif) > 0 && file.exists(flood_tif)) {
+    if (!is.null(flood_tif) && length(flood_tif) > 0 && !is.na(flood_tif) && file.exists(flood_tif)) {
       message("\n=== Processing ", ft_name, " ===")
 
       tryCatch({

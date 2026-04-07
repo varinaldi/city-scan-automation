@@ -7,6 +7,7 @@ sections:
   - worldpop          # Population Data, Distribution
   - demographics      # Age-Sex Distribution, Demographic Indicators
   - oxford            # Benchmark Cities, GDP, Employment, Inequality
+  - rwi               # Relative Wealth Index
   - wsf               # Urban Built-up Area, Tracker, Harmonized
   - landcover         # Landcover
   - elevation         # Elevation
@@ -15,5 +16,6 @@ sections:
   - flood_events      # Flood Events (Dartmouth)
   - earthquake        # Earthquakes (NGDC)
   - cyclones          # Cyclones (IBTrACS)
+  # - lst               # Land Surface Temperature
   - solar             # Photovoltaic Potential
   - fwi               # Fire Weather Index

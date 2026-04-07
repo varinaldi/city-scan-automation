@@ -2995,7 +2995,7 @@ function plot_ubap(uba, {
     .range([0, innerWidth]);
     
   const yScale = d3.scaleLinear()
-    .domain([0, Math.max(...uba.map(d => d.growth_percentage)) * 1.1])
+    .domain([0, Math.max(...uba.map(d => d.ubaGrowthPercentage)) * 1.1])
     .range([innerHeight, 0]);
 
   // svg
@@ -3055,9 +3055,9 @@ function plot_ubap(uba, {
   
   // line (with defined function to skip null values)
   const line = d3.line()
-    .defined(d => d.growth_percentage !== null)
+    .defined(d => d.ubaGrowthPercentage !== null)
     .x(d => xScale(d.yearName))
-    .y(d => yScale(d.growth_percentage));
+    .y(d => yScale(d.ubaGrowthPercentage));
     
   g.append("path")
     .datum(uba)
@@ -3068,11 +3068,11 @@ function plot_ubap(uba, {
   
   // dots (filter out null values)
   g.selectAll(".dot")
-    .data(uba.filter(d => d.growth_percentage !== null))
+    .data(uba.filter(d => d.ubaGrowthPercentage !== null))
     .enter().append("circle")
     .attr("class", "dot")
     .attr("cx", d => xScale(d.yearName))
-    .attr("cy", d => yScale(d.growth_percentage))
+    .attr("cy", d => yScale(d.ubaGrowthPercentage))
     .attr("r", Math.max(2, Math.min(3, width / 200)))
     .attr("fill", "black")
     .style("cursor", "default")
@@ -3095,7 +3095,7 @@ function plot_ubap(uba, {
         .style("z-index", "1000")
         .style("opacity", 0);
         
-      tooltip.html(`<div>Year: ${d.yearName}</div><div>Growth Percentage: ${d.growth_percentage !== null ? d.growth_percentage.toFixed(2) + '%' : 'N/A'}</div>`)
+      tooltip.html(`<div>Year: ${d.yearName}</div><div>Growth Percentage: ${d.ubaGrowthPercentage !== null ? d.ubaGrowthPercentage.toFixed(2) + '%' : 'N/A'}</div>`)
         .style("left", (event.pageX - 60) + "px")
         .style("top", (event.pageY - 60) + "px")
         .transition()
@@ -3832,7 +3832,7 @@ function plot_uddm(pg, uba, pug, {
       .range([0, innerWidth]);
     
     const yScale = d3.scaleLinear()
-      .domain([0, Math.max(...uba.map(d => d.growth_percentage)) * 1.1])
+      .domain([0, Math.max(...uba.map(d => d.ubaGrowthPercentage)) * 1.1])
       .range([innerHeight, 0]);
     
     // y-axis
@@ -3868,9 +3868,9 @@ function plot_uddm(pg, uba, pug, {
     
     // line
     const line = d3.line()
-      .defined(d => d.growth_percentage !== null)
+      .defined(d => d.ubaGrowthPercentage !== null)
       .x(d => xScale(d.yearName))
-      .y(d => yScale(d.growth_percentage));
+      .y(d => yScale(d.ubaGrowthPercentage));
     
     g.append("path")
       .datum(uba)
@@ -3881,10 +3881,10 @@ function plot_uddm(pg, uba, pug, {
     
     // dots with tooltips
     g.selectAll(".dot")
-      .data(uba.filter(d => d.growth_percentage !== null))
+      .data(uba.filter(d => d.ubaGrowthPercentage !== null))
       .enter().append("circle")
       .attr("cx", d => xScale(d.yearName))
-      .attr("cy", d => yScale(d.growth_percentage))
+      .attr("cy", d => yScale(d.ubaGrowthPercentage))
       .attr("r", dotRadius)
       .attr("fill", "black")
       .style("cursor", "default")
@@ -3904,7 +3904,7 @@ function plot_uddm(pg, uba, pug, {
           .style("pointer-events", "none")
           .style("z-index", "1000")
           .style("opacity", 0);
-        tooltip.html(`<div>Year: ${d.yearName}</div><div>Growth Percentage: ${d.growth_percentage.toFixed(2)}%</div>`)
+        tooltip.html(`<div>Year: ${d.yearName}</div><div>Growth Percentage: ${d.ubaGrowthPercentage.toFixed(2)}%</div>`)
           .style("left", (event.pageX - 50) + "px")
           .style("top", (event.pageY - 50) + "px")
           .transition().duration(200).style("opacity", 1);
@@ -6663,7 +6663,7 @@ function plot_flood_prob(data, {
   });
 
   // Legend (on SVG, right side below subtitle - like plot_comb)
-  const legendX = width - 100;
+  const legendX = width - 170;
   const legendY = 60;
   const legendSpacing = 18;
 
@@ -8919,12 +8919,12 @@ function plot_fwi(fwi, {
   
   // EFFIS FWI risk category thresholds
   const riskCategories = [
-    { name: "Very Low Risk", min: 0, max: 5.2, color: "#4CAF50", opacity: 0.40 },
-    { name: "Low Risk", min: 5.2, max: 11.2, color: "#8BC34A", opacity: 0.40 },
-    { name: "Moderate Risk", min: 11.2, max: 21.3, color: "#FFC107", opacity: 0.40 },
-    { name: "High Risk", min: 21.3, max: 38.0, color: "#FF9800", opacity: 0.40 },
-    { name: "Very High Risk", min: 38.0, max: 50, color: "#F44336", opacity: 0.40 },
-    { name: "Extreme Risk", min: 50, max: Infinity, color: "#8B0000", opacity: 0.40 }
+    { name: "Very Low", min: 0, max: 5.2, color: "#4CAF50", opacity: 0.40 },
+    { name: "Low", min: 5.2, max: 11.2, color: "#8BC34A", opacity: 0.40 },
+    { name: "Moderate", min: 11.2, max: 21.3, color: "#FFC107", opacity: 0.40 },
+    { name: "High", min: 21.3, max: 38.0, color: "#FF9800", opacity: 0.40 },
+    { name: "Very High", min: 38.0, max: 50, color: "#F44336", opacity: 0.40 },
+    { name: "Extreme", min: 50, max: Infinity, color: "#8B0000", opacity: 0.40 }
   ];
   
   // determine which risk categories are relevant based on data range

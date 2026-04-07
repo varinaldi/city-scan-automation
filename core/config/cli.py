@@ -1,0 +1,107 @@
+"""CLI flag parsing — single source of truth for all flag logic."""
+
+KNOWN_FLAGS = {
+    "--collect", "--analyze", "--multianalysis", "--render",
+    "--all", "--scan-id", "--multicities", "--parallel", "--auto-exit",
+    "--upload", "--sync", "--keep", "--list", "--help",
+    "-e", "-t", "-k",
+}
+
+SYNC_TARGETS = {"tasks", "source", "core", "scan-calculations"}
+
+
+def parse_args(args):
+    """Parse CLI args into a flags dict. Called once in __main__.py."""
+    f = {}
+
+    # --sync targets (tasks, source, core, scan-calculations)
+    f['sync_targets'] = []
+    if "--sync" in args or "-t" in args:
+        if "-t" in args and "--sync" not in args:
+            # -t is shortcut for --sync tasks
+            f['sync_targets'] = ["tasks"]
+        elif "--sync" in args:
+            idx = args.index("--sync")
+            for a in args[idx + 1:]:
+                if a.startswith("-"):
+                    break
+                if a in SYNC_TARGETS:
+                    f['sync_targets'].append(a)
+                else:
+                    break
+            # --sync with no targets = sync everything
+            if not f['sync_targets']:
+                f['sync_targets'] = list(SYNC_TARGETS)
+
+    # Behavior flags
+    f['keep_as_is'] = "-k" in args or "--keep" in args
+    f['use_existing'] = (
+        "-e" in args or bool(f['sync_targets']) or f['keep_as_is']
+    )
+    f['upload_enabled'] = "--upload" in args
+    f['parallel_mode'] = "--parallel" in args
+    f['auto_exit'] = "--auto-exit" in args
+    f['run_all'] = "--all" in args
+    f['multicities'] = "--multicities" in args
+
+    # Step
+    if "--collect" in args:
+        f['step'] = "collect"
+    elif "--analyze" in args:
+        f['step'] = "analyze"
+    elif "--multianalysis" in args:
+        f['step'] = "multianalysis"
+    else:
+        f['step'] = None
+
+    # --scan-id value
+    f['scan_id'] = None
+    if "--scan-id" in args:
+        idx = args.index("--scan-id")
+        if idx + 1 < len(args):
+            f['scan_id'] = args[idx + 1]
+
+    # --render targets
+    f['render_targets'] = []
+    if "--render" in args:
+        idx = args.index("--render")
+        valid_targets = {"maps", "scan-calculations", "charts"}
+        for a in args[idx + 1:]:
+            if a.startswith("--"):
+                break
+            if a in valid_targets:
+                f['render_targets'].append(a)
+            else:
+                break
+
+    # Task names (non-flag args, excluding --scan-id value, render targets, sync targets)
+    skip_values = set()
+    if f['scan_id']:
+        skip_values.add(f['scan_id'])
+    skip_values.update(f['render_targets'])
+    skip_values.update(f['sync_targets'])
+    f['task_names'] = [a for a in args if not a.startswith("-") and a not in skip_values]
+
+    return f
+
+
+def validate_args(args):
+    """Check for unknown flags. Returns error message or None."""
+    for a in args:
+        if a.startswith("-") and a not in KNOWN_FLAGS:
+            return f"Unknown flag: '{a}'. Use --list flags to see available flags."
+    if "--render" in args:
+        idx = args.index("--render")
+        valid_targets = {"maps", "scan-calculations", "charts"}
+        has_target = any(
+            a in valid_targets
+            for a in args[idx + 1:]
+            if not a.startswith("--")
+        )
+        if not has_target:
+            return "--render requires a target: maps, scan-calculations, or charts"
+    if "--scan-id" in args:
+        idx = args.index("--scan-id")
+        if idx + 1 >= len(args):
+            return "--scan-id requires a value"
+    return None

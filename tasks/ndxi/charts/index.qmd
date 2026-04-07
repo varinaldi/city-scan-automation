@@ -1,0 +1,42 @@
+---
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+## Vegetation
+
+```{r}
+#| label: setup-ndxi
+#| include: false
+if (file.exists("_quarto.yml")) here::i_am("tasks/ndxi/charts/index.qmd")
+if (!exists("aoi")) {
+  USE_GCS <<- FALSE
+  source(here::here("core/R/setup.R"))
+}
+```
+
+```{r}
+#| label: ndvi-data
+#| output: false
+ndvi_file <- list.files(tabular_dir, pattern = "ndvi_area\\.csv$", full.names = TRUE)
+if (length(ndvi_file) > 0) {
+  ojs_define(ndvi_area = read.csv(ndvi_file[1]))
+  ojs_define(ndvi_city = city)
+} else {
+  ojs_define(ndvi_area = NULL)
+  ojs_define(ndvi_city = city)
+}
+```
+
+```{ojs}
+//| label: ndvi-plot
+//| output: true
+import { plot_ndvi_area, setCity, setWidth } from "../../core/ojs/plots.js"
+
+setCity(ndvi_city)
+setWidth(640)
+
+ndvi_area ? plot_ndvi_area(ndvi_area, {height: 350}) : html`<p><strong>No NDVI data available</strong></p>`
+```

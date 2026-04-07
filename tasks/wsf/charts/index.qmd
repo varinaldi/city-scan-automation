@@ -13,6 +13,7 @@ execute:
 ```{r}
 #| label: setup-wsf
 #| include: false
+if (file.exists("_quarto.yml")) here::i_am("tasks/wsf/charts/index.qmd")
 if (!exists("aoi")) {
   USE_GCS <<- FALSE
   source(here::here("core/R/setup.R"))
@@ -67,12 +68,13 @@ if (is.null(wsf) || nrow(wsf) == 0) print_text(paste_bold("No WSF file available
       minor_breaks = seq(1985, 2021, 1)) +
     scale_y_continuous(labels = scales::comma, limits = c(0, max(wsf$cumulative_sq_km)), expand = c(0, NA)) +
     theme_minimal() +
-    labs(title = "",
+    labs(title = "Built-up area expansion, 1985–2015",
          y = bquote('Urban built-up area,'~km^2)) +
     theme(axis.line = element_line(linewidth = .5, color = "black"))
   ggsave(here("03-render-output", "plots", "wsf-uba-plot.png"), plot = uba_plot, device = "png",
          width = 4, height = 3.5, units = "in", dpi = "print")
-  ggplot2:::print.ggplot(uba_plot)
+  print(uba_plot)
+  cat("\n\n")
 
   first_area <- wsf$cumulative_sq_km[1]
   latest_area <- tail(wsf$cumulative_sq_km, 1)
@@ -99,14 +101,15 @@ if (is.null(wsf_tracker) || nrow(wsf_tracker) == 0) print_text(paste_bold("No WS
     scale_x_yearmon(breaks = 2016.5 + 0:4*2) +
     scale_y_continuous(labels = scales::comma, limits = c(0, NA), expand = expansion(c(0, 0.05))) +
     theme_minimal() +
-    labs(title = "",
+    labs(title = "Built-up area expansion, 2016–2025",
          y = bquote('Urban built-up area,'~km^2)) +
     theme(
       axis.line = element_line(linewidth = .5, color = "black"),
       axis.title.x = element_blank())
   ggsave(here("03-render-output", "plots", "wsf-uba-tracker-plot.png"), plot = uba_tracker_plot, device = "png",
          width = 4, height = 3.5, units = "in", dpi = "print")
-  ggplot2:::print.ggplot(uba_tracker_plot)
+  print(uba_tracker_plot)
+  cat("\n\n")
 
   first_area <- wsf_tracker$cumulative_sq_km[1]
   latest_area <- tail(wsf_tracker$cumulative_sq_km, 1)
@@ -140,7 +143,7 @@ if (is.null(wsf_harm) || nrow(wsf_harm) == 0) print_text(paste_bold("No WSF harm
     scale_color_manual(values = c("WSF Evolution (masked)" = "#2166ac", "WSF Tracker" = "#b2182b")) +
     scale_linetype_manual(values = c("WSF Evolution (masked)" = "dashed", "WSF Tracker" = "dashed")) +
     theme_minimal() +
-    labs(title = "WSF Evolution + Tracker (separate)",
+    labs(title = "Built-up area expansion, 1985–2025 (separate sources)",
          y = bquote('Urban built-up area,'~km^2),
          x = "Year",
          color = NULL, linetype = NULL) +
@@ -151,7 +154,8 @@ if (is.null(wsf_harm) || nrow(wsf_harm) == 0) print_text(paste_bold("No WSF harm
       
   ggsave(here("03-render-output", "plots", "wsf-uba-separate-plot.png"), plot = uba_separate_plot, device = "png",
          width = 5, height = 4, units = "in", dpi = "print")
-  ggplot2:::print.ggplot(uba_separate_plot)
+  print(uba_separate_plot)
+  cat("\n\n")
 
   # Plot 2: Harmonized connected line
   harmonized_data <- wsf_harm %>% filter(source == "WSF Harmonized")
@@ -165,14 +169,16 @@ if (is.null(wsf_harm) || nrow(wsf_harm) == 0) print_text(paste_bold("No WSF harm
         minor_breaks = seq(1985, 2025, 1)) +
       scale_y_continuous(labels = scales::comma, limits = c(0, NA), expand = expansion(c(0, 0.05))) +
       theme_minimal() +
-      labs(title = "WSF Harmonized",
+      labs(title = "Built-up area expansion, 1985–2025",
            y = bquote('Urban built-up area,'~km^2),
            x = "Year") +
       theme(
         axis.line = element_line(linewidth = .5, color = "black"))
     ggsave(here("03-render-output", "plots", "wsf-uba-harmonized-plot.png"), plot = uba_harm_plot, device = "png",
            width = 5, height = 4, units = "in", dpi = "print")
-    ggplot2:::print.ggplot(uba_harm_plot)
+    print(uba_harm_plot)
+  cat("\n\n")
+    cat("\n\n")
 
     first_area <- harmonized_data$cumulative_sq_km[1]
     latest_area <- tail(harmonized_data$cumulative_sq_km, 1)
@@ -203,7 +209,8 @@ if (is.null(wsf_harm) || nrow(wsf_harm) == 0) print_text(paste_bold("No WSF harm
         axis.line = element_line(linewidth = .5, color = "black"))
     ggsave(here("03-render-output", "plots", "wsf-growth-rate-plot.png"), plot = uba_growth_plot, device = "png",
            width = 5, height = 4, units = "in", dpi = "print")
-    ggplot2:::print.ggplot(uba_growth_plot)
+    print(uba_growth_plot)
+  cat("\n\n")
 
   } else {
     print_text(paste_bold("No 'WSF Harmonized' source in CSV — re-run wsf_harmonize.py"))

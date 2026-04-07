@@ -21,11 +21,11 @@ message("\nCreating combined 1-10m SLR layer...")
 meter_layers <- list()
 for (m in 1:10) {
   vrt_path <- file.path(slr_dir, paste0(m, "m.vrt"))
-  if (file.exists(vrt_path)) {
+  tryCatch({
     r <- crop(rast(vrt_path), aoi_ext)
     meter_layers[[m]] <- r
     message(paste("  Loaded:", m, "m"))
-  }
+  }, error = function(e) message(paste("  Skipped:", m, "m —", e$message)))
 }
 
 # Align all rasters to the first one's grid using resample
@@ -84,14 +84,11 @@ for (ssp in ssps) {
         vrt_name <- paste0("AR6_", ssp, "_mediumconfidence_", pct, "_", yr, rl, ".vrt")
         vrt_path <- file.path(slr_dir, vrt_name)
 
-        if (!file.exists(vrt_path)) {
-          warning(paste("    VRT not found:", vrt_name))
-          next
-        }
-
-        message(paste("    Loading:", yr))
-        r <- crop(rast(vrt_path), aoi_ext)
-        year_layers[[as.character(yr)]] <- r
+        tryCatch({
+          message(paste("    Loading:", yr))
+          r <- crop(rast(vrt_path), aoi_ext)
+          year_layers[[as.character(yr)]] <- r
+        }, error = function(e) message(paste("    Skipped:", yr, "—", e$message)))
       }
 
       # Align all rasters to the first one's grid using resample

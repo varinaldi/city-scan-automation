@@ -24,12 +24,17 @@ oxford_full <- tryCatch({
   tibble()
 })
 
-# Subset for city + benchmarks with Group column
-oxford <- subset(oxford_full, Location %in% c(city, bm_cities)) %>%
+# Subset for city + non-sibling benchmarks with Group column
+# Oxford charts only use cities in Oxford, not sibling cities
+oxford_bm <- if (exists("sibling_cities")) setdiff(bm_cities, sibling_cities) else bm_cities
+oxford <- if (nrow(oxford_full) > 0) {
+  subset(oxford_full, Location %in% c(city, oxford_bm)) %>%
     mutate(Group = case_when(Location == city ~ Location,
-                             T ~ "Benchmark") %>% factor(levels = c(city, "Benchmark")))
+                             T ~ "Benchmark - Oxford") %>% factor(levels = c(city, "Benchmark - Oxford")))
+} else tibble()
 
 # National-level data for share calculations
+if (nrow(oxford) > 0) {
 countries <- oxford$Country %>% unique()
 oxford_countries <- subset(oxford_full, Country %in% countries) %>%
   subset(str_detect(Location, "- Total") | Location %in% countries, select = -Location)
@@ -41,6 +46,7 @@ pop_dist_inds <- subset(indicators, str_detect(Indicator, "Population") &
 emp_inds <- subset(indicators, str_detect(Indicator, "Employment")) %>% pull()
 gva_inds <- subset(indicators, str_detect(tolower(Indicator), "gross value added, real, us")) %>% pull()
 extra_inds <- c("Total population", "Employment - Total", "GDP, real, US$ - Total")
+}
 
 
 # =============================================================================
@@ -63,7 +69,7 @@ get_oxford_pop <- function(cities) {
       Population = `Total population` * 1000,
       Source = "Oxford",
       Method = "Oxford",
-      Group = case_when(Location == city ~ city, T ~ "Benchmark")) %>%
+      Group = case_when(Location == city ~ city, T ~ "Benchmark - Oxford")) %>%
     select(-any_of("Total population")) %>%
     arrange(Location) %>%
     subset(Year <= 2021 & !is.na(Population))
@@ -114,7 +120,7 @@ pop_dist_group <- pop_dist_long %>%
     ungroup() %>%
     group_by(Group, Age_Bracket) %>%
     summarize(Percentage = median(Percentage), .groups = "keep") %>%
-    mutate(Group = factor(Group, levels  = c(city, "Benchmark"))) %>%
+    mutate(Group = factor(Group, levels  = c(city, "Benchmark - Oxford"))) %>%
     mutate(order = case_when(Group == city ~ 1, T ~ 2)) %>%
     arrange(order) %>%
     mutate(Group = reorder(Group, order)) %>%
@@ -274,7 +280,7 @@ emp_shares2 <- emp_shares2 %>%
     mutate(Indicator = factor(Indicator, levels = sector_order))
 
 emp_shares2 <- emp_shares2 %>%
-    mutate(Share = case_when(Indicator == "Other" & Group == "Benchmark" ~ Share * 2 / 6, T ~ Share))
+    mutate(Share = case_when(Indicator == "Other" & Group == "Benchmark - Oxford" ~ Share * 2 / 6, T ~ Share))
 
 gva_shares <- subset(oxford, Indicator %in% gva_inds) %>%
     subset(str_detect(Indicator, "Total", negate = T)) %>%

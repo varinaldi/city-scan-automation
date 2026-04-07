@@ -6,11 +6,12 @@ execute:
   message: false
 ---
 
-### Elevation
+## Elevation
 
 ```{r}
 #| label: setup-elevation
 #| include: false
+if (file.exists("_quarto.yml")) here::i_am("tasks/elevation/charts/index.qmd")
 if (!exists("aoi")) {
   USE_GCS <<- FALSE
   source(here::here("core/R/setup.R"))
@@ -44,11 +45,13 @@ if (is.null(elevation) || nrow(elevation) == 0) print_text(paste_bold("No Elevat
     "#97679C") %>%
     setNames(elevation_names)
 
-  elevation_plot <- ggdonut(elevation, "Bin", "percent", colors = elevation_colors, title = "Elevation")
+  elevation_plot <- ggdonut(elevation, "Bin", "percent", colors = elevation_colors)
 
-  ggplot2:::print.ggplot(elevation_plot)
   ggsave(here("03-render-output", "plots", "wsf-elevation-pieplot.png"), device = "png",
         width = 8, height = 5, units = "in", dpi = "print")
+  print(elevation_plot)
+  cat("\n\n")
 
+  print_paged_df(elevation)
 }
 ```

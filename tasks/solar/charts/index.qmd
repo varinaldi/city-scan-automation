@@ -11,6 +11,7 @@ execute:
 ```{r}
 #| label: setup-solar
 #| include: false
+if (file.exists("_quarto.yml")) here::i_am("tasks/solar/charts/index.qmd")
 if (!exists("aoi")) {
   USE_GCS <<- FALSE
   source(here::here("core/R/setup.R"))
@@ -32,7 +33,6 @@ monthly_pv <- tryCatch({
 #| results: asis
 
 if (is.null(monthly_pv) || nrow(monthly_pv) == 0) print_text(paste_bold('No PV data available')) else {
-  monthly_pv %>% print_paged_df()
 
   pv_plot <- monthly_pv %>%
     ggplot(aes(x = month, y = mean)) +
@@ -51,10 +51,11 @@ if (is.null(monthly_pv) || nrow(monthly_pv) == 0) print_text(paste_bold('No PV d
       axis.line = element_line(linewidth = .5, color = "black"),
       panel.grid.minor.x = element_blank())
 
-  ggplot2:::print.ggplot(pv_plot)
-
   ggsave(here("03-render-output", "plots", "monthly-pv.png"), device = "png",
         width = 4, height = 3.5, units = "in", dpi = "print")
+  print(pv_plot)
+  cat("\n\n")
 
+  monthly_pv %>% print_paged_df()
 }
 ```

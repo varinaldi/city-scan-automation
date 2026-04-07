@@ -11,6 +11,7 @@ execute:
 ```{r}
 #| label: setup-landcover
 #| include: false
+if (file.exists("_quarto.yml")) here::i_am("tasks/landcover/charts/index.qmd")
 if (!exists("aoi")) {
   USE_GCS <<- FALSE
   source(here::here("core/R/setup.R"))
@@ -48,10 +49,11 @@ if (is.null(lc) || nrow(lc) == 0) print_text(paste_bold("No Landcover file avail
     "Herbaceous wetland" = "#7d87c4",
     "Mangroves" = "#00cf75")
 
-  lc_plot <- ggdonut(lc, "Land Cover Type", "Percent", colors = lc_colors, title = "Land Cover")
-  ggplot2:::print.ggplot(lc_plot)
+  lc_plot <- ggdonut(lc, "Land Cover Type", "Percent", colors = lc_colors, show_legend = TRUE)
   ggsave(here("03-render-output", "plots", "wsf-lc-pieplot.png"), plot = lc_plot, device = "png",
         width = 8, height = 5, units = "in", dpi = "print")
+  print(lc_plot)
+  cat("\n\n")
 
   lc1 <- lc$`Land Cover Type`[1]
   lc1_pct <- lc$Percent[1] %>% scales::percent(0.1)
@@ -60,7 +62,6 @@ if (is.null(lc) || nrow(lc) == 0) print_text(paste_bold("No Landcover file avail
   lc3 <- lc$`Land Cover Type`[3]
   lc3_pct <- lc$Percent[3] %>% scales::percent(0.1)
 
-  print("\n")
   print_text(paste0(paste_bold(lc1), " comprises the majority of land in the ", paste_bold(city), " area of interest (", paste_bold(lc1_pct), ")."))
   print_text(paste0("The next largest land classes are ", paste_bold( lc2), " (", paste_bold(lc2_pct), ") and ", paste_bold(lc3), " (", paste_bold(lc3_pct), ")"))
 

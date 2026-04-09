@@ -1,16 +1,32 @@
 # Multi-city input
 # Usage: python -m tasks --all --multicities
-# AOI subfolders go in inputs/AOI/{city_name}/
-# Wards auto-detected from inputs/AOI/{city_name}_wards/ if exists
+#
+# Two modes (use one or the other, not both):
+#
+# Option A: cities — separate AOI shapefiles per city in inputs/AOI/{city_name}/
+#   Wards auto-detected from inputs/AOI/{city_name}_wards/ if exists
+#
+# Option B: multipolygon — single vector file (GPKG, SHP, GeoJSON, etc.)
+#   Each row becomes a city. AOI extracted to inputs/AOI/ only if city not already in mnt/
 
-# Cities to process
-# Each city can override any shared setting below
+# Option A - specify cities with separate AOI shapefiles
 cities:
   - city_name: Windhoek
   - city_name: Swakopmund
   - city_name: Walvis Bay
   - city_name: Lüderitz
   - city_name: Aus
+
+
+
+# # Option B - specify multipolygon vector file with city names in a column
+# multipolygon:
+#   file: inputs/AOI/lobito_corridor_cities_drc_ucdb.gpkg
+#   name_column: GC_UCN_MAI_2025
+
+# # Option B.1 - specify cities in column
+# cities:
+#   - city_name: Sakania
 
 
 # optional: use the directory from a previous run by specifying the year and month in the format of yyyy-mm
@@ -73,6 +89,10 @@ flood:
 # FWI date range
 fwi_first_year: 2016
 fwi_last_year: 2021
+
+# demographics year (WorldPop R2025A, available 2015-2030)
+# default: current year
+demographics_year: 2026
 
 # land surface temperature parameters
 # dataset available from 2013-03-18

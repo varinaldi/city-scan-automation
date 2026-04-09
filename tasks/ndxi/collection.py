@@ -5,7 +5,6 @@ import os
 
 import ee
 import xarray as xr
-import rioxarray
 import xee
 
 from core.py import gee_fns as fns
@@ -89,19 +88,14 @@ def datacollection(
     for comp_type in composite:
 
         if comp_type in ('summer', 'winter'):
-            # seasonal() returns a single ee.Image — wrap in ImageCollection for xee
             img = comp.seasonal(comp_type, 'median')
 
-            ds = xr.open_dataset(
-                ee.ImageCollection([img]),
-                engine='ee',
-                geometry=AOI,
-                scale=10,
-                crs='EPSG:3857'
-            )
+            # Compute NDXI server-side
+            nir = img.select(nir_band)
+            other = img.select(other_band)
+            ndxi_img = nir.subtract(other).divide(nir.add(other)).rename(index_type)
 
-            ndxi = compute_ndxi(ds, index_type)
-            ndxi_rio = fns.xee_to_rio(ndxi)
+            ndxi_rio = fns.tiled_collection(ndxi_img, aoi, scale=10)
             ndxi_rio.name = index_type.upper()
 
             fname = f"{city_name}_{index_type}_season.tif"

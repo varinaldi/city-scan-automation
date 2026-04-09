@@ -132,6 +132,7 @@ list.files <- function(path = ".", pattern = NULL, all.files = FALSE, full.names
     files <- c(...)
 
     results <- sapply(files, function(filepath) {
+      if (is.na(filepath) || is.null(filepath)) return(FALSE)
       # Build full local path with city_dir
       local_path <- if (exists("city_dir") && city_dir != "." && !startsWith(filepath, city_dir)) {
         file.path(city_dir, filepath)

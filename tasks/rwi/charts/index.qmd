@@ -23,18 +23,18 @@ if (!exists("aoi")) {
 #| include: false
 
 rwi_gpkg <- list.files(spatial_dir, pattern = "rwi\\.gpkg$", full.names = TRUE, ignore.case = TRUE)[1]
-rwi_data <- if (!is.null(rwi_gpkg) && length(rwi_gpkg) > 0 && file.exists(rwi_gpkg)) {
+rwi_data <- if (!is.na(rwi_gpkg) && file.exists(rwi_gpkg)) {
   sf::st_read(rwi_gpkg, quiet = TRUE)
 } else NULL
 
 rwi_area_file <- list.files(tabular_dir, pattern = "rwi_area\\.csv$", full.names = TRUE)[1]
 rwi_area_std_file <- list.files(tabular_dir, pattern = "rwi_area_standardized\\.csv$", full.names = TRUE)[1]
 
-rwi_area <- if (!is.null(rwi_area_file) && length(rwi_area_file) > 0 && file.exists(rwi_area_file)) {
+rwi_area <- if (!is.na(rwi_area_file) && file.exists(rwi_area_file)) {
   read_csv(rwi_area_file, col_types = cols())
 } else NULL
 
-rwi_area_std <- if (!is.null(rwi_area_std_file) && length(rwi_area_std_file) > 0 && file.exists(rwi_area_std_file)) {
+rwi_area_std <- if (!is.na(rwi_area_std_file) && file.exists(rwi_area_std_file)) {
   read_csv(rwi_area_std_file, col_types = cols())
 } else NULL
 

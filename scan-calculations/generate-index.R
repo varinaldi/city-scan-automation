@@ -5,9 +5,14 @@
 library(yaml)
 library(here)
 
-order <- read_yaml(here("scan-calculations", "sections.yml"))
-menu <- read_yaml(here("01-user-input", "menu.yml"))
-city_inputs <- read_yaml(here("01-user-input", "city_inputs.yml"))
+# Detect if here() resolves to scan-calculations/ or city root
+in_sc <- file.exists(here("sections.yml"))
+city_root <- if (in_sc) normalizePath(here("..")) else here()
+sc_dir <- if (in_sc) here() else here("scan-calculations")
+
+order <- read_yaml(file.path(sc_dir, "sections.yml"))
+menu <- read_yaml(file.path(city_root, "01-user-input", "menu.yml"))
+city_inputs <- read_yaml(file.path(city_root, "01-user-input", "city_inputs.yml"))
 city_name <- city_inputs$city_name
 
 lines <- c(
@@ -24,6 +29,7 @@ lines <- c(
   "#| label: setup",
   "#| include: false",
   "USE_GCS <<- FALSE",
+  "here::i_am(\"scan-calculations/index.qmd\")",
   "source(here::here(\"core/R/setup.R\"))",
   "source(here::here(\"core/R/fns.R\"))",
   "source(here::here(\"core/R/pre-charting.R\"))",
@@ -34,7 +40,7 @@ lines <- c(
 )
 
 # Read basic_info.yml for conditional sections
-basic_info_path <- list.files(here("02-process-output", "tabular"), pattern = "basic_info\\.yml$", full.names = TRUE)
+basic_info_path <- list.files(file.path(city_root, "02-process-output", "tabular"), pattern = "basic_info\\.yml$", full.names = TRUE)
 basic_info <- if (length(basic_info_path) > 0) read_yaml(basic_info_path[1]) else list()
 
 n_tasks <- 0
@@ -48,13 +54,13 @@ for (task in order$sections) {
   if (task == "oxford" && !isTRUE(basic_info$in_oxford)) next
 
   # Check charts/index.qmd exists for this task
-  task_qmd <- here("tasks", task, "charts", "index.qmd")
+  task_qmd <- file.path(city_root, "tasks", task, "charts", "index.qmd")
   if (!file.exists(task_qmd)) next
 
   lines <- c(lines, paste0("{{< include ../tasks/", task, "/charts/index.qmd >}}"), "")
   n_tasks <- n_tasks + 1
 }
 
-output_file <- here("scan-calculations", "index.qmd")
+output_file <- file.path(sc_dir, "index.qmd")
 writeLines(lines, output_file)
 message("Generated ", output_file, " with ", n_tasks, " task sections")

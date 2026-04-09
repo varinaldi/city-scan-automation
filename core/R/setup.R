@@ -36,7 +36,7 @@ librarian::shelf(quiet = T,
   lubridate,
 
   # Plots
-  ggplot2, # 3.5 or higher
+  ggplot2, # 4.0+
   ggrepel,
   directlabels,
   ggh4x,
@@ -45,6 +45,7 @@ librarian::shelf(quiet = T,
   cowplot,
   ggpackets,
   ggridges,
+  ggpattern,
 
   # Spatial
   sf,
@@ -70,6 +71,12 @@ librarian::stock(quiet = T,
   ggnewscale, # 4.10 or higher
   prettymapr
 )
+
+if (packageVersion("ggplot2") < "4.0.0") {
+  message("Updating ggplot2 to 4.0+...")
+  install.packages("ggplot2")
+  library(ggplot2)
+}
 
 # 2. Load functions ------------------------------------------------------------
 source(here("core/R/fns.R"), local = T)
@@ -112,7 +119,7 @@ if (scan_id == "") {
 }
 
 # Validate format and fall back to user-inputs.R if invalid
-if (!grepl("^[0-9]{4}-[0-9]{2}-[a-z]+-[a-z_-]+$", tolower(scan_id)) ||
+if (!grepl("^[0-9]{4}-[0-9]{2}-[a-z_]+-[a-z_-]+$", tolower(scan_id)) ||
     scan_id == "" || is.na(scan_id)) {
 
   if (file.exists(here("core/R/user-inputs.R"))) {
@@ -155,7 +162,7 @@ layer_params <- read_yaml(layer_params_file)
 city_params <- read_yaml(file.path(user_input_dir, "city_inputs.yml"))
 city <- str_to_title(city_params$city_name)
 message(glue("City set to {city} (City directory: {city_dir})"))
-city_string <- tolower(city) %>% stringr::str_replace_all(" ", "-")
+city_string <- tolower(city) %>% stringr::str_replace_all(" ", "_")
 country <- str_to_title(city_params$country_name)
 if (length(country) == 0 || is.null(country) || country == "") {
   country <- str_match(scan_id, "\\d{4}-\\d{2}-([a-z]+)-")[1, 2] %>% str_to_title()

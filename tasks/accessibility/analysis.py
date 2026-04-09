@@ -178,8 +178,9 @@ def compute_graph_centralities(
                     logger.info(f"✔ Node Closeness Centrality computed (full graph): {end - start:.2f} seconds")
         if node_betweenness_centrality:
             logger.info(f"Starting Node Betweenness Centrality computation")
+            btwn_k = min(k, len(G.nodes)) if k else k
             btwn_cent = nx.betweenness_centrality(
-                G, weight='length', normalized=True, k=k, seed=seed
+                G, weight='length', normalized=True, k=btwn_k, seed=seed
             )
             end = time.time()
             logger.info(f"✔ Node Betweenness Centrality computed: {end - start:.2f} seconds")
@@ -200,8 +201,9 @@ def compute_graph_centralities(
 
         if edge_betweenness_centrality:
             logger.info(f"Starting Edge Betweenness Centrality computation")
+            edge_k = min(k, len(G.nodes)) if k else k
             edge_btwn_cent = nx.edge_betweenness_centrality(
-                G, weight='length', normalized=True, k=k, seed=seed
+                G, weight='length', normalized=True, k=edge_k, seed=seed
             )
             # Convert to Series and align by edge keys (u, v, key)
             edge_btwn_series = pd.Series(edge_btwn_cent)
@@ -508,6 +510,17 @@ def compute_accessibility_analysis(
         logger.error(f"Error saving street network with accessibilities: {e}")
 
     return merged_nodes, merged_edges
+
+def network_plot(graph, city_name, output_dir):
+    """Plot the full road network graph."""
+    if graph is None:
+        return
+    images_dir = os.path.join(output_dir, "images")
+    os.makedirs(images_dir, exist_ok=True)
+    fig, ax = ox.plot_graph(graph, bgcolor='#ffffff', node_color='#336699', node_zorder=2, node_size=5, show=False)
+    fig.savefig(f'{images_dir}/{city_name}_network_plot.png', dpi=300)
+    logger.info(f"Network plot saved to: {images_dir}/{city_name}_network_plot.png")
+
 
 def road_orientation(graph, city_name, output_dir):
     """

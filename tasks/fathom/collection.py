@@ -90,35 +90,39 @@ def _process_year(
 
     for rp in flood_rps:
 
-        tile_paths = []
-
         # ---------------------------------------------------
         # 1️⃣ Collect tile paths for this return period
         # ---------------------------------------------------
-        for lat in lat_tiles:
-            for lon in lon_tiles:
+        def _build_tile_paths(naming):
+            """Build tile paths using 'flat' or 'folder' naming."""
+            paths = []
+            for lat in lat_tiles:
+                for lon in lon_tiles:
+                    tile = f"{lat.lower()}{lon.lower()}.tif"
+                    if naming == "flat":
+                        p = (f"{GCS_FATHOM_BASE}/"
+                             f"1in{rp}-{flood_type_folder_dict[flood_type]}-{year}"
+                             f"_{lat.lower()}{lon.lower()}.tif")
+                    else:
+                        if year <= 2020:
+                            p = (f"{GCS_FATHOM_BASE}/"
+                                 f"GLOBAL-1ARCSEC-NW_OFFSET-1in{rp}-"
+                                 f"{flood_type_folder_dict[flood_type]}-DEPTH-{year}-"
+                                 f"PERCENTILE50-v3.0/{tile}")
+                        else:
+                            p = (f"{GCS_FATHOM_BASE}/"
+                                 f"GLOBAL-1ARCSEC-NW_OFFSET-1in{rp}-"
+                                 f"{flood_type_folder_dict[flood_type]}-DEPTH-{year}-"
+                                 f"SSP{flood_ssp_labels[ssp]}-PERCENTILE50-v3.0/{tile}")
+                    paths.append(p)
+            return paths
 
-                if year <= 2020:
-                    relative_path = (
-                        f"GLOBAL-1ARCSEC-NW_OFFSET-1in{rp}-"
-                        f"{flood_type_folder_dict[flood_type]}-DEPTH-{year}-"
-                        f"PERCENTILE50-v3.0/"
-                        f"{lat.lower()}{lon.lower()}.tif"
-                    )
-                else:
-                    relative_path = (
-                        f"GLOBAL-1ARCSEC-NW_OFFSET-1in{rp}-"
-                        f"{flood_type_folder_dict[flood_type]}-DEPTH-{year}-"
-                        f"SSP{flood_ssp_labels[ssp]}-PERCENTILE50-v3.0/"
-                        f"{lat.lower()}{lon.lower()}.tif"
-                    )
-
-                gcs_path = f"{GCS_FATHOM_BASE}/{relative_path}"
-                tile_paths.append(gcs_path)
-
-        if not tile_paths:
-            logger.warning(f"No tiles found for RP {rp}")
-            continue
+        # For 2020: try flat naming first, fall back to folder
+        # For future years: folder naming only
+        if year <= 2020:
+            naming_attempts = ["flat", "folder"]
+        else:
+            naming_attempts = ["folder"]
 
         # ---------------------------------------------------
         # 2️⃣ Mosaic tiles (CRITICAL alignment step)
@@ -130,14 +134,22 @@ def _process_year(
 
         tmp_mosaic_path = os.path.join(spatial_dir, tmp_mosaic_name)
 
-        try:
-            raster_pro.mosaic_raster(
-                tile_paths,
-                spatial_dir,
-                tmp_mosaic_name
-            )
-        except Exception as e:
-            logger.debug(f"Mosaic failed for RP {rp}: {str(e)}")
+        mosaic_ok = False
+        for naming in naming_attempts:
+            tile_paths = _build_tile_paths(naming)
+            try:
+                raster_pro.mosaic_raster(
+                    tile_paths,
+                    spatial_dir,
+                    tmp_mosaic_name
+                )
+                mosaic_ok = True
+                break
+            except Exception as e:
+                logger.debug(f"Mosaic failed ({naming} naming) for RP {rp}: {str(e)}")
+                continue
+
+        if not mosaic_ok:
             continue
 
         # ---------------------------------------------------
@@ -344,6 +356,56 @@ def datacollection(
     # -----------------------------
     # Combined flood map
     # -----------------------------
+    def _combine_flood_rasters(tif_list, output_path):
+        """Merge multi-band flood TIFs (max across flood types, per RP band).
+
+        Each TIF has: band 1 = max_probability, band 2+ = per-RP binary (r10, r100, r1000).
+        Aligns by band description and takes max across flood types.
+        """
+        # Collect all unique band descriptions across TIFs
+        all_bands = {}  # {description: [(tif_path, band_index), ...]}
+        for p in tif_list:
+            with rasterio.open(p) as src:
+                for i in range(1, src.count + 1):
+                    desc = src.descriptions[i - 1] or f"band_{i}"
+                    all_bands.setdefault(desc, []).append((p, i))
+
+        # Ensure max_probability is first, then sorted RP bands
+        band_order = ["max_probability"] + sorted(
+            [b for b in all_bands if b != "max_probability"],
+            key=lambda x: int(x.replace("r", "")) if x.startswith("r") else 0
+        )
+
+        # Read band 1 from first TIF to get grid/meta
+        with rasterio.open(tif_list[0]) as ref:
+            ref_meta = ref.meta.copy()
+            h, w = ref.height, ref.width
+            ref_transform = ref.transform
+
+        merged_arrays = []
+        band_descs = []
+
+        for desc in band_order:
+            if desc not in all_bands:
+                continue
+            # Stack this band from all flood types, take max
+            stack = []
+            for p, idx in all_bands[desc]:
+                with rasterio.open(p) as src:
+                    stack.append(src.read(idx).astype(np.float32))
+            combined = np.maximum.reduce(stack)
+            merged_arrays.append(combined)
+            band_descs.append(desc)
+
+        if not merged_arrays:
+            return
+
+        ref_meta.update({"count": len(merged_arrays), "dtype": "float32"})
+        with rasterio.open(output_path, 'w', **ref_meta) as dst:
+            for i, (arr, desc) in enumerate(zip(merged_arrays, band_descs), 1):
+                dst.write(arr, i)
+                dst.set_band_description(i, desc)
+
     if menu.get('flood_comb', False):
         for year in flood_years:
 
@@ -355,14 +417,11 @@ def datacollection(
                 ]
 
                 if comb_list:
-                    raster_pro.mosaic_raster(
-                        comb_list, spatial_dir,
-                        f'{city_name}_comb_{year}.tif',
-                        method='max'
-                    )
+                    comb_path = f'{spatial_dir}/{city_name}_comb_{year}.tif'
+                    _combine_flood_rasters(comb_list, comb_path)
 
                     raster_pro.reproject_raster(
-                        f'{spatial_dir}/{city_name}_comb_{year}.tif',
+                        comb_path,
                         f'{spatial_dir}/{city_name}_comb_{year}_utm.tif',
                         dst_crs=utm_crs
                     )
@@ -376,11 +435,8 @@ def datacollection(
                     ]
 
                     if comb_list:
-                        raster_pro.mosaic_raster(
-                            comb_list, spatial_dir,
-                            f'{city_name}_comb_{year}_ssp{ssp}.tif',
-                            method='max'
-                        )
+                        comb_path = f'{spatial_dir}/{city_name}_comb_{year}_ssp{ssp}.tif'
+                        _combine_flood_rasters(comb_list, comb_path)
 
                         raster_pro.reproject_raster(
                             f'{spatial_dir}/{city_name}_comb_{year}_ssp{ssp}.tif',

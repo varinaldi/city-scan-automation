@@ -5,7 +5,6 @@ import os
 
 import ee
 import xarray as xr
-import rioxarray
 import xee
 
 from core.py import gee_fns as fns
@@ -59,17 +58,10 @@ def datacollection(
         if comp_type in ('summer', 'winter'):
             img = comp.seasonal(comp_type, 'mean')
 
-            ds = xr.open_dataset(
-                img,
-                engine='ee',
-                geometry=AOI,
-                scale=30,
-                crs='EPSG:3857'
-            )
+            # Convert Kelvin to Celsius server-side
+            img = img.subtract(273.15)
 
-            # Convert Kelvin to Celsius
-            lst = ds['ST_B10'] - 273.15
-            lst_rio = fns.xee_to_rio(lst)
+            lst_rio = fns.tiled_collection(img, aoi, scale=30)
 
             fname = f"{city_name}_lst_{comp_type}.tif"
             tif_path = os.path.join(spatial_dir, fname)

@@ -4,7 +4,7 @@ logger = setup_logger(__name__)
 import os
 import csv
 import numpy as np
-import rioxarray
+import rasterio
 
 CLASS_VALUES = {
     10: 'Tree cover',
@@ -21,21 +21,36 @@ CLASS_VALUES = {
 }
 
 
-# Equivalent of Caroline's clean.py — clean_lc()
 def dataanalysis(city_name, output_dir):
-    """Compute land cover stats CSV from the raster."""
+    """Compute land cover stats CSV from the raster using windowed reads."""
 
     spatial_dir = os.path.join(output_dir, "spatial")
     tif_path = os.path.join(spatial_dir, f"{city_name}_lc.tif")
-    lc_data = rioxarray.open_rasterio(tif_path).isel(band=0).values
 
-    # Frequency histogram
-    valid = lc_data[~np.isnan(lc_data)].astype(int)
-    # Handle old rasters where class values are divided by 10 (e.g. 1,3,4 instead of 10,30,40)
-    if valid.max() < 100:
-        valid = valid * 10
-    unique, counts = np.unique(valid, return_counts=True)
-    pixel_counts = dict(zip(unique, counts))
+    class_vals = np.array(sorted(CLASS_VALUES.keys()))
+    pixel_counts = {}
+    needs_scale = None
+
+    with rasterio.open(tif_path) as src:
+        for _, window in src.block_windows(1):
+            block = src.read(1, window=window).astype(float)
+            valid = block[~np.isnan(block) & (block != src.nodata if src.nodata is not None else True)].astype(int)
+            if len(valid) == 0:
+                continue
+
+            # Detect scale on first block
+            if needs_scale is None:
+                needs_scale = valid.max() <= 10
+
+            if needs_scale:
+                valid = valid * 10
+
+            # Snap to nearest valid ESA class
+            valid = class_vals[np.argmin(np.abs(valid[:, None] - class_vals[None, :]), axis=1)]
+
+            unique, counts = np.unique(valid, return_counts=True)
+            for val, cnt in zip(unique, counts):
+                pixel_counts[val] = pixel_counts.get(val, 0) + cnt
 
     counts_dict = {}
     for class_val, class_name in CLASS_VALUES.items():

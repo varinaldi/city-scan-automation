@@ -1,4 +1,4 @@
-"""City Scan Automation — see docs/running-cities.md for usage."""
+"""City Scan Automation — see docs/orchestration.md for usage."""
 import sys
 import os
 
@@ -21,10 +21,16 @@ logger = setup_logger("tasks")
 def main():
     args = sys.argv[1:]
 
+    # =========================================================
+    # HELP
+    # =========================================================
     if not args or "--help" in args:
         print(__doc__)
         return
 
+    # =========================================================
+    # LIST
+    # =========================================================
     if "--list" in args:
         idx = args.index("--list")
         list_what = args[idx + 1] if idx + 1 < len(args) else "tasks"
@@ -86,7 +92,9 @@ def main():
         print()
         return
 
-    # Validate and parse flags (centralized in core/config/cli.py)
+    # =========================================================
+    # VALIDATE & PARSE
+    # =========================================================
     err = validate_args(args)
     if err:
         logger.error(err)
@@ -94,7 +102,9 @@ def main():
 
     flags = parse_args(args)
 
-    # Handle --multicities
+    # =========================================================
+    # MULTICITIES
+    # =========================================================
     if "--multicities" in args:
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         multicities_path = os.path.join(project_root, "inputs", "multi_inputs.yml")
@@ -138,7 +148,7 @@ def main():
     sync_tasks = None if flags['run_all'] or not scan_id else (_resolved or None)
 
     scan = Scan(scan_id=scan_id, sync_tasks=sync_tasks,
-                skip_sync=bool(flags['render_targets']) or flags['keep_as_is'],
+                skip_sync=(bool(flags['render_targets']) or flags['keep_as_is']) and not flags['sync_targets'],
                 use_existing=flags['use_existing'],
                 sync_targets=flags['sync_targets'] or None)
 
@@ -147,20 +157,24 @@ def main():
     from core.py.log_module import set_log_dir
     set_log_dir(os.path.join(city_dir, "logs"))
 
-    # --sync without tasks: sync only, don't run
+    # =========================================================
+    # SYNC ONLY
+    # =========================================================
     if flags['sync_targets'] and not flags['step'] and not flags['run_all'] and not flags['render_targets']:
         task_names_check = [a for a in args if not a.startswith("-") and a != scan_id and a not in flags['sync_targets']]
         if not task_names_check:
             print(f"\n  Synced {', '.join(flags['sync_targets'])} to {scan.cityscan_id}\n")
             return
 
-    # Handle --render (runs from city folder via subprocess, doesn't change parent pwd)
+    # =========================================================
+    # RENDER
+    # =========================================================
     if flags['render_targets']:
         import subprocess
 
         # Confirm before rendering (skip if --scan-id given, non-interactive, or multicities)
         render_desc = ', '.join(flags['render_targets'])
-        if scan_id or flags['auto_exit'] or not sys.stdin.isatty():
+        if scan_id or flags['auto_exit'] or INPUTS.name != "inputs" or not sys.stdin.isatty():
             logger.info(f"Rendering {render_desc} for {scan.cityscan_id}")
         else:
             print(f"\n  Render {render_desc} for {scan.cityscan_id}? (y/n)")
@@ -172,9 +186,16 @@ def main():
 
         for render_target in flags['render_targets']:
             if render_target == "maps":
-                logger.info("Rendering static maps...")
+                if task_names:
+                    # Task-specific map rendering
+                    tasks_str = "c(" + ",".join(f"'{t}'" for t in task_names) + ")"
+                    r_cmd = f"render_tasks <- {tasks_str}; source(here::here('core/R/maps-static.R'))"
+                    logger.info(f"Rendering maps for: {', '.join(task_names)}")
+                else:
+                    r_cmd = "source(here::here('core/R/maps-static.R'))"
+                    logger.info("Rendering all static maps...")
                 subprocess.run(
-                    ["Rscript", "-e", "source(here::here('core/R/maps-static.R'))"],
+                    ["Rscript", "-e", r_cmd],
                     cwd=city_dir, check=True
                 )
             elif render_target == "scan-calculations":
@@ -200,7 +221,9 @@ def main():
                         logger.error(f"No charts found for task '{task}' at {qmd}")
         return
 
-    # chdir to city folder
+    # =========================================================
+    # RUN TASKS
+    # =========================================================
     if os.path.isdir(city_dir):
         os.chdir(city_dir)
 
@@ -290,7 +313,9 @@ def main():
             if flags['upload_enabled']:
                 upload_task_outputs(scan, name, step=step, files_before=files_before)
 
-    # Summary table (both parallel and sequential)
+    # =========================================================
+    # SUMMARY & REPORT
+    # =========================================================
     if all_results and len(all_results) > 1:
         logger.info(f"\n{'='*50}\n  SUMMARY\n{'='*50}\n")
 

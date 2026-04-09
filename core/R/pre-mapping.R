@@ -7,10 +7,11 @@ combine_infrastructure_points <- function() {
   school_points <- fuzzy_read(spatial_dir, "osm_schools(?=.shp$|.gpkg$|$)") %>% mutate(Feature = "School") %>% tryCatch(error = \(e) {return(NULL)})
   fire_points <- fuzzy_read(spatial_dir, "osm_fire(?=.shp$|.gpkg$|$)") %>% mutate(Feature = "Fire station") %>% tryCatch(error = \(e) {return(NULL)})
   police_points <- fuzzy_read(spatial_dir, "osm_police(?=.shp$|.gpkg$|$)") %>% mutate(Feature = "Police station") %>% tryCatch(error = \(e) {return(NULL)})
+  # Convert to centroids before rbind (OSM may return mixed point/polygon geometries)
+  to_points <- \(x) if (!is.null(x) && inherits(x, "SpatVector")) centroids(x) else x
   rbind_if_non_null <- \(...) Reduce(rbind, unlist(list(...)))
-  infrastructure_points <- rbind_if_non_null(health_points, school_points, fire_points, police_points)
+  infrastructure_points <- rbind_if_non_null(to_points(health_points), to_points(school_points), to_points(fire_points), to_points(police_points))
   if (!is.null(infrastructure_points)) {
-    infrastructure_points <- centroids(infrastructure_points)
     infrastructure_points <- crop(infrastructure_points, aoi)
     writeVector(select(infrastructure_points, !contains("fid")), filename = file.path(spatial_dir, "infrastructure.gpkg"), overwrite = T)
   }
@@ -29,14 +30,14 @@ combine_flood_types <- function() {
     combined_flooding <- flood_files %>%
       lapply(rast) %>% 
       reduce(\(x, y) max(x, resample(y, x), na.rm = T))    
-    writeRaster(combined_flooding, filename = file.path(spatial_dir, paste0(city, "_combined_flooding_2020.tif")), overwrite = T)
+    writeRaster(combined_flooding, filename = file.path(spatial_dir, paste0(city_string, "_combined_flooding_2020.tif")), overwrite = T)
   }
 }
 message("Combining flood types...")
-if (!file.exists(file.path(spatial_dir, paste0(city, "_combined_flooding_2020.tif")))) {
+if (!file.exists(file.path(spatial_dir, paste0(city_string, "_combined_flooding_2020.tif")))) {
   combine_flood_types()
 } else {
-  message(paste0(city, "_combined_flooding_2020.tif already exists, skipping..."))
+  message(paste0(city_string, "_combined_flooding_2020.tif already exists, skipping..."))
 }
 
 # Road network centrality
@@ -181,16 +182,9 @@ message("Processing WSF data...")
 if (!file.exists(file.path(spatial_dir, "wsf-edit.tif"))) {
   wsf <- fuzzy_read(spatial_dir, "wsf_evolution.tif$")
   if (inherits(wsf, "SpatRaster")) {
-    # # Projecting to 3857 causes problems for leaflet; but was possibly necessary
-    # # for ggplot2. If there are problems with static, perhaps split in two files?
-    # wsf_new <- project(wsf, "epsg:3857")
-    wsf_new <- wsf
-    # Using <- NA changes the datatype to unsigned, which ultimately results
-    # in huge values when wsf is re-projected in maps-static.R
-    # values(wsf_new)[values(wsf_new) == 0] <- NA
-    wsf_new <- classify(wsf_new, cbind(0, NA)) # Added this for Uzbekistan, but I don't suspect it will cause problems on newer runs
-    NAflag(wsf_new) <- NA
-    writeRaster(wsf_new, file.path(spatial_dir, "wsf-edit.tif"), overwrite = T)
+    # classify 0 → NA, write directly to disk (avoids loading full raster into RAM)
+    out_path <- file.path(spatial_dir, "wsf-edit.tif")
+    classify(wsf, cbind(0, NA), filename = out_path, overwrite = TRUE, NAflag = NA)
   }
 } else {
   message("wsf-edit.tif already exists, skipping...")
@@ -200,10 +194,13 @@ if (!file.exists(file.path(spatial_dir, "wsf-tracker-edit.tif"))) {
   wsf_tracker <- fuzzy_read(spatial_dir, "wsf_tracker(?!.*utm).tif$")
   if (inherits(wsf_tracker, "SpatRaster")) {
     # New Python task already stores year values; old backend stored raw era values needing 2016 + val/2
-    if (max(values(wsf_tracker), na.rm = T) < 100) {
-      values(wsf_tracker) <- 2016 + values(wsf_tracker)/2
+    # Use global() instead of values() to avoid loading entire raster into RAM
+    if (global(wsf_tracker, "max", na.rm = TRUE)[1,1] < 100) {
+      out_path <- file.path(spatial_dir, "wsf-tracker-edit.tif")
+      app(wsf_tracker, \(x) 2016 + x/2, filename = out_path, overwrite = TRUE)
+    } else {
+      writeRaster(wsf_tracker, file.path(spatial_dir, "wsf-tracker-edit.tif"), overwrite = TRUE)
     }
-    writeRaster(wsf_tracker, file.path(spatial_dir, "wsf-tracker-edit.tif"), overwrite = T)
   }
 } else {
   message("wsf-tracker-edit.tif already exists, skipping...")
@@ -213,8 +210,9 @@ message("Processing burn data...")
 if (!file.exists(file.path(spatial_dir, "burn-edit.tif"))) {
   burn <- fuzzy_read(spatial_dir, "lc_burn.tif$")
   if (inherits(burn, "SpatRaster")) {
-    values(burn)[values(burn) < 0] <- NaN
-    writeRaster(burn, file.path(spatial_dir, "burn-edit.tif"), overwrite = T)
+    # Set negative values to NA, write directly to disk
+    classify(burn, cbind(-Inf, 0, NA), right = FALSE,
+             filename = file.path(spatial_dir, "burn-edit.tif"), overwrite = TRUE)
   }
 } else {
   message("burn-edit.tif already exists, skipping...")
@@ -243,17 +241,14 @@ if (!file.exists(file.path(spatial_dir, "burnt-area-density.tif"))) {
 adjust_deforstation_years <- function() {
   deforest <- fuzzy_read(spatial_dir, "deforestation.tif$", rast)
   if (inherits(deforest, c("SpatRaster"))) {
-    vals <- na.omit(values(deforest))
-    if (all(vals %in% 1:99)) {
-      values(deforest) <- values(deforest) + 2000
-      writeRaster(deforest, file.path(spatial_dir, "deforestation-edit.tif"), overwrite = T)
-      return(NULL)
+    # Use global() to check range without loading all values into RAM
+    max_val <- global(deforest, "max", na.rm = TRUE)[1,1]
+    out_path <- file.path(spatial_dir, "deforestation-edit.tif")
+    if (!is.na(max_val) && max_val > 0 && max_val < 100) {
+      app(deforest, \(x) x + 2000, filename = out_path, overwrite = TRUE)
+    } else {
+      writeRaster(deforest, out_path, overwrite = TRUE)
     }
-    if (all(vals > 2000) | length(vals) == 0) {
-      writeRaster(deforest, file.path(spatial_dir, "deforestation-edit.tif"), overwrite = T)
-      return(NULL)
-    }
-    stop("Deforestation raster has values both in 1-99 and above 2000; please fix source data")
   }
 }
 adjust_deforstation_years()
@@ -291,10 +286,12 @@ if (!file.exists(file.path(spatial_dir, "vegetation-edit.tif"))) {
   ndvi <- fuzzy_read(spatial_dir, "ndvi.seaso")
   if (inherits(ndvi, "SpatRaster")) {
     if (!"NDVI" %in% names(ndvi)) names(ndvi) <- "NDVI"
-    writeRaster(filter(ndvi, NDVI >= .18), file.path(spatial_dir, "vegetation-edit.tif"), overwrite = T)
-    veg_binary <- mutate(ndvi, NDVI = NDVI >= .18) + 0
-    values(veg_binary)[values(veg_binary) == 0] <- NA
-    writeRaster(veg_binary, file.path(spatial_dir, "vegetation-binary-edit.tif"), overwrite = T)
+    # Classify: values < 0.18 → NA, write directly to disk
+    classify(ndvi, cbind(-Inf, 0.18, NA), right = FALSE,
+             filename = file.path(spatial_dir, "vegetation-edit.tif"), overwrite = TRUE)
+    # Binary: >= 0.18 → 1, < 0.18 → NA
+    classify(ndvi, matrix(c(-Inf, 0.18, NA, 0.18, Inf, 1), ncol = 3, byrow = TRUE),
+             right = FALSE, filename = file.path(spatial_dir, "vegetation-binary-edit.tif"), overwrite = TRUE)
   }
 } else {
   message("vegetation-edit.tif already exists, skipping...")
@@ -322,6 +319,31 @@ if (!file.exists(file.path(spatial_dir, "liquefaction-edit.tif"))) {
   message("liquefaction-edit.tif already exists, skipping...")
 }
 
+
+# Built-up area extent (2025) for overlay on accessibility/hazard maps
+message("Processing built-up area extent for overlay...")
+builtup_extent_2025 <- tryCatch({
+  wsf_harm <- fuzzy_read(spatial_dir, "wsf_harmonized\\.tif$")
+  if (!inherits(wsf_harm, "SpatRaster")) {
+    wsf_harm <- fuzzy_read(spatial_dir, "wsf_evolution\\.tif$")
+  }
+  if (inherits(wsf_harm, "SpatRaster")) {
+    wsf_harm <- crop(wsf_harm, aoi, mask = TRUE)
+    # Classify: anything <= 2025 = 1 (built), everything else = NA
+    built_binary <- classify(wsf_harm, cbind(c(-Inf, 2025.5), c(2025.5, Inf), c(1, NA)),
+                             include.lowest = TRUE)
+    built_binary <- aggregate_if_too_fine(built_binary)
+    built_poly <- as.polygons(built_binary)
+    message("Built-up extent 2025 polygon created")
+    built_poly
+  } else {
+    message("No WSF raster found for built-up extent")
+    NULL
+  }
+}, error = function(e) {
+  message("Built-up extent processing failed: ", e$message)
+  NULL
+})
 
 ## done
 message("Pre-mapping processing complete.")

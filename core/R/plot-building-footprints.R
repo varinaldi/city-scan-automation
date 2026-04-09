@@ -32,7 +32,7 @@ if (is.null(buildings_path) || length(buildings_path) == 0 || !file.exists(build
     theme(panel.background = element_rect(fill = "black"))
 
   if (!is.null(roads)) {
-    p <- p + geom_spatvector(data = roads, color = "white", size = 0.0125)
+    p <- p + geom_spatvector(data = roads, color = "white", linewidth = 0.1)
   }
 
   # Save

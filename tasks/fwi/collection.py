@@ -110,7 +110,7 @@ def datacollection(
             
         except Exception as e:
             # Many dates may not have data available, so this is expected
-            logger.error(f"File not found or error reading {date_str}: {str(e)[:100]}")
+            logger.warning(f"Skipping {date_str}: {str(e)[:100]}")
         
         current_date += timedelta(weeks=1)
 

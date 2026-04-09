@@ -3,6 +3,9 @@ logger = setup_logger(__name__)
 import requests
 import shutil
 
+# Tracks which data source was used (set by collection functions)
+data_source = None
+
 def download_public_zip(url, output_path):
     """
     Download a publicly accessible ZIP file via HTTP.
@@ -158,7 +161,7 @@ def datacollection(
                     with open(local_zip, "wb") as f:
                         shutil.copyfileobj(r.raw, f)
             except Exception as e:
-                logger.error(f"Failed to download {zip_name}: {e}")
+                logger.warning(f"Failed to download {zip_name}: {e}")
                 continue
 
             logger.info(f"Extracting required TIFFs from {zip_name}")
@@ -188,8 +191,10 @@ def datacollection(
                 logger.error(f"Failed to extract {zip_name}: {e}")
 
         if not extracted_tifs:
-            logger.warning("No FABDEM TIFFs extracted — falling back to GEE SRTM")
-            return gee_elevation(aoi, city_name, output_dir, return_raster, create_raster_buffer)
+            logger.warning("No FABDEM TIFFs extracted from GCS — trying FABDEM from GEE")
+            return gee_fabdem(aoi, city_name, output_dir, return_raster, create_raster_buffer)
+        global data_source
+        data_source = "FABDEM (GCS)"
         # ------------------------------------------------------------------
         # 6. Mosaic tiles
         # ------------------------------------------------------------------
@@ -303,47 +308,71 @@ def datacollection(
     return None
 
 
-def gee_elevation(aoi, city_name, output_dir, return_raster=False, create_raster_buffer=True):
-    """Fallback: download SRTM elevation from GEE when FABDEM is unavailable."""
+def gee_fabdem(aoi, city_name, output_dir, return_raster=False, create_raster_buffer=True):
+    """Fallback 1: download FABDEM from GEE community catalog when GCS zip is unavailable."""
     import os
     import ee
     import geopandas as gpd
-    import xarray as xr
-    import rioxarray
-    import xee
+    from core.py import gee_fns as fns
+
+    logger.info("Starting GEE FABDEM elevation data collection...")
+    global data_source
+
+    try:
+        fabdem = ee.ImageCollection("projects/sat-io/open-datasets/FABDEM").mosaic()
+
+        spatial_dir = os.path.join(output_dir, "spatial")
+        os.makedirs(spatial_dir, exist_ok=True)
+
+        elev_rio = fns.tiled_collection(fabdem, aoi, scale=30)
+        elev_rio = elev_rio.rio.clip(aoi.to_crs(elev_rio.rio.crs).geometry, drop=True)
+        tif_path = os.path.join(spatial_dir, f"{city_name}_elevation.tif")
+        elev_rio.rio.to_raster(tif_path)
+        data_source = "FABDEM (GEE)"
+        logger.info(f"Elevation raster saved to: {tif_path}")
+
+        if create_raster_buffer:
+            aoi_buf = gpd.GeoDataFrame(geometry=aoi.buffer(0.001), crs=aoi.crs)
+            elev_buf_rio = fns.tiled_collection(fabdem, aoi_buf, scale=30)
+            tif_path_buf = os.path.join(spatial_dir, f"{city_name}_elevation_buf.tif")
+            elev_buf_rio.rio.to_raster(tif_path_buf)
+            logger.info(f"Buffered elevation raster saved to: {tif_path_buf}")
+
+        if return_raster:
+            return elev_rio, elev_buf_rio if create_raster_buffer else None
+
+        return None
+
+    except Exception as e:
+        logger.warning(f"GEE FABDEM failed: {e} — falling back to SRTM")
+        return gee_srtm(aoi, city_name, output_dir, return_raster, create_raster_buffer)
+
+
+def gee_srtm(aoi, city_name, output_dir, return_raster=False, create_raster_buffer=True):
+    """Fallback 2: download SRTM elevation from GEE when FABDEM is unavailable."""
+    import os
+    import ee
+    import geopandas as gpd
     from core.py import gee_fns as fns
 
     logger.info("Starting GEE SRTM elevation data collection...")
+    global data_source
+    data_source = "SRTM (GEE)"
 
-    AOI, bounds = fns.aoi_to_ee_geometry(aoi)
     elevation = ee.Image("USGS/SRTMGL1_003")
-
-    ds = xr.open_dataset(
-        elevation, engine='ee', geometry=AOI,
-        scale=30, crs='EPSG:3857'
-    )
 
     spatial_dir = os.path.join(output_dir, "spatial")
     os.makedirs(spatial_dir, exist_ok=True)
 
-    # Clipped elevation — mask to AOI boundary (not just bbox)
-    elev_rio = fns.xee_to_rio(ds['elevation'])
+    elev_rio = fns.tiled_collection(elevation, aoi, scale=30)
     elev_rio = elev_rio.rio.clip(aoi.to_crs(elev_rio.rio.crs).geometry, drop=True)
     tif_path = os.path.join(spatial_dir, f"{city_name}_elevation.tif")
     elev_rio.rio.to_raster(tif_path)
     logger.info(f"Elevation raster saved to: {tif_path}")
 
-    # Buffered elevation (for slope analysis)
     if create_raster_buffer:
         aoi_buf = gpd.GeoDataFrame(geometry=aoi.buffer(0.001), crs=aoi.crs)
-        AOI_buf, _ = fns.aoi_to_ee_geometry(aoi_buf)
-
-        ds_buf = xr.open_dataset(
-            elevation, engine='ee', geometry=AOI_buf,
-            scale=30, crs='EPSG:3857'
-        )
-
-        elev_buf_rio = fns.xee_to_rio(ds_buf['elevation'])
+        elev_buf_rio = fns.tiled_collection(elevation, aoi_buf, scale=30)
         tif_path_buf = os.path.join(spatial_dir, f"{city_name}_elevation_buf.tif")
         elev_buf_rio.rio.to_raster(tif_path_buf)
         logger.info(f"Buffered elevation raster saved to: {tif_path_buf}")

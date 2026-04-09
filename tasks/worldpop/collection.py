@@ -23,17 +23,16 @@ WP_URLS = {
 def _wp_direct_download(iso3, years, dataset, aoi_bounds):
     """Download WorldPop rasters, windowed read of AOI only, return list of (array, meta).
     Works for both Global 1 and Global 2 — pass dataset='g1' or 'g2'.
-    Note: WorldPop server doesn't support range requests, so full download is needed."""
+    Downloads 3 files in parallel for speed."""
+    from concurrent.futures import ThreadPoolExecutor
+
     iso_lower = iso3.lower()
     iso_upper = iso3.upper()
     url_template = WP_URLS[dataset]
-    results = []
-
     total = len(years)
-    for idx, year in enumerate(years, 1):
-        url = url_template.format(year=year, ISO=iso_upper, iso=iso_lower)
 
-        # Download to memory, open with MemoryFile, crop to AOI
+    def _fetch(year):
+        url = url_template.format(year=year, ISO=iso_upper, iso=iso_lower)
         response = urllib.request.urlopen(url)
         with MemoryFile(response.read()) as memfile:
             with memfile.open() as src:
@@ -42,12 +41,16 @@ def _wp_direct_download(iso3, years, dataset, aoi_bounds):
                 transform = src.window_transform(window)
                 meta = src.meta.copy()
                 meta.update({"height": data.shape[1], "width": data.shape[2], "transform": transform})
+        return year, data, meta
 
-        results.append((data, meta))
-        print(f"Downloading {dataset.upper()} from WorldPop... {idx}/{total}", end="\r")
+    results_dict = {}
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        for i, (year, data, meta) in enumerate(pool.map(_fetch, years), 1):
+            results_dict[year] = (data, meta)
+            print(f"  Downloading {dataset.upper()} from WorldPop... {i}/{total}", end="\r")
     print()
 
-    return results
+    return [(results_dict[y][0], results_dict[y][1]) for y in years]
 
 
 def _stack_mask(band_list, aoi_shapes):

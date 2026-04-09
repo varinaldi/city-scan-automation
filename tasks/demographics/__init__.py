@@ -3,14 +3,17 @@ logger = setup_logger(__name__)
 
 
 def collect(scan):
-    from .collection import datacollection
+    from . import collection
 
     logger.info("Collecting demographic data...")
-    datacollection(
+    demographics_year = scan.city_inputs.get('demographics_year')
+    collection.datacollection(
         aoi=scan.aoi, city_name=scan.city_name,
         country_iso3=scan.country_iso3, output_dir=scan.output_dir,
-        return_raster=False
+        return_raster=False, year=demographics_year
     )
+    if collection.data_source:
+        scan.sources["demographics"] = collection.data_source
 
 
 def analyze(scan):

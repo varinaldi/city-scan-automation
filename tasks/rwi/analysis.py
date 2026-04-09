@@ -161,46 +161,69 @@ def compute_histogram(
 
     gdf_valid['area'] = gdf_valid.geometry.area
 
-    # Standard deviation binning
+    total_area = gdf_valid['area'].sum()
+    tabular_dir = os.path.join(output_dir, "tabular")
+    os.makedirs(tabular_dir, exist_ok=True)
+
+    # --- City-relative binning (standard deviation of city's own data) ---
     rwi_mean = gdf_valid[value_col].mean()
     rwi_sd = gdf_valid[value_col].std()
 
-    bins = [
-        -np.inf,
-        rwi_mean - 1.0 * rwi_sd,
-        rwi_mean - 0.5 * rwi_sd,
-        rwi_mean + 0.5 * rwi_sd,
-        rwi_mean + 1.0 * rwi_sd,
-        np.inf
+    rwi_min = gdf_valid[value_col].min()
+    rwi_max = gdf_valid[value_col].max()
+    eq_breaks = np.linspace(rwi_min, rwi_max, 6)
+    bins_relative = list(eq_breaks)
+    labels_relative = [
+        f'{eq_breaks[i]:.2f} – {eq_breaks[i+1]:.2f}' for i in range(5)
     ]
-    labels = ['Least wealthy', 'Less wealthy', 'Average wealth', 'More wealthy', 'Most wealthy']
 
     gdf_valid['rwi_category'] = pd.cut(
-        gdf_valid[value_col], bins=bins, labels=labels, include_lowest=True
+        gdf_valid[value_col], bins=bins_relative, labels=labels_relative, include_lowest=True
     )
 
-    total_area = gdf_valid['area'].sum()
-    bin_data = []
-    for category in labels:
+    bin_data_relative = []
+    for category in labels_relative:
         category_data = gdf_valid[gdf_valid['rwi_category'] == category]
         count = len(category_data)
         area = category_data['area'].sum() if count > 0 else 0
         percentage = round((area / total_area) * 100, 2) if total_area > 0 else 0
-        bin_data.append({'bin': category, 'count': int(count), 'percentage': percentage})
+        bin_data_relative.append({'bin': category, 'count': int(count), 'percentage': percentage})
 
-    result_df = pd.DataFrame(bin_data)
-    result_df = result_df[result_df['count'] > 0].copy()
-
-    # Save
-    tabular_dir = os.path.join(output_dir, "tabular")
-    os.makedirs(tabular_dir, exist_ok=True)
-    output_path = os.path.join(tabular_dir, f"{city_name}_rwi_area.csv")
+    result_relative = pd.DataFrame(bin_data_relative)
+    result_relative = result_relative[result_relative['count'] > 0].copy()
 
     try:
-        result_df.to_csv(output_path, index=False)
-        logger.info(f"RWI histogram saved to: {output_path}")
+        output_path = os.path.join(tabular_dir, f"{city_name}_rwi_area.csv")
+        result_relative.to_csv(output_path, index=False)
+        logger.info(f"RWI relative histogram saved to: {output_path}")
     except Exception as e:
-        logger.error(f"Error saving histogram CSV: {e}")
+        logger.error(f"Error saving relative histogram CSV: {e}")
+
+    # --- Standardized binning (fixed SD breaks, comparable across cities) ---
+    bins_std = [-np.inf, -1.0, -0.5, 0.5, 1.0, np.inf]
+    labels_std = ['< -1.0', '-1.0 – -0.5', '-0.5 – 0.5', '0.5 – 1.0', '> 1.0']
+
+    gdf_valid['rwi_category_std'] = pd.cut(
+        gdf_valid[value_col], bins=bins_std, labels=labels_std, include_lowest=True
+    )
+
+    bin_data_std = []
+    for category in labels_std:
+        category_data = gdf_valid[gdf_valid['rwi_category_std'] == category]
+        count = len(category_data)
+        area = category_data['area'].sum() if count > 0 else 0
+        percentage = round((area / total_area) * 100, 2) if total_area > 0 else 0
+        bin_data_std.append({'bin': category, 'count': int(count), 'percentage': percentage})
+
+    result_std = pd.DataFrame(bin_data_std)
+    result_std = result_std[result_std['count'] > 0].copy()
+
+    try:
+        output_path_std = os.path.join(tabular_dir, f"{city_name}_rwi_area_standardized.csv")
+        result_std.to_csv(output_path_std, index=False)
+        logger.info(f"RWI standardized histogram saved to: {output_path_std}")
+    except Exception as e:
+        logger.error(f"Error saving standardized histogram CSV: {e}")
 
     if return_df:
         return result_df

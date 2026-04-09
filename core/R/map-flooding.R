@@ -2,7 +2,7 @@ plot_flooding <- function(flood_type) {
   tryCatch_named(flood_type, {
     file <- fuzzy_read(spatial_dir, glue("{flood_type}_2020.tif$"), paste)
     if (is.na(file)) return(NULL)
-    flood_data <- terra::crop(rast(file), static_map_bounds)
+    flood_data <- terra::crop(rast(file)[[1]], static_map_bounds)
     # Temporary fix for if layer is all NAs
     if (all(is.na(values(flood_data)))) values(flood_data)[1] <- 0
     plots[[flood_type]] <<- plot_static_layer(
@@ -25,6 +25,18 @@ plot_flooding <- function(flood_type) {
     }
     if (!is.null(plots$infrastructure)) plots[[glue("{flood_type}_infrastructure")]] <<-
       plot_static_layer(flood_data, yaml_key = flood_type, baseplot = plots$infrastructure)
+    # Built-up area 2025 hatch overlay on flood maps
+    if (exists("builtup_extent_2025") && !is.null(builtup_extent_2025)) {
+      builtup_clipped <- sf::st_intersection(sf::st_as_sf(builtup_extent_2025), sf::st_as_sf(aoi))
+      plots[[glue("{flood_type}_builtup")]] <<- plots[[flood_type]] +
+        ggpattern::geom_sf_pattern(
+          data = builtup_clipped, color = NA, fill = NA,
+          aes(pattern = "2025 built-up area"),
+          pattern_spacing = 0.0125, pattern_fill = NA,
+          pattern_density = 0.5, pattern_size = 0.25) +
+        ggpattern::scale_pattern_manual(values = "stripe", name = "") +
+        coord_3857_bounds(static_map_bounds)
+    }
   })
 }
 

@@ -1,6 +1,51 @@
 # Changelog
 
 ---
+## 2026-04-08
+
+### Changed
+#### GEE Tiling for Large AOIs
+- `core/py/gee_fns.py`: added `make_tiles(aoi, tile_size_deg=0.5)` — splits AOI into 0.5° tiles for GEE download
+- `core/py/gee_fns.py`: added `tiled_collection(image, aoi, scale)` — downloads via tiles, auto-mosaics, handles single/multi-band
+- Updated all GEE tasks to use `tiled_collection`: landcover, forest, nightlight, lst, ndxi, elevation (FABDEM + SRTM)
+- Landcover analysis: switched to rasterio windowed reads instead of full raster load
+
+#### Maps
+- Custom map scripts now driven by `maps.yml` per task instead of hardcoded list in `maps-static.R`
+- Old hardcoded list commented out, auto-discovery scans `tasks/*/maps.yml` for `custom:` entries
+
+#### CLI & Multi-City
+- Render confirmation prompt skipped when running from city folder (`python -m tasks` inside `mnt/{city}`)
+- `multipolygon:` mode in `multi_inputs.yml` — run `--multicities` from a single vector file (GPKG, SHP, GeoJSON). Each row becomes a city, AOI extracted to `inputs/AOI/`
+- `multipolygon` + `cities` combo: extracts all AOIs from the vector file, but only runs cities listed in `cities:`. Errors if a city name isn't in the multipolygon file
+- `demographics_year` config in `city_inputs.yml` / `multi_inputs.yml` — override WorldPop year (default: current year, range 2015–2030)
+- `--sync` now works with `--render` (previously `--render` skipped sync even with `--sync` flag)
+- `city_inputs.yml` always updated on `--multicities` runs to keep config in sync with `multi_inputs.yml`
+
+#### Docs
+- Combined `cli.md` + `running-cities.md` into `docs/orchestration.md`
+- Added note: `scan` always resolves to repo root (needs `--scan-id`), `python -m tasks` works from city folder without it
+
+### New
+- GDP flood exposure analysis (`tasks/gridded_gdp/multianalysis.R`) — overlays flood zones with gridded GDP raster, outputs `flood_gdp.csv`. Combined = sum of individual types (not union)
+- GDP flood exposure chart (`tasks/gridded_gdp/charts/index.qmd`) — time series of exposed GDP per flood type (1990–2020)
+- GDP + flood overlay maps (`core/R/map-gdp-flood.R`) — renders combined flooding on top of GDP total and GDP per capita base layers
+- Census task for Chisinau (`tasks/census/`) — population growth charts from Moldova 1959–2024 census data
+- Demographics collection updated to WorldPop R2025A (2015–2030), configurable year via `demographics_year`
+
+### Fixed
+- `water_risk/collection.py`: fixed import path `tasks.gee.fns` → `core.py.gee_fns`
+- RWI charts: `list.files()[1]` returns NA not NULL — `file.exists(NA)` crashed. Changed to `!is.na()` check
+- `gcs-overrides.R`: `file.exists` override crashed on NA filepath (from `list.files()[1]` on missing data). Added early return for NA/NULL
+- Fathom multianalysis: R script errors (tryCatch) didn't propagate to Python — status showed OK despite failures. Now captures R output and sets WARNING if "Error" detected
+- `setup.R`: `scan_id` regex didn't allow underscores in country name — failed for `democratic_republic_of_the_congo`, fell back to old Nouakchott scan_id from `user-inputs.R`
+- `setup.R`: `city_string` now uses underscores instead of hyphens (matches Python `slugify`)
+- `pre-mapping.R`: combined flooding filename used `city` (with spaces/capitals) instead of `city_string` — produced `Lobito Corridor_combined_flooding_2020.tif`
+- `pre-mapping.R`: all `values()` calls replaced with disk-backed terra operations (`classify(filename=)`, `global()`, `app(filename=)`) — fixes OOM crash on large AOIs like Lobito Corridor (58,440 km²)
+- `pre-mapping.R`: `builtup_extent_2025` uses `aggregate_if_too_fine()` before `as.polygons()` to avoid OOM
+- `__main__.py`: `scan_id` referenced before assignment in header line
+
+---
 ## 2026-04-07
 
 ### Changed

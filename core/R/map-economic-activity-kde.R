@@ -13,7 +13,7 @@ for (zone in zones){
     minmax(kde)
 
     osm_points <- st_read(file.path(spatial_dir,
-                                      paste0(city, '_osm_', zone, '.gpkg' )),
+                                      paste0(city_string, '_osm_', zone, '.gpkg' )),
                           quiet = TRUE)
 
     p <- ggplot() +

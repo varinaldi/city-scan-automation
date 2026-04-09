@@ -26,6 +26,26 @@ source(here("core/R/pre-mapping.R"), local = T)
 # Define map extent and zoom level adjustment
 # static_map_bounds <- aspect_buffer(aoi, aspect_ratio, buffer_percent = 0.05)
 
+# Task-specific rendering: if render_tasks is set (from CLI), load maps.yml per task
+# and filter to only those layers/custom scripts
+render_layers <- NULL
+render_custom <- NULL
+if (exists("render_tasks") && length(render_tasks) > 0) {
+  render_layers <- c()
+  render_custom <- c()
+  for (task_name in render_tasks) {
+    maps_yml <- here("tasks", task_name, "maps.yml")
+    if (file.exists(maps_yml)) {
+      task_maps <- yaml::read_yaml(maps_yml)
+      if (!is.null(task_maps$layers)) render_layers <- c(render_layers, task_maps$layers)
+      if (!is.null(task_maps$custom)) render_custom <- c(render_custom, task_maps$custom)
+    }
+  }
+  message("Rendering maps for tasks: ", paste(render_tasks, collapse = ", "))
+  if (length(render_layers) > 0) message("  Layers: ", paste(render_layers, collapse = ", "))
+  if (length(render_custom) > 0) message("  Custom: ", paste(render_custom, collapse = ", "))
+}
+
 message("\n=== Generating City Scan Static Maps ===")
 
 # Autozoom: center on built-up core if <10% of AOI — disabled for now
@@ -97,9 +117,13 @@ if (inherits(landmarks, "SpatVector")) {
 }
 
 # Standard plots ---------------------------------------------------------------
-unlist(lapply(layer_params, \(x) x$fuzzy_string)) %>%
+standard_layers <- unlist(lapply(layer_params, \(x) x$fuzzy_string)) %>%
   discard_at(c("fluvial", "pluvial", "coastal", "combined_flooding", "burnt_area", "elevation",
-               "coastal_erosion_baseline", "transect_coastline", "seismic_hazard")) %>%
+               "coastal_erosion_baseline", "transect_coastline", "seismic_hazard"))
+# Filter to task-specific layers if render_tasks is set
+if (!is.null(render_layers)) standard_layers <- standard_layers[names(standard_layers) %in% render_layers]
+
+standard_layers %>%
   map2(names(.), \(fuzzy_string, yaml_key) {
     tryCatch_named(yaml_key, {
       data <- fuzzy_read(spatial_dir, fuzzy_string)
@@ -138,16 +162,38 @@ if (!is.null(plots[["infrastructure"]])) {
 }
 
 # Non-standard static plots ----------------------------------------------------
+.source_custom <- function(script, label) {
+  if (!is.null(render_custom) && !script %in% render_custom) return()
+  message("  ", label)
+  source(here(script), local = parent.frame())
+}
+
 message("\nCustom maps:")
-# message("  schools & health proximity"); source(here("core/R/map-isochrones.R"), local = T)
-message("  schools & health proximity"); source(here("core/R/map-schools-health-proximity.R"), local = T)
-message("  elevation"); source(here("core/R/map-elevation.R"), local = T)
-message("  deforestation"); source(here("core/R/map-deforestation.R"), local = T)
-message("  flooding"); source(here("core/R/map-flooding.R"), local = T)
-message("  historical burnt area"); source(here("core/R/map-historical-burnt-area.R"), local = T)
-message("  seismic hazard"); source(here("core/R/map-seismic-hazard.R"), local = T)
-message("  coastal erosion"); source(here("core/R/map-coastal-erosion.R"), local = T)
-message("  building footprints"); source(here("core/R/plot-building-footprints.R"), local = T)
+if (is.null(render_custom)) {
+  # No task filter — discover all custom scripts from maps.yml files
+  render_custom <- c()
+  task_dirs <- list.dirs(here("tasks"), recursive = FALSE, full.names = FALSE)
+  for (td in task_dirs) {
+    yml <- here("tasks", td, "maps.yml")
+    if (file.exists(yml)) {
+      task_maps <- yaml::read_yaml(yml)
+      if (!is.null(task_maps$custom)) render_custom <- c(render_custom, task_maps$custom)
+    }
+  }
+  # # Old hardcoded list (now driven by maps.yml):
+  # message("  schools & health proximity"); source(here("core/R/map-schools-health-proximity.R"), local = T)
+  # message("  elevation"); source(here("core/R/map-elevation.R"), local = T)
+  # message("  deforestation"); source(here("core/R/map-deforestation.R"), local = T)
+  # message("  flooding"); source(here("core/R/map-flooding.R"), local = T)
+  # message("  historical burnt area"); source(here("core/R/map-historical-burnt-area.R"), local = T)
+  # message("  seismic hazard"); source(here("core/R/map-seismic-hazard.R"), local = T)
+  # message("  coastal erosion"); source(here("core/R/map-coastal-erosion.R"), local = T)
+  # message("  building footprints"); source(here("core/R/plot-building-footprints.R"), local = T)
+}
+for (script in render_custom) {
+  message("  ", basename(script))
+  source(here(script), local = T)
+}
 
 # source(here("core/R/map-ghs-expansion.R"), local = T)
 # source(here("core/R/map-economic-activity-freq.R"), local = T)

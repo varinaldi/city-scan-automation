@@ -169,7 +169,7 @@ if (!is.null(plots[["infrastructure"]])) {
 }
 
 message("\nCustom maps:")
-if (is.null(render_custom)) {
+if (is.null(render_custom) && !exists("render_tasks")) {
   # No task filter — discover all custom scripts from maps.yml files
   render_custom <- c()
   task_dirs <- list.dirs(here("tasks"), recursive = FALSE, full.names = FALSE)

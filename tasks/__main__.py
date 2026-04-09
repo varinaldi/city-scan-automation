@@ -63,7 +63,7 @@ def main():
             flag_list = [
                 ("--all",                "Run all tasks enabled in menu.yml"),
                 ("--scan-id {id}",       "Target existing city folder in mnt/"),
-                ("--multicity",        "Batch run from inputs/multi_input.yml"),
+                ("--multicity",        "Batch run from inputs/multi_inputs.yml"),
                 ("--collect",            "Collection step only"),
                 ("--analyze",            "Analysis step only"),
                 ("--multianalysis",      "Cross-task analysis (R/Python)"),
@@ -107,7 +107,7 @@ def main():
     # =========================================================
     if "--multicity" in args:
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        multicity_path = os.path.join(project_root, "inputs", "multi_input.yml")
+        multicity_path = os.path.join(project_root, "inputs", "multi_inputs.yml")
         if not os.path.exists(multicity_path):
             logger.error(f"Multi-city config not found: {multicity_path}")
             return

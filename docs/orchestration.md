@@ -79,9 +79,9 @@ scan wsf --analyze
 
 ## Multiple Cities
 
-### Setup
+### Setup — Option A: separate AOI folders
 
-1. Edit `inputs/multi_inputs.yml` — same structure as `city_inputs.yml` but with a `cities:` list at the top. Shared settings (flood, accessibility, year range) apply to all cities.
+1. Edit `inputs/multi_inputs.yml` with a `cities:` list and shared settings.
 
 2. Place each city's AOI in its own subfolder under `inputs/AOI/`:
    ```
@@ -92,13 +92,34 @@ scan wsf --analyze
        Windhoek_wards_geoboundaries.shp (+ .dbf, .prj, .shx)
      Swakopmund/
        Swakopmund.shp
-     Walvis_Bay/
-       walvis_buffer_hull_1000m.shp
    ```
 
 3. Wards are auto-detected from `{city_name}_wards/` sibling folder (if exists).
 
-4. `inputs/menu.yml` is shared across all cities.
+### Setup — Option B: multipolygon file
+
+Use a single vector file (GPKG, SHP, GeoJSON) where each row is a city. AOI shapefiles are auto-extracted to `inputs/AOI/{city_slug}/`.
+
+```yaml
+multipolygon:
+  file: inputs/AOI/lobito_corridor_cities.gpkg
+  name_column: GC_UCN_MAI_2025
+```
+
+To run only specific cities from the multipolygon file, add a `cities:` list — only those cities will be processed (all AOIs are still extracted):
+
+```yaml
+multipolygon:
+  file: inputs/AOI/lobito_corridor_cities.gpkg
+  name_column: GC_UCN_MAI_2025
+
+# Only run these (must exist in the multipolygon file)
+cities:
+  - city_name: Sakania
+  - city_name: Lukuni
+```
+
+If a city name in `cities:` is not found in the multipolygon file, an error is raised.
 
 ### Run
 
@@ -108,17 +129,14 @@ scan elevation --multicities
 scan --all --multicities --parallel
 ```
 
-### Example `multi_inputs.yml`
+### Example `multi_inputs.yml` (Option A)
 
 ```yaml
 cities:
   - city_name: Windhoek
   - city_name: Swakopmund
   - city_name: Walvis Bay
-  - city_name: Lüderitz
-  - city_name: Aus
 
-# Shared settings (same fields as city_inputs.yml)
 first_year: 2015
 last_year: 2026
 
@@ -126,40 +144,39 @@ flood:
   threshold: 15
   year: [2020]
   return_period: [10, 100, 1000]
-
-# ... accessibility, FWI, etc.
 ```
 
 Per-city overrides are supported:
 ```yaml
 cities:
   - city_name: Windhoek
-    first_year: 2010    # override shared setting for this city only
+    first_year: 2010
   - city_name: Aus
 ```
 
 ### Flow
 
-For each city in the list:
+For each city:
 
-1. Finds AOI subfolder in `inputs/AOI/` (case-insensitive, handles umlauts and spaces → underscores)
-2. Auto-detects the `.shp` file (skips files with "wards" in the name)
-3. Generates `city_inputs.yml` with shared settings + city-specific overrides
-4. Runs `python -m tasks` as subprocess
-5. Normal single-city flow takes over
-6. Moves to next city
+1. Extracts AOI (from multipolygon file or finds AOI subfolder)
+2. Generates `city_inputs.yml` with shared settings + city-specific overrides
+3. Creates city folder in `mnt/`, copies code + inputs
+4. Runs tasks as subprocess
+5. Moves to next city
 
-Cities always run sequentially; `--parallel` applies to tasks within each city.
-
-Each city is self-contained. Benchmark cities (`bm_cities_manual`) are auto-populated with siblings for cross-city comparison.
+Cities always run sequentially; `--parallel` applies to tasks within each city. `city_inputs.yml` is always updated from `multi_inputs.yml` to keep config in sync.
 
 ---
 
 ## Rendering
 
 ```bash
-# Static maps (runs core/R/maps-static.R)
+# Static maps — all layers
 scan --render maps --scan-id 2026-04-namibia-windhoek
+
+# Static maps — task-specific (only renders layers + custom scripts from that task's maps.yml)
+scan fathom --render maps --scan-id 2026-04-namibia-windhoek
+scan gridded_gdp --render maps --scan-id 2026-04-namibia-windhoek
 
 # Scan calculations (generates index.qmd + quarto render)
 scan --render scan-calculations --scan-id 2026-04-namibia-windhoek
@@ -170,6 +187,19 @@ scan elevation --render charts --scan-id 2026-04-namibia-windhoek
 # Render for all cities
 scan --render maps --multicities
 scan --render scan-calculations --multicities
+
+# Sync code before rendering (useful if code was updated in repo root)
+scan --render maps --sync --scan-id 2026-04-namibia-windhoek
+```
+
+Each task can define its map layers and custom R scripts in `tasks/{task}/maps.yml`:
+```yaml
+layers:
+  - fluvial
+  - pluvial
+  - combined_flooding
+custom:
+  - core/R/map-flooding.R
 ```
 
 ---

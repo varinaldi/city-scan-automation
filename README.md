@@ -15,10 +15,29 @@ See [docs/getting-started.md](docs/getting-started.md) for setup, configuration,
 The main components to run a city scan are
 
 - **`inputs/`** — User config for new scans (city_inputs.yml, menu.yml, AOI/)
+    - **`multi_inputs.yml`** — Multi-city batch config (shared settings + city list)
 - **`tasks/`** — Scan topics, each with collection, analysis, and charts
-    - **`charts`** — contains `index.qmd`to create / sandbox charts 
-- **`core/`** — Shared infrastructure (config, Python utils, R functions, OJS charts)
-- **`source/`** — Canonical configs copied to each city (layers.yml, text, styling)
+    - **`charts/`** — contains `index.qmd` to create / sandbox charts
+    - **`__main__.py`** — CLI entry point (arg parsing, calls core/py/run.py)
+- **`core/`** — Shared infrastructure
+    - **`config/`** — Configuration modules
+        - `scan.py` — Scan class (city folder creation, input loading)
+        - `paths.py` — Auto-detects INPUTS/OUTPUTS based on run location
+        - `auth.py` — GEE + GCS authentication
+        - `tasks.py` — Task registry, aliases, dependencies (reads source/tasks.yml)
+    - **`py/`** — Python utilities
+        - `run.py` — run_task(), run_multicity() execution logic
+        - `error_tracker.py` — ErrorTracker for counting errors during task runs
+        - `log_module.py` — Logging setup
+        - `aoi_module.py` — AOI/country detection
+        - `gcs_module.py` — GCS upload/download
+        - `multitask.py` — Parallel task execution with TUI
+    - **`R/`** — R functions (setup.R, fns.R, maps, pre-charting, etc.)
+    - **`ojs/`** — Observable JS chart functions
+- **`source/`** — Canonical configs copied to each city
+    - `layers.yml` — Map layer styling (palettes, breaks, labels)
+    - `tasks.yml` — Task config (auth requirements, aliases, dependencies)
+    - `generic-text.yml` — Default narrative text per section
 - **`logs/`** — Auto-created log files
 
 The output scan folder will be saved in **`mnt/`** under the directory name: **`YYYY-MM-country-city`**, automaticaly generated and referencing `city-inputs.yml`. 

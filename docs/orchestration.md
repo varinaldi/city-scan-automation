@@ -124,9 +124,9 @@ If a city name in `cities:` is not found in the multipolygon file, an error is r
 ### Run
 
 ```bash
-scan --all --multicities
-scan elevation --multicities
-scan --all --multicities --parallel
+scan --all --multicity
+scan elevation --multicity
+scan --all --multicity --parallel
 ```
 
 ### Example `multi_inputs.yml` (Option A)
@@ -185,8 +185,8 @@ scan --render scan-calculations --scan-id 2026-04-namibia-windhoek
 scan elevation --render charts --scan-id 2026-04-namibia-windhoek
 
 # Render for all cities
-scan --render maps --multicities
-scan --render scan-calculations --multicities
+scan --render maps --multicity
+scan --render scan-calculations --multicity
 
 # Sync code before rendering (useful if code was updated in repo root)
 scan --render maps --sync --scan-id 2026-04-namibia-windhoek
@@ -239,7 +239,7 @@ scan -t --scan-id 2026-04-namibia-windhoek
 |---|---|
 | `--all` | Run all tasks enabled in menu.yml |
 | `--scan-id {id}` | Target an existing city folder in mnt/ |
-| `--multicities` | Batch run from inputs/multi_inputs.yml |
+| `--multicity` | Batch run from inputs/multi_inputs.yml |
 | `--collect` | Collection step only |
 | `--analyze` | Analysis step only |
 | `--multianalysis` | Run multianalysis scripts |

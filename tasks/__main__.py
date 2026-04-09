@@ -13,7 +13,7 @@ from core.config.tasks import (
     menu_enabled, topo_sort
 )
 from core.config.cli import parse_args, validate_args, KNOWN_FLAGS
-from core.py.run import run_task, run_multicities
+from core.py.run import run_task, run_multicity
 
 logger = setup_logger("tasks")
 
@@ -63,7 +63,7 @@ def main():
             flag_list = [
                 ("--all",                "Run all tasks enabled in menu.yml"),
                 ("--scan-id {id}",       "Target existing city folder in mnt/"),
-                ("--multicities",        "Batch run from inputs/multi_inputs.yml"),
+                ("--multicity",        "Batch run from inputs/multi_input.yml"),
                 ("--collect",            "Collection step only"),
                 ("--analyze",            "Analysis step only"),
                 ("--multianalysis",      "Cross-task analysis (R/Python)"),
@@ -105,13 +105,13 @@ def main():
     # =========================================================
     # MULTICITIES
     # =========================================================
-    if "--multicities" in args:
+    if "--multicity" in args:
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        multicities_path = os.path.join(project_root, "inputs", "multi_inputs.yml")
-        if not os.path.exists(multicities_path):
-            logger.error(f"Multi-city config not found: {multicities_path}")
+        multicity_path = os.path.join(project_root, "inputs", "multi_input.yml")
+        if not os.path.exists(multicity_path):
+            logger.error(f"Multi-city config not found: {multicity_path}")
             return
-        run_multicities(multicities_path, args, flags)
+        run_multicity(multicity_path, args, flags)
         return
 
     # =========================================================
@@ -172,7 +172,7 @@ def main():
     if flags['render_targets']:
         import subprocess
 
-        # Confirm before rendering (skip if --scan-id given, non-interactive, or multicities)
+        # Confirm before rendering (skip if --scan-id given, non-interactive, or multicity)
         render_desc = ', '.join(flags['render_targets'])
         if scan_id or flags['auto_exit'] or INPUTS.name != "inputs" or not sys.stdin.isatty():
             logger.info(f"Rendering {render_desc} for {scan.cityscan_id}")

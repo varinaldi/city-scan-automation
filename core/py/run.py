@@ -1,5 +1,5 @@
 """
-Task execution functions: run_task() and run_multicities().
+Task execution functions: run_task() and run_multicity().
 """
 import sys
 import os
@@ -107,7 +107,7 @@ def run_task(task_name, scan, step=None):
     return results
 
 
-def run_multicities(multicities_path, args, flags):
+def run_multicity(multicity_path, args, flags):
     """
     Read multi_inputs.yml, generate city_inputs.yml for each city,
     and run the pipeline sequentially.
@@ -123,7 +123,7 @@ def run_multicities(multicities_path, args, flags):
     from core.config.inputs import prepare_inputs
     from core.py.aoi_module import find_country
 
-    with open(multicities_path) as f:
+    with open(multicity_path) as f:
         mc = yaml.safe_load(f)
 
     project_root = Path(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -204,7 +204,7 @@ def run_multicities(multicities_path, args, flags):
     print(f"  Cities: {', '.join(all_city_names)}")
     print(f"  {'─'*40}\n")
 
-    passthrough_args = [a for a in args if a != '--multicities']
+    passthrough_args = [a for a in args if a != '--multicity']
     if '--parallel' in passthrough_args and '--auto-exit' not in passthrough_args:
         passthrough_args.append('--auto-exit')
 

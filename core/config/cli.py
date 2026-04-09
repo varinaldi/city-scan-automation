@@ -2,7 +2,7 @@
 
 KNOWN_FLAGS = {
     "--collect", "--analyze", "--multianalysis", "--render",
-    "--all", "--scan-id", "--multicities", "--parallel", "--auto-exit",
+    "--all", "--scan-id", "--multicity", "--parallel", "--auto-exit",
     "--upload", "--sync", "--keep", "--list", "--help",
     "-e", "-t", "-k",
 }
@@ -42,7 +42,7 @@ def parse_args(args):
     f['parallel_mode'] = "--parallel" in args
     f['auto_exit'] = "--auto-exit" in args
     f['run_all'] = "--all" in args
-    f['multicities'] = "--multicities" in args
+    f['multicity'] = "--multicity" in args
 
     # Step
     if "--collect" in args:

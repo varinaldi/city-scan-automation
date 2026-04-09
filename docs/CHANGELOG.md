@@ -16,11 +16,11 @@
 
 #### CLI & Multi-City
 - Render confirmation prompt skipped when running from city folder (`python -m tasks` inside `mnt/{city}`)
-- `multipolygon:` mode in `multi_inputs.yml` — run `--multicities` from a single vector file (GPKG, SHP, GeoJSON). Each row becomes a city, AOI extracted to `inputs/AOI/`
+- `multipolygon:` mode in `multi_inputs.yml` — run `--multicity` from a single vector file (GPKG, SHP, GeoJSON). Each row becomes a city, AOI extracted to `inputs/AOI/`
 - `multipolygon` + `cities` combo: extracts all AOIs from the vector file, but only runs cities listed in `cities:`. Errors if a city name isn't in the multipolygon file
 - `demographics_year` config in `city_inputs.yml` / `multi_inputs.yml` — override WorldPop year (default: current year, range 2015–2030)
 - `--sync` now works with `--render` (previously `--render` skipped sync even with `--sync` flag)
-- `city_inputs.yml` always updated on `--multicities` runs to keep config in sync with `multi_inputs.yml`
+- `city_inputs.yml` always updated on `--multicity` runs to keep config in sync with `multi_inputs.yml`
 
 #### Docs
 - Combined `cli.md` + `running-cities.md` into `docs/orchestration.md`
@@ -120,7 +120,7 @@
 ### New 
 #### CLI & Orchestration
 - `scan` CLI entry point — install with `pip install -e .` from repo root, then run `scan` instead of `python -m tasks`
-- Multi-city batch runner: `scan --all --multicities` reads `inputs/multi_inputs.yml`, auto-detects AOI shapefiles per city from `inputs/AOI/{city_name}/`
+- Multi-city batch runner: `scan --all --multicity` reads `inputs/multi_inputs.yml`, auto-detects AOI shapefiles per city from `inputs/AOI/{city_name}/`
 - `--render` flag: run maps-static, scan-calculations, or task charts from root (e.g. `scan --render maps --scan-id ...`)
 - `--sync` flag: sync project files (core/, tasks/, source/) to city folder without running tasks
 - `-k` / `--keep` flag: run tasks using code already in city folder, skip syncing
@@ -191,7 +191,7 @@ Cleaning up scan initialization:
 - Built-up hatch overlay zoom mismatch on flood + school/health maps: `coord_3857_bounds()` + clip to AOI
 - Oxford `collection.R`: guards against empty `oxford_full` tibble
 - `tryCatch_named()` prints error message inline
-- Auto-exit parallel TUI with `--multicities`
+- Auto-exit parallel TUI with `--multicity`
 - Missing imports in `core/py/run.py`: `shutil`, `OUTPUTS`
 - Infrastructure points: `rbind` crash when OSM returns mixed point/polygon geometries — convert to centroids before combining
 - Landcover analysis: `if max < 100: *=10` heuristic broke when raster had real ESA values (10-90) — changed to `max <= 10` + snap to nearest valid class (handles resampling artifacts)

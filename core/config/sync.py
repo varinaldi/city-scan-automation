@@ -42,12 +42,16 @@ def sync_project_files(city_root, sync_targets=None, sync_tasks=None):
         print("\n  City folder already has project files.")
         print("  [t] Copy tasks only")
         print("  [o] Override everything (city inputs are not affected)")
+        print("  [k] Keep as-is (skip syncing)")
         print("  [a] Abort")
-        choice = input("  Choose [t/o/a]: ").strip().lower()
+        choice = input("  Choose [t/o/a/k]: ").strip().lower()
 
         if choice == 'a':
             logger.info("Aborted by user.")
             raise SystemExit("Aborted.")
+        if choice == 'k':
+            logger.info("Keeping existing project files.")
+            return
         targets = {"tasks", "source", "core", "scan-calculations"} if choice == 'o' else {"tasks"}
 
     # Sync non-task folders

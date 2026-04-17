@@ -13,6 +13,7 @@ sections:
   - elevation         # Elevation
   - slope             # Slope
   - fathom            # Fluvial, Pluvial, Coastal, Combined Flooding
+  - gdp_sectoral      # GDP by Sector
   - flood_events      # Flood Events (Dartmouth)
   - earthquake        # Earthquakes (NGDC)
   - cyclones          # Cyclones (IBTrACS)

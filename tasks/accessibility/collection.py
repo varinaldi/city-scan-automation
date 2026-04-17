@@ -133,86 +133,44 @@ def POI_collection(
     """
     logger.info("Starting OSM POI collection…")
 
-    # Create output directory to store OSM POI
     spatial_dir = os.path.join(output_dir, "spatial")
     os.makedirs(spatial_dir, exist_ok=True)
 
-
-    # -----------------------------------------------------
-    # 1. Load YAML configuration
-    # -----------------------------------------------------
     with open(city_inputs_path, "r") as f:
         config = yaml.safe_load(f)
-
     osm_queries = config["osm_query"]
 
-    # Set OSMnx timeout to avoid hanging on Overpass API
-    ox.settings.timeout = 120  # 2 minutes max per query
-
-    # -----------------------------------------------------
-    # 2. Prepare AOI geometry with buffer
-    # -----------------------------------------------------
-    # Validate AOI
     if aoi is None or aoi.empty:
         logger.error("AOI is empty. Cannot continue.")
         return None
-
-    # Ensure AOI is in correct CRS for raster operations
     if aoi.crs is None:
         logger.error("AOI has no CRS defined.")
         return None
-
     logger.info(f"AOI CRS: {aoi.crs}")
-    
-    # Buffer geometry for x km # This is to ensure we capture the road network around the AOI
-    gdf_temp = aoi.to_crs(epsg=3857)
-    buffered_geom = gdf_temp.geometry.iloc[0].buffer(buffer)  # buffer by 5000 meters
-    buffered_geom = gpd.GeoSeries([buffered_geom], crs="EPSG:3857").to_crs(epsg=4326).iloc[0]  # back to EPSG:4326
 
-    # -----------------------------------------------------
-    # 3. Loop through POI categories
-    # -----------------------------------------------------
+    from core.py import osm_client
+
     for name, tags in osm_queries.items():
         if tags is None:
             continue
 
         logger.info(f"Collecting: {name}")
-
         try:
-            import threading
-
-            result_container = [None]
-            error_container = [None]
-
-            def _query():
-                try:
-                    result_container[0] = ox.features_from_polygon(buffered_geom, tags)
-                except Exception as e:
-                    error_container[0] = e
-
-            query_thread = threading.Thread(target=_query, daemon=True)
-            query_thread.start()
-            query_thread.join(timeout=120)
-
-            if query_thread.is_alive():
-                raise TimeoutError(f"OSM query for {name} timed out after 120s")
-            if error_container[0] is not None:
-                raise error_container[0]
-
-            gdf = result_container[0]
-
-            if gdf.empty:
+            gdf = osm_client.fetch_features(aoi, tags, buffer_m=buffer)
+            if gdf is None or gdf.empty:
                 logger.info(f"⚠️  No features found for {name}")
                 continue
 
+            if "osmid" in gdf.columns:
+                gdf = gdf.drop_duplicates(subset="osmid")
+            elif gdf.index.name == "osmid":
+                gdf = gdf[~gdf.index.duplicated()]
             gdf = gdf[gdf.geometry.notnull()].copy()
 
             out_path = os.path.join(spatial_dir, f"{city_name}_osm_{name}.gpkg")
             gdf.to_file(out_path, driver="GPKG")
-
             logger.info(f"✓ Saved {name}: {len(gdf)} features")
-
-        except (Exception, TimeoutError) as e:
+        except Exception as e:
             logger.warning(f"✘ Failed {name}: {e}")
 
     logger.info("POI collection complete.")

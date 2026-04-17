@@ -9,7 +9,8 @@ def collect(scan):
     datacollection(
         aoi=scan.aoi, city_name=scan.city_name,
         country_iso3=scan.country_iso3, output_dir=scan.output_dir,
-        return_gdf=True
+        return_gdf=True,
+        country_iso3_list=scan.country_iso3_list
     )
 
 

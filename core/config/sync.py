@@ -55,12 +55,14 @@ def sync_project_files(city_root, sync_targets=None, sync_tasks=None):
         targets = {"tasks", "source", "core", "scan-calculations"} if choice == 'o' else {"tasks"}
 
     # Sync non-task folders
+    synced = []
     for folder in ["core", "source", "scan-calculations"]:
         if folder in targets:
             src = PROJECT_ROOT / folder
             dst = city_root / folder
             if src.exists():
                 shutil.copytree(src, dst, ignore=_ignore, dirs_exist_ok=True)
+                synced.append(folder)
 
     # Sync task folders
     if "tasks" in targets:
@@ -69,6 +71,7 @@ def sync_project_files(city_root, sync_targets=None, sync_tasks=None):
             dst = city_root / "tasks"
             if src.exists():
                 shutil.copytree(src, dst, ignore=_ignore, dirs_exist_ok=True)
+                synced.append("tasks (all)")
         else:
             tasks_dst = city_root / "tasks"
             tasks_dst.mkdir(exist_ok=True)
@@ -80,6 +83,12 @@ def sync_project_files(city_root, sync_targets=None, sync_tasks=None):
                 dst = tasks_dst / task_name
                 if src.exists():
                     shutil.copytree(src, dst, ignore=_ignore, dirs_exist_ok=True)
+            synced.append(f"tasks ({', '.join(sync_tasks)})")
+
+    if synced:
+        logger.info(f"Synced: {', '.join(synced)}")
+    else:
+        logger.info("No files synced")
 
     # Logs — create once only
     for folder in ["logs"]:

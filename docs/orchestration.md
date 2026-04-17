@@ -176,7 +176,7 @@ scan --render maps --scan-id 2026-04-namibia-windhoek
 
 # Static maps — task-specific (only renders layers + custom scripts from that task's maps.yml)
 scan fathom --render maps --scan-id 2026-04-namibia-windhoek
-scan gridded_gdp --render maps --scan-id 2026-04-namibia-windhoek
+scan gdp_gridded --render maps --scan-id 2026-04-namibia-windhoek
 
 # Scan calculations (generates index.qmd + quarto render)
 scan --render scan-calculations --scan-id 2026-04-namibia-windhoek

@@ -103,7 +103,7 @@ def compute_histogram(
         return None
 
     if baseline_forest == 0:
-        logger.error("No forest pixels found.")
+        logger.warning("No forest pixels found.")
         return None
 
     # Build year-over-year data

@@ -10,7 +10,8 @@ def collect(scan):
     collection.datacollection(
         aoi=scan.aoi, city_name=scan.city_name,
         country_iso3=scan.country_iso3, output_dir=scan.output_dir,
-        return_raster=False, year=demographics_year
+        return_raster=False, year=demographics_year,
+        country_iso3_list=scan.country_iso3_list
     )
     if collection.data_source:
         scan.sources["demographics"] = collection.data_source

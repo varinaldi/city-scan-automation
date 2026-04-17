@@ -11,6 +11,7 @@ execute:
 ```{r}
 #| label: setup-groundwater
 #| include: false
+if (file.exists("_quarto.yml")) here::i_am("tasks/groundwater/charts/index.qmd")
 if (!exists("aoi")) {
   USE_GCS <<- FALSE
   source(here::here("core/R/setup.R"))
@@ -80,12 +81,14 @@ if (is.null(gwsa) || nrow(gwsa) == 0) print_text(paste_bold("No groundwater stor
             plot.background = element_rect(fill = "white", color = NA),
             legend.position = "bottom")
 
-    ggplot2:::print.ggplot(combined_plot)
+    print(combined_plot)
+  cat("\n\n")
 
     ggsave(here("03-render-output", "plots", "groundwater-surfacewater-timeseries.png"), device = "png",
           width = 5, height = 4.6, units = "in", dpi = "print")
   } else {
-    ggplot2:::print.ggplot(gwsa_plot)
+    print(gwsa_plot)
+  cat("\n\n")
   }
 
 }

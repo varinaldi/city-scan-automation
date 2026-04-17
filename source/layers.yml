@@ -55,8 +55,8 @@ rwi_standardized:
 rwi_relative:
   fuzzy_string: rwi(?=.shp$|.gpkg$|$)
   data_variable: rwi
-  title: 'Relative wealth (city-relative)'
-  subtitle: 'Equal intervals of estimated household wealth within city'
+  title: 'Relative wealth'
+  subtitle: 'Standard deviations of estimated household wealth from national mean'
   palette: ['#009E7A', '#70C5AD', '#FFFFBA', '#FF9169', '#ED431B' ]
   bins: 5
   binning_method: interval
@@ -67,7 +67,7 @@ gdp_total:
   data_variable: gdp_2020
   title: 'Total GDP, 2020'
   subtitle: 'Gross Domestic Product (PPP, million USD)'
-  palette: [ '#721F81', '#CD4071', '#FD9567', '#FCFDBF']
+  palette: ['#2D1160', '#721F81', '#B63679', '#FB8861', '#FCFDBF']
   bins: 5
   basemap: 'satellite'
   group_id: Total GDP
@@ -77,11 +77,47 @@ gdp_per_capita:
   data_variable: gdp_pc_2022
   title: 'GDP per capita, 2022'
   subtitle: 'Gross Domestic Product per capita (PPP, USD)'
-  palette: [ '#721F81', '#CD4071', '#FD9567', '#FCFDBF']
+  palette: ['#2D1160', '#721F81', '#B63679', '#FB8861', '#FCFDBF']
   bins: 5
   basemap: 'satellite'
   group_id: GDP per capita
   caption: 'Map data from Kummu et al. (2025), downscaled gridded GDP per capita.'
+gdp_agriculture:
+  fuzzy_string: gdp_agriculture.tif$
+  data_variable: gdp_agriculture_2020
+  title: 'Agriculture GDP, 2020'
+  subtitle: 'Sectoral GDP (thousand USD, nominal)'
+  palette: ['#c7e9c0', '#a1d99b', '#74c476', '#41ab5d', '#238b45', '#005a32']
+  bins: 5
+  group_id: Agriculture GDP
+  caption: 'Map data from Chen et al. (2025), SectGDP30 v2.'
+gdp_industry:
+  fuzzy_string: gdp_industry.tif$
+  data_variable: gdp_industry_2020
+  title: 'Industry GDP, 2020'
+  subtitle: 'Sectoral GDP (thousand USD, nominal)'
+  palette: ['#fdd0a2', '#fdae6b', '#fd8d3c', '#ec7014', '#cc4c02', '#8c2d04']
+  bins: 5
+  group_id: Industry GDP
+  caption: 'Map data from Chen et al. (2025), SectGDP30 v2.'
+gdp_service:
+  fuzzy_string: gdp_service.tif$
+  data_variable: gdp_service_2015
+  title: 'Service GDP, 2015'
+  subtitle: 'Sectoral GDP (thousand USD, nominal)'
+  palette: ['#fcbba1', '#fc9272', '#fb6a4a', '#ef3b2c', '#cb181d', '#67000d']
+  bins: 5
+  group_id: Service GDP
+  caption: 'Map data from Chen et al. (2025), SectGDP30 v2.'
+gdp_combined:
+  fuzzy_string: gdp_combined.tif$
+  data_variable: gdp_combined_2020
+  title: 'Total Sectoral GDP'
+  subtitle: 'Combined agricultural, industrial and service sectoral GDPs (thousand USD, nominal)'
+  palette: ['#fee391', '#fec44f', '#fe9929', '#ec7014', '#cc4c02', '#8c2d04']
+  bins: 5
+  group_id: Total Sectoral GDP
+  caption: 'Map data from Chen et al. (2025), SectGDP30 v2. Sectors use the most recent year available (2020 where present, otherwise 2015).'
 economic_activity:
   fuzzy_string: avg_rad_sum.*.tif$
   title: Economic activity
@@ -590,22 +626,20 @@ water_risk_overall:
   fuzzy_string: water_risk.geojson$
   data_variable: w_awr_def_tot_raw
   title: 'Overall Water Risk'
-  subtitle: 'WRI Aqueduct v4 (High risk: 3-4)'
+  subtitle: 'WRI Aqueduct v4'
   palette: ['#fef0d9', '#fdcc8a', '#fc8d59', '#e34a33']
-  breaks: [3.0, 3.3, 3.5, 3.7, 4.0]
-  labels: ['3.0-3.3', '3.3-3.5', '3.5-3.7', '3.7-4.0']
-  oob: censor
+  bins: 3
+  quantiles: [0, 0.25, 0.5, 1]
   group_id: Overall Water Risk
 
 water_risk_quantity:
   fuzzy_string: water_risk.geojson$
   data_variable: w_awr_def_qan_raw
   title: 'Physical Quantity Risk'
-  subtitle: 'WRI Aqueduct v4 (High risk: 3-4)'
+  subtitle: 'WRI Aqueduct v4'
   palette: ['#fef0d9', '#fdcc8a', '#fc8d59', '#e34a33']
-  breaks: [3.0, 3.2, 3.3, 3.4, 3.5]
-  labels: ['3.0-3.2', '3.2-3.3', '3.3-3.4', '3.4-3.5']
-  oob: censor
+  bins: 3
+  quantiles: [0, 0.25, 0.5, 1]
   group_id: Physical Quantity Risk
 
 water_risk_groundwater:
@@ -617,7 +651,7 @@ water_risk_groundwater:
   breaks: [0, 1, 2, 3, 4]
   labels: ['Low', 'Low-Medium', 'Medium-High', 'High', 'Extremely High']
   factor: TRUE
-  oob: censor
+  # oob: censor
   group_id: Groundwater Decline
 
 water_risk_depletion:
@@ -628,7 +662,7 @@ water_risk_depletion:
   palette: ['#fef0d9', '#fdcc8a', '#fc8d59', '#e34a33', '#b30000']
   breaks: [0, 0.25, 0.5, 0.75, 1.0]
   labels: ['<25%', '25-50%', '50-75%', '>75%']
-  oob: censor
+  # oob: censor
   group_id: Water Depletion
 
 

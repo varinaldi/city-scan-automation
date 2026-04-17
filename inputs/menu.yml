@@ -18,7 +18,8 @@ fwi: True
 ghs_builtup: True
 ghs_population: True
 green: True
-gridded_gdp: True
+gdp_gridded: True
+gdp_sectoral: True
 groundwater: True
 landcover: True
 landcover_burn: True
@@ -35,6 +36,7 @@ sea_level_rise: True
 seismic_hazard: True
 slope: True
 solar: True
+water_risk: True
 wsf: True
 
 # Compilation

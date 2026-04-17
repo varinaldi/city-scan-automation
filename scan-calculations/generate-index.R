@@ -32,7 +32,6 @@ lines <- c(
   "here::i_am(\"scan-calculations/index.qmd\")",
   "source(here::here(\"core/R/setup.R\"))",
   "source(here::here(\"core/R/fns.R\"))",
-  "source(here::here(\"core/R/pre-charting.R\"))",
   "dir.create(here(\"03-render-output\", \"plots\"), recursive = TRUE, showWarnings = FALSE)",
   "knitr::opts_chunk$set(error = TRUE)",
   "```",

@@ -1,6 +1,74 @@
 # Changelog
 
 ---
+## 2026-04-17
+
+### New
+#### Tasks & Data
+- GDP sectoral task (`tasks/gdp_sectoral/`) — agriculture, industry, service, and combined sectoral GDP layers from Chen et al. (2025) SectGDP30 v2 (2020 where present, 2015 fallback for service)
+- `gdp_sectoral` section added to `scan-calculations/sections.yml`
+- Sectoral GDP entries in `source/layers.yml` (`gdp_agriculture`, `gdp_industry`, `gdp_service`, `gdp_combined`) with per-sector palettes
+- `gridded_gdp` task renamed to `gdp_gridded` (matches `gdp_*` naming convention); menu and orchestration docs updated
+- `inputs/menu.yml`: `water_risk: True` added (was missing); `gridded_gdp` → `gdp_gridded`; `gdp_sectoral: True` added
+- `pyrosm==0.6.2` added to `requirements.txt` (Geofabrik PBF parsing for the new OSM client)
+
+#### Maps
+- `core/R/map-sectoral-gdp-flood.R` — sectoral GDP base layers with combined flooding overlay
+- `core/R/map-gdp-flood.R` — combined flooding on gridded GDP total and GDP per capita base layers (moved out of the quarto runtime into a dedicated map script)
+
+#### Python Modules
+- `core/py/osm_client.py` — unified OSM access layer that routes to Geofabrik PBF for large AOIs and Overpass for typical cities
+- `core/py/osm_pbf.py` — Geofabrik PBF download + attribute filter helpers
+- `core/py/aoi_buffer.py` — AOI buffer utilities in meters for OSM queries
+
+#### Earthquake source merge
+- `tasks/earthquake/collection.R`: collection now merges **USGS FDSN** (comprehensive catalog, M ≥ 1, server-side 500 km radius, since 1900) with **NOAA NCEI** (curated damage metadata) into a single CSV. Dedup rule: same date ±1 day + within 50 km + |mag diff| ≤ 0.8 → NCEI row kept (carries damage). USGS-only rows have NA in NCEI-specific columns (`damageAmountOrder`, `deaths`, `intensity`, `tsunamiEventId`, etc.). New `source` column distinguishes provenance
+- `tasks/earthquake/charts/index.qmd`: per-row schema-aware rendering — NCEI rows go through the original significance OR-chain with 4-line damage labels; USGS-only rows pass a magnitude floor (`USGS_MIN_MAG = 4.5`) with simple 2-line labels. `coalesce(...,FALSE)` protects the OR-chain so USGS-only rows aren't silently dropped via NA propagation
+- `tasks/earthquake/charts/index.qmd`: y-axis now adaptive — earliest event year as ymax with 5/10/20-yr breaks based on time range (no more empty 1900–1970 dead space)
+
+### Changed
+#### Multi-country AOI support (Lobito Corridor driver)
+- `core/py/aoi_module.py`: `find_country()` now returns a 3-tuple `(country_iso3, country_name, country_iso3_list)` — sorted by intersection area, so cross-border AOIs are first-class
+- `core/config/scan.py`: `scan_init()` accepts `country_name=None` for multi-country AOIs (scan_id becomes e.g. `2026-04-lobito_corridor` with no country segment); `Scan` exposes `country_iso3_list` and `multi_country` flag for downstream tasks
+- `core/R/setup.R`: `scan_id` regex relaxed (`^[0-9]{4}-[0-9]{2}-[a-z_-]+$`) so multi-country IDs validate; added `exactextractr` and `h3o` to library shelf
+- `tasks/worldpop`, `tasks/demographics`, `tasks/rwi`: collections accept `country_iso3_list` and mosaic per-country WorldPop / RWI files before clipping to AOI. Single-country path unchanged
+- `tasks/elevation/__init__.py`: tracks `data_source` on `scan.sources["elevation"]` (FABDEM-GCS / FABDEM-GEE / SRTM-GEE) for the source-tracking report
+
+#### Diacritic-insensitive city matching
+- `core/R/benchmark-helper.R`: Oxford lookup matches via `stringi::stri_trans_general(... "Latin-ASCII")`, e.g. "Chișinău" matches "Chisinau" in the Oxford table; canonical Oxford spelling adopted as `city` after match
+- `tasks/basic_info/collection.py`: same diacritic-stripping for `in_oxford` flag on the Python side
+
+#### Maps & Layers
+- `rwi_relative` title reverted to `'Relative wealth'`, subtitle to `'Standard deviations of estimated household wealth from national mean'`
+- `water_risk_overall` subtitle trimmed to `'WRI Aqueduct v4'` (risk class hint removed)
+- `core/R/map-schools-health-proximity.R`: `add_builtup_hatch(..., underlay = TRUE)` for school/health point overlays — hatch slides beneath the points instead of obscuring them
+
+#### Tasks
+- Buildings collection rerouted through `core/py/osm_client` (PBF for large AOIs, Overpass otherwise) — replaces inline Overpass call in `tasks/buildings/collection.py`
+- Accessibility POI collection rerouted through `core/py/osm_client` — same osm_client routing as buildings; removes inline OSMnx setup from `tasks/accessibility/collection.py`
+- Worldpop charts: section title "Population" → "WorldPop"; growth plot file renamed `oxford-pop-growth.png` → `worldpop-pop-growth.png`; G1/G2 tables now include `Source` column
+- Worldpop `maps.yml`: `aggregate_fun: sum` (correct for population aggregation when hex mode is on)
+- `tasks/oxford/charts/index.qmd`: factor levels (`Group`, `Location`, `Indicator`, sector orderings) restored after CSV round-trip — fixes ordering bugs in shares charts when read from disk; added Population Growth (Oxford) chart; fallback `in_oxford` detection from CSV presence in case the flag is stale
+- `tasks/fathom/maps.yml`: `depends:` on `worldpop`, `wsf`, `accessibility` — when running `--render maps fathom`, dependency layers are auto-included so flood overlay composites have the base plots they need
+
+#### CLI & Orchestration
+- `--upload` extended: with task = new outputs, with `--render` = new renders, alone = backfill all existing files to GCS
+- `core/config/sync.py`: logs which folders/tasks were synced ("Synced: core, source, tasks (all)") instead of going silent
+- `core/py/multitask.py`: `run_parallel` accepts `auto_exit=True` so `--multicity --parallel --auto-exit` doesn't wait on a final keypress
+- `scan-calculations/generate-index.R`: dropped `source(core/R/pre-charting.R)` from the generated index 
+- `docs/orchestration.md`: `gridded_gdp` → `gdp_gridded` in the `--render` example
+
+### Fixed
+- `tasks/fathom/collection.py`: `composite_flood_raster` rewritten to use windowed/strip processing (512-row strips, reads RP files via `dst_path` arg) — fixes OOM on large AOIs (Lobito Corridor) where holding all RP arrays in memory simultaneously crashed
+- `tasks/accessibility/analysis.py`: `make_isochrone` returns an empty `GeoDataFrame` instead of crashing when no edges fall within any distance threshold (common on disconnected-graph AOIs)
+- `tasks/forest/analysis.py`: "No forest pixels found" downgraded from `error` to `warning` so the pipeline continues
+- `tasks/landcover/collection.py`: GEE `reproject(crs='EPSG:3857', scale=10)` pins server-side grid so categorical class codes stay integer; residual fractional values snapped to nearest valid ESA WorldCover class (`{0,10,…,95,100}`); output written as `uint8`
+- `core/R/pre-mapping.R`: `deforestation-edit.tif` written with `INT2U` datatype (year values stay integer, no thousands-comma formatting like "2,020" in legends)
+- `core/py/raster_module.py`: `mosaic_raster` now (a) filters input list to existing files via `gdal.VSIStatL` (cloud paths can 404), (b) writes via `merge(..., dst_path=...)` instead of holding mosaic in memory, (c) handles single-file case for `/vsigs/` paths via rasterio read/write (was `os.rename`, which fails on virtual paths)
+- `core/py/log_module.py`: file handler opened in `'w'` mode — log overwrites per run instead of appending forever; removed the manual run-separator banner that was double-writing
+- `tasks/cyclones/charts/index.qmd`, `flood_events/charts/index.qmd`, `groundwater/charts/index.qmd`: `ggplot2:::print.ggplot()` → `print()` (ggplot2 4.0 removed the internal print method); added `here::i_am()` guards; trailing `cat("\n\n")` so subsequent text isn't rendered next to the chart
+
+---
 ## 2026-04-08
 
 ### Changed
@@ -27,8 +95,8 @@
 - Added note: `scan` always resolves to repo root (needs `--scan-id`), `python -m tasks` works from city folder without it
 
 ### New
-- GDP flood exposure analysis (`tasks/gridded_gdp/multianalysis.R`) — overlays flood zones with gridded GDP raster, outputs `flood_gdp.csv`. Combined = sum of individual types (not union)
-- GDP flood exposure chart (`tasks/gridded_gdp/charts/index.qmd`) — time series of exposed GDP per flood type (1990–2020)
+- GDP flood exposure analysis (`tasks/gdp_gridded/multianalysis.R`) — overlays flood zones with gridded GDP raster, outputs `flood_gdp.csv`. Combined = sum of individual types (not union)
+- GDP flood exposure chart (`tasks/gdp_gridded/charts/index.qmd`) — time series of exposed GDP per flood type (1990–2020)
 - GDP + flood overlay maps (`core/R/map-gdp-flood.R`) — renders combined flooding on top of GDP total and GDP per capita base layers
 - Census task for Chisinau (`tasks/census/`) — population growth charts from Moldova 1959–2024 census data
 - Demographics collection updated to WorldPop R2025A (2015–2030), configurable year via `demographics_year`

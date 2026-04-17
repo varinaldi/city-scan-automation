@@ -19,14 +19,14 @@ def scan_init(country_name, city_name, use_existing=False):
     Find existing scan folder or build a new scan_id.
 
     Args:
-        country_name: Lowercase country name (e.g. 'namibia')
+        country_name: Lowercase country name (e.g. 'namibia'), or None for multi-country AOIs.
         city_name: Slugified city name (e.g. 'walvis_bay')
         use_existing: If True, auto-select existing folder without prompting.
 
     Returns:
-        scan_id string like '2026-03-namibia-windhoek'
+        scan_id string like '2026-03-namibia-windhoek' or '2026-03-lobito_corridor'
     """
-    suffix = f"-{country_name}-{city_name}"
+    suffix = f"-{country_name}-{city_name}" if country_name else f"-{city_name}"
     today_id = f"{dt.now().strftime('%Y-%m')}{suffix}"
     existing = sorted([
         d.name for d in OUTPUTS.iterdir()
@@ -100,7 +100,8 @@ class Scan:
         logger.info(f'Successfully loaded AOI from: {aoi_path}')
 
         # --- Country lookup ---
-        self.country_iso3, self.country_name = find_country(aoi=self.aoi)
+        self.country_iso3, self.country_name, self.country_iso3_list = find_country(aoi=self.aoi)
+        self.multi_country = len(self.country_iso3_list) > 1
 
         # --- Resolve scan_id if not provided ---
         if not scan_id:
@@ -110,10 +111,14 @@ class Scan:
             else:
                 prev = self.city_inputs.get('prev_run_date', None)
                 if prev is not None:
-                    self.cityscan_id = f"{prev}-{self.country_name}-{self.city_name}"
+                    if self.multi_country:
+                        self.cityscan_id = f"{prev}-{self.city_name}"
+                    else:
+                        self.cityscan_id = f"{prev}-{self.country_name}-{self.city_name}"
                 else:
                     self.cityscan_id = scan_init(
-                        self.country_name, self.city_name,
+                        self.country_name if not self.multi_country else None,
+                        self.city_name,
                         use_existing=use_existing
                     )
 

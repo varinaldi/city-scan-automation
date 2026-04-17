@@ -151,26 +151,37 @@ def mosaic_raster(mosaic_list, local_output_dir, mosaic_file, method = 'first'):
     import rasterio
     from rasterio.merge import merge
 
+    # Filter to only existing files (cloud paths may 404)
+    from osgeo import gdal
+    valid_list = []
+    for p in mosaic_list:
+        if p.startswith('/vsi'):
+            # Use GDAL stat for cloud paths — lightweight HEAD request, no data loaded
+            stat = gdal.VSIStatL(p)
+            if stat is not None:
+                valid_list.append(p)
+        elif os.path.exists(p):
+            valid_list.append(p)
+    mosaic_list = valid_list
+
     if len(mosaic_list) > 1:
         try:
-            mosaic, output = merge(mosaic_list, method = method)
-            with rasterio.open(mosaic_list[0]) as src:
-                output_meta = src.meta.copy()
-            output_meta.update(
-                {"driver": "GTiff",
-                 "height": mosaic.shape[1],
-                 "width": mosaic.shape[2],
-                 "transform": output,
-                }
-            )
-            with rasterio.open(f'{local_output_dir}/{mosaic_file}', 'w', **output_meta) as m:
-                m.write(mosaic)
+            dst_path = f'{local_output_dir}/{mosaic_file}'
+            merge(mosaic_list, method=method, dst_path=dst_path)
         except MemoryError:
             print('MemoryError when merging raster files:')
             print(mosaic_list)
             print('Try downloading raw files from cloud storage and using GIS for merging.')
     elif len(mosaic_list) == 1:
-        os.rename(mosaic_list[0], f'{local_output_dir}/{mosaic_file}')
+        src_path = mosaic_list[0]
+        dst_path = f'{local_output_dir}/{mosaic_file}'
+        # Can't os.rename cloud paths (/vsigs/, /vsicurl/) — read and write instead
+        if src_path.startswith('/vsi'):
+            with rasterio.open(src_path) as src:
+                with rasterio.open(dst_path, 'w', **src.meta) as dst:
+                    dst.write(src.read())
+        else:
+            os.rename(src_path, dst_path)
 
 def reproject_raster(src_raster_path, dst_raster_path, dst_crs=None, target_raster_path=None):
     """

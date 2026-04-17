@@ -6,7 +6,7 @@ execute:
   message: false
 ---
 
-## Population
+## WorldPop
 
 ```{r setup, message=FALSE, warning=FALSE, results='hide'}
 if (file.exists("_quarto.yml")) here::i_am("tasks/worldpop/charts/index.qmd")
@@ -83,7 +83,7 @@ if (nrow(pop_growth) > 0 && "Year" %in% names(pop_growth)) {
       scale_linetype_manual(values = source_linetypes)
   }
 
-  ggsave(here("03-render-output", "plots", "oxford-pop-growth.png"), plot = pop_growth_plot, device = "png",
+  ggsave(here("03-render-output", "plots", "worldpop-pop-growth.png"), plot = pop_growth_plot, device = "png",
          width = 8, height = 5, units = "in", dpi = "print")
   print(pop_growth_plot)
   cat("\n\n")
@@ -154,7 +154,7 @@ if (nrow(pop_g1) > 0) {
          width = 8, height = 5, units = "in", dpi = "print")
   print(g1_plot)
 
-  print_paged_df(pop_g1 %>% select(Year, Population))
+  print_paged_df(pop_g1 %>% select(Year, Population, Source))
 }
 ```
 
@@ -184,7 +184,7 @@ if (nrow(pop_g2) > 0) {
          width = 8, height = 5, units = "in", dpi = "print")
   print(g2_plot)
 
-  print_paged_df(pop_g2 %>% select(Year, Population))
+  print_paged_df(pop_g2 %>% select(Year, Population, Source))
 }
 ```
 
@@ -231,7 +231,7 @@ if (nrow(wp_ridge) > 0) {
       panel.grid.minor = element_blank()
     )
 
-  ggsave(here("03-render-output", "plots", "population_density_distribution.png"),
+  ggsave(here("03-render-output", "plots", "worldpop-pop-density-distribution.png"),
          plot = p_density, width = 8, height = 4, dpi = 300)
   p_density
 }
@@ -277,7 +277,7 @@ if (nrow(density) > 0 && any(!is.na(density$Density))) {
     scale_color_manual(values = hues) +
     expand_limits(y = 0)
 
-  ggsave(here("03-render-output", "plots", "oxford-pop-density-scatter.png"), plot = density_plot, device = "png",
+  ggsave(here("03-render-output", "plots", "worldpop-pop-density-scatter.png"), plot = density_plot, device = "png",
          width = 8, height = 5, units = "in", dpi = "print")
   print(density_plot)
   cat("\n\n")
@@ -322,7 +322,7 @@ if (nrow(pop_g1_bm) > 0 && nrow(city_g1) > 0) {
       direction = "y", segment.linetype = "dotted", max.overlaps = 20, force_pull = 1) +
     coord_cartesian(xlim = c(max(2000, min(pop_g1_bm$Year)), max(pop_g1_bm$Year) + 7))
 
-  ggsave(here("03-render-output", "plots", "benchmark-pop-g1.png"), device = "png",
+  ggsave(here("03-render-output", "plots", "worldpop-pop-g1-benchmark.png"), device = "png",
          width = 5, height = 4.6, units = "in", dpi = "print")
   print(multi_g1_plot)
 
@@ -382,7 +382,7 @@ if (nrow(pop_g1_ox) > 0 && nrow(city_g1) > 0 && (nrow(bm_g1) > 0 || nrow(bm_oxfo
       direction = "y", segment.linetype = "dotted", max.overlaps = 20, force_pull = 1) +
     coord_cartesian(xlim = c(min(pop_g1_ox$Year), max(pop_g1_ox$Year) + 7))
 
-  ggsave(here("03-render-output", "plots", "benchmark-pop-g1-oxford.png"), device = "png",
+  ggsave(here("03-render-output", "plots", "worldpop-pop-g1-oxford-benchmark.png"), device = "png",
          width = 5, height = 4.6, units = "in", dpi = "print")
   print(g1_ox_plot)
   cat("\n\n")
@@ -439,7 +439,7 @@ if (nrow(pop_g2_bm) > 0 && nrow(city_g2) > 0) {
       direction = "y", segment.linetype = "dotted", max.overlaps = 20, force_pull = 1) +
     coord_cartesian(xlim = c(max(2000, min(pop_g2_bm$Year)), max(pop_g2_bm$Year) + 7))
 
-  ggsave(here("03-render-output", "plots", "benchmark-pop-g2.png"), device = "png",
+  ggsave(here("03-render-output", "plots", "worldpop-pop-g2-benchmark.png"), device = "png",
          width = 5, height = 4.6, units = "in", dpi = "print")
   print(multi_g2_plot)
 

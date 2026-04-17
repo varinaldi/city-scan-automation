@@ -34,27 +34,49 @@ def apply_flood_threshold(out_image, out_meta, flood_threshold, prob):
 
     return out_image, out_meta
 
-def composite_flood_raster(raster_arrays, out_meta, output_raster, flood_rps=None):
+def composite_flood_raster(rp_files, output_raster, flood_rps=None):
+    """Composite per-RP thresholded rasters into a single multi-band TIF.
+
+    Band 1: max probability across all RPs (for mapping)
+    Bands 2+: binary flooded/not per RP (for charting)
+
+    Reads from per-RP temp files using windowed IO to avoid holding
+    all arrays in memory simultaneously.
+    """
     import numpy as np
     import rasterio
+    from rasterio.windows import Window
 
-    # Band 1: max probability (for mapping)
-    max_prob = np.squeeze(np.maximum.reduce(raster_arrays)).astype(np.float32)
+    # Get output dimensions from first RP file
+    with rasterio.open(rp_files[0]) as ref:
+        out_meta = ref.meta.copy()
+        height, width = ref.height, ref.width
 
-    # Bands 2+: individual return period binary layers (for charting)
-    # Each array was: binary (0/1) * probability — convert back to binary (>0 = flooded)
-    rp_bands = [np.squeeze((arr > 0).astype(np.float32)) for arr in raster_arrays]
+    band_count = 1 + len(rp_files)  # max_prob + one binary band per RP
+    out_meta.update({'count': band_count, 'dtype': 'float32'})
 
-    # Stack: max_probability, r{rp1}, r{rp2}, ...
-    all_bands = [max_prob] + rp_bands
-    band_count = len(all_bands)
+    # Process in horizontal strips to limit memory
+    strip_height = min(512, height)
 
-    out_meta_multi = out_meta.copy()
-    out_meta_multi.update({'count': band_count, 'dtype': 'float32'})
+    with rasterio.open(output_raster, 'w', **out_meta) as dst:
+        for row_off in range(0, height, strip_height):
+            h = min(strip_height, height - row_off)
+            win = Window(0, row_off, width, h)
 
-    with rasterio.open(output_raster, 'w', **out_meta_multi) as dst:
-        for i, band in enumerate(all_bands, 1):
-            dst.write(band, i)
+            # Read this strip from all RP files
+            strips = []
+            for f in rp_files:
+                with rasterio.open(f) as src:
+                    strips.append(src.read(1, window=win).astype(np.float32))
+
+            # Band 1: max probability
+            max_prob = np.maximum.reduce(strips)
+            dst.write(max_prob, 1, window=win)
+
+            # Bands 2+: binary (flooded = value > 0)
+            for i, strip in enumerate(strips, 2):
+                dst.write((strip > 0).astype(np.float32), i, window=win)
+
         # Set band descriptions
         dst.set_band_description(1, 'max_probability')
         if flood_rps:
@@ -84,9 +106,8 @@ def _process_year(
     tiles → mosaic → mask → threshold → stack (max reduce) → write → reproject
     """
 
-    out_image_arrays = []
+    rp_temp_files = []
     successful_rps = []
-    out_meta = None
 
     for rp in flood_rps:
 
@@ -184,19 +205,31 @@ def _process_year(
             100 / rp
         )
 
-        out_image_arrays.append(out_image)
+        # Write thresholded result to temp file (instead of holding in RAM)
+        rp_temp_name = (
+            f"tmp_{city_name}_{flood_type}_{year}"
+            f"{'' if ssp is None else f'_ssp{ssp}'}_rp{rp}_thresh.tif"
+        )
+        rp_temp_path = os.path.join(spatial_dir, rp_temp_name)
+        rp_meta = out_meta.copy()
+        rp_meta.update({'count': 1, 'dtype': 'float32'})
+        with rasterio.open(rp_temp_path, 'w', **rp_meta) as dst:
+            dst.write(np.squeeze(out_image).astype(np.float32), 1)
+
+        rp_temp_files.append(rp_temp_path)
         successful_rps.append(rp)
 
-        # Optional: remove temporary mosaic
+        # Free memory and remove mosaic temp
+        del out_image
         try:
             os.remove(tmp_mosaic_path)
         except Exception:
             pass
 
     # -------------------------------------------------------
-    # 5️⃣ Composite across return periods
+    # 5️⃣ Composite across return periods (from temp files)
     # -------------------------------------------------------
-    if not out_image_arrays or out_meta is None:
+    if not rp_temp_files:
         logger.warning(
             f"{flood_type} {year}"
             + (f" SSP{ssp}" if ssp else "")
@@ -212,11 +245,17 @@ def _process_year(
     output_raster = os.path.join(spatial_dir, out_name)
 
     composite_flood_raster(
-        out_image_arrays,
-        out_meta,
+        rp_temp_files,
         output_raster,
         flood_rps=successful_rps
     )
+
+    # Clean up per-RP temp files
+    for f in rp_temp_files:
+        try:
+            os.remove(f)
+        except Exception:
+            pass
 
     # -------------------------------------------------------
     # 6️⃣ Reproject to UTM (same as old code)
@@ -297,15 +336,19 @@ def datacollection(
     os.makedirs(spatial_dir, exist_ok=True)
 
     # -----------------------------
-    # AOI preparation
+    # AOI preparation — match R's static_map_bounds
     # -----------------------------
-    aoi_bounds = aoi.bounds
-    buffer_aoi = aoi.buffer(
-        np.nanmax([
-            aoi_bounds.maxx - aoi_bounds.minx,
-            aoi_bounds.maxy - aoi_bounds.miny
-        ])
-    )
+    from core.py.aoi_buffer import static_map_buffer
+    buffer_aoi = static_map_buffer(aoi)
+
+    # OLD: buffered by max(width, height) in degrees — too large for corridor AOIs
+    # aoi_bounds = aoi.bounds
+    # buffer_aoi = aoi.buffer(
+    #     np.nanmax([
+    #         aoi_bounds.maxx - aoi_bounds.minx,
+    #         aoi_bounds.maxy - aoi_bounds.miny
+    #     ])
+    # )
 
     lat_tiles = raster_pro.tile_finder(buffer_aoi, 'lat')
     lon_tiles = raster_pro.tile_finder(buffer_aoi, 'lon')
@@ -391,8 +434,13 @@ def datacollection(
             # Stack this band from all flood types, take max
             stack = []
             for p, idx in all_bands[desc]:
-                with rasterio.open(p) as src:
-                    stack.append(src.read(idx).astype(np.float32))
+                try:
+                    with rasterio.open(p) as src:
+                        stack.append(src.read(idx).astype(np.float32))
+                except Exception:
+                    continue
+            if not stack:
+                continue
             combined = np.maximum.reduce(stack)
             merged_arrays.append(combined)
             band_descs.append(desc)

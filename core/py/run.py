@@ -156,7 +156,7 @@ def run_multicity(multicity_path, args, flags):
 
         # Detect country from the multipolygon file
         mp_4326 = mp_gdf.to_crs(4326)
-        _, mp_country = find_country(aoi=mp_4326)
+        _, mp_country, _ = find_country(aoi=mp_4326)
 
         # Filter to cities list if provided — validate all names exist in multipolygon
         run_filter = None
@@ -222,7 +222,7 @@ def run_multicity(multicity_path, args, flags):
                 shps = [f for f in d.glob("*.shp") if "wards" not in f.stem.lower()]
                 if shps:
                     aoi_gdf = gpd.read_file(shps[0]).to_crs(4326)
-                    _, country_name = find_country(aoi=aoi_gdf)
+                    _, country_name, _ = find_country(aoi=aoi_gdf)
                 break
 
     for i, city_cfg in enumerate(cities):

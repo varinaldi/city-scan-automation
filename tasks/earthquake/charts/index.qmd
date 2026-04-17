@@ -11,6 +11,7 @@ execute:
 ```{r}
 #| label: setup-earthquake
 #| include: false
+if (file.exists("_quarto.yml")) here::i_am("tasks/earthquake/charts/index.qmd")
 if (!exists("aoi")) {
   source(here::here("core/R/setup.R"))
 }
@@ -32,11 +33,19 @@ eq <- tryCatch(
 
 if (is.null(eq) || nrow(eq) == 0) print_text(paste_bold('No earthquake data available')) else {
 
-  damages <- c("0" = "None",
-              "1" = "Limited",
-              "2" = "Moderate",
-              "3" = "Severe",
-              "4" = "Extreme")
+  # Per-row source: NCEI rows carry damage metadata; USGS rows don't.
+  # If `source` column is missing (legacy CSV), assume all rows are NCEI when damage cols exist.
+  if (!"source" %in% names(eq)) {
+    eq$source <- if (all(c("damageAmountOrder", "deaths", "intensity") %in% names(eq))) "NCEI" else "USGS"
+  }
+
+  # Ensure NCEI columns exist even when only USGS rows are present (avoids missing-column errors).
+  for (col in c("damageAmountOrder", "damageMillionsDollars", "deaths", "deathsAmountOrder",
+                "intensity", "tsunamiEventId")) {
+    if (!col %in% names(eq)) eq[[col]] <- NA
+  }
+
+  USGS_MIN_MAG <- 4.5  # USGS-only rows surface at this floor; NCEI rows use the curated significance OR-chain
 
   y_ratio <- 51498 / 13514
 
@@ -48,37 +57,56 @@ if (is.null(eq) || nrow(eq) == 0) print_text(paste_bold('No earthquake data avai
     st_as_sf(coords = c("longitude", "latitude"), crs = st_crs(city_point)) %>%
     mutate(distance = st_distance(geometry, city_point) %>% units::set_units(km),
           magXdist = eqMagnitude * (2000 - units::drop_units(distance))) %>%
+    filter(distance < units::set_units(500, km)) %>%
+    # NCEI rows: original significance OR-chain. USGS rows: magnitude floor.
+    # coalesce → FALSE so NA in NCEI columns (USGS rows) doesn't propagate and drop them.
     filter(
-      (damageAmountOrder >= 2 | damageMillionsDollars >= 1 |
-        deaths >= 10 | deathsAmountOrder >= 2 |
-        eqMagnitude >= 7.5 |
-        intensity >= 10 |
-        !is.na(tsunamiEventId)) &
-        distance < units::set_units(500, km))
+      (source == "NCEI" & coalesce(
+         damageAmountOrder >= 2 | damageMillionsDollars >= 1 |
+           deaths >= 10 | deathsAmountOrder >= 2 |
+           eqMagnitude >= 7.5 |
+           intensity >= 10 |
+           !is.na(tsunamiEventId), FALSE)) |
+      (source == "USGS" & coalesce(eqMagnitude >= USGS_MIN_MAG, FALSE))
+    )
 
   if (nrow(eq_near) == 0) {
     print_text(paste_bold('No significant earthquakes found within 500 km'))
   } else {
 
+  damages <- c("0" = "None", "1" = "Limited", "2" = "Moderate", "3" = "Severe", "4" = "Extreme")
+
   eq_text <- eq_near %>%
     mutate(
-      location = gsub("([\\s-][A-Z])([A-Z]*)", "\\1\\L\\2", locationName, perl = T) %>%
-        str_extract("[^:][\\s]+.*") %>% trimws(),
-      fatalities = paste(scales::label_comma()(deaths), "fatalities"),
-      fatalities = str_replace_all(
-        fatalities, c("1 fatalities" = "1 fatality", "NA fatalities" = "")),
-      damage = paste(damages[as.character(damageAmountOrder)], "damage"),
+      location = if_else(
+        source == "NCEI",
+        gsub("([\\s-][A-Z])([A-Z]*)", "\\1\\L\\2", locationName, perl = T) %>%
+          str_extract("[^:][\\s]+.*") %>% trimws(),
+        str_to_title(locationName)),
       day = replace_na(day, 1),
       BEGAN = as.Date(paste(year, month, day, sep='-'))) %>%
     arrange(BEGAN) %>%
     mutate(
       line1 = toupper(paste(lubridate::month(BEGAN, label = T, abbr = F), lubridate::year(BEGAN))),
       line2 = paste0("M", eqMagnitude, "; ", scales::label_comma(accuracy= 1)(units::drop_units(distance)), " km away"),
-      line3 = damage,
-      line4 = fatalities,
-      text = paste(line1, line2, line3, line4, sep = "; ") %>% str_replace_all(c("; ;" = ";", "; $" = "")),
-      above_line = (2*(row_number() %% 2) - 1)*-1) %>%
-    select(BEGAN, text, line1, line2, line3, line4, above_line, distance, eqMagnitude, magXdist, location) %>%
+      # NCEI rows: 4-line label with damage + fatalities. USGS rows: 2-line.
+      fatalities = if_else(
+        source == "NCEI" & !is.na(deaths),
+        paste(scales::label_comma()(deaths), "fatalities") %>%
+          str_replace_all(c("^1 fatalities$" = "1 fatality")),
+        ""),
+      damage = if_else(
+        source == "NCEI" & !is.na(damageAmountOrder),
+        paste(damages[as.character(damageAmountOrder)], "damage"),
+        ""),
+      text = if_else(
+        source == "NCEI",
+        paste(line1, line2, damage, fatalities, sep = "; ") %>%
+          str_replace_all(c("; ;" = ";", "; $" = "")),
+        paste(line1, line2, sep = "; ")))
+
+  eq_text <- eq_text %>%
+    mutate(above_line = (2*(row_number() %% 2) - 1)*-1) %>%
     mutate(node_x = BEGAN + y_ratio * 1460*above_line,
           node_y = above_line * (1460 * tanpi(1/6) + 466/2) * y_ratio )
 
@@ -100,12 +128,18 @@ if (is.null(eq) || nrow(eq) == 0) print_text(paste_bold('No earthquake data avai
       labels = \(x) paste(x, "km"),
       breaks = seq(0, 500, 100),
       expand = expansion(c(0, 0))) +
-    scale_y_continuous(
-      limits = c(Sys.Date(), as.Date("1900-01-01")),
-      breaks = seq.Date(as.Date("1900-01-01"), Sys.Date(), by = "20 years"),
-      minor_breaks = seq.Date(as.Date("1900-01-01"), as.Date("2030-01-01"), by = "5 years"),
-      labels = seq(1900, 2025, by = 20),
-      trans = c("date", "reverse")) +
+    {
+      earliest_year <- min(lubridate::year(eq_text$BEGAN))
+      year_floor <- as.Date(paste0(earliest_year, "-01-01"))
+      range_years <- as.numeric(format(Sys.Date(), "%Y")) - earliest_year
+      step <- if (range_years <= 20) 5 else if (range_years <= 60) 10 else 20
+      scale_y_continuous(
+        limits = c(Sys.Date(), year_floor),
+        breaks = seq.Date(year_floor, Sys.Date(), by = paste(step, "years")),
+        minor_breaks = seq.Date(year_floor, Sys.Date(), by = "1 year"),
+        labels = \(x) format(x, "%Y"),
+        trans = c("date", "reverse"))
+    } +
     scale_size(range = c(1, 6)) +
     labs(
       x = paste("Distance from", city),
@@ -127,7 +161,8 @@ if (is.null(eq) || nrow(eq) == 0) print_text(paste_bold('No earthquake data avai
   ggsave(here("03-render-output", "plots", "ngdc-earthquake-scatter.png"), plot = eq_plot, device = "png",
           width = 15, height = 4.36, units = "in", dpi = "print")
 
-  tryCatch(ggplot2:::print.ggplot(eq_plot), error = \(e) warning(paste("Window may be too small for earthquake plot.", e)))
+  tryCatch(print(eq_plot), error = \(e) warning(paste("Window may be too small for earthquake plot.", e)))
+  cat("\n\n")
   }
 }
 ```

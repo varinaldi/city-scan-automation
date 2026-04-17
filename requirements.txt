@@ -8,6 +8,7 @@ earthengine-api>=1.6.12
 pyparsing>=3.1.0
 httplib2>=0.22.0
 osmnx==1.9.3
+pyrosm==0.6.2
 networkx==3.3
 pandas==2.0.3
 numpy==1.25.2

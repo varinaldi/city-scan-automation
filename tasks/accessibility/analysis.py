@@ -345,7 +345,15 @@ def make_isochrone(graph, nodes_gdf, edges_gdf, origin_gdf, distance_list, key, 
                 buffer_geom = filtered.buffer(buffer_size).unary_union
                 buffer_list.append({'geometry': buffer_geom, 'distance': d})
 
-        isochrone_buffer = gpd.GeoDataFrame(buffer_list, crs=edges_access.crs)
+        if buffer_list:
+            isochrone_buffer = gpd.GeoDataFrame(buffer_list, crs=edges_access.crs)
+        else:
+            # No edges reachable within any distance threshold — common on
+            # disconnected-graph AOIs. Emit empty layer so the rest of the pipeline continues.
+            logger.warning(f"No edges within isochrone thresholds for {key}; emitting empty layer")
+            isochrone_buffer = gpd.GeoDataFrame(
+                {"geometry": [], "distance": []}, geometry="geometry", crs=edges_access.crs
+            )
         logger.info(f'isochrone buffer is done')
 
         return nodes_access, edges_access, isochrone_buffer

@@ -179,7 +179,7 @@ def _elapsed_str(state):
     return f"{e:.0f}s"
 
 
-def run_parallel(task_names, scan, step=None, run_task_fn=None, skip_tasks=None):
+def run_parallel(task_names, scan, step=None, run_task_fn=None, skip_tasks=None, auto_exit=False):
     # Force non-interactive matplotlib backend (macOS crashes if GUI is created from background thread)
     import matplotlib
     matplotlib.use('Agg')
@@ -397,6 +397,8 @@ def run_parallel(task_names, scan, step=None, run_task_fn=None, skip_tasks=None)
             scan_label = getattr(scan, 'scan_id', '') or getattr(scan, 'city_name', '') or ''
             header = f" {scan_label}  {GREEN}✓{ok}{RESET}  {CYAN}⟳{run}{RESET}  {DIM}⏳{wait}{RESET}  {RED}✗{err}{RESET}"
             if done:
+                if auto_exit:
+                    quit_flag = True
                 header += f"  {GREEN}{BOLD}ALL DONE — press q to exit{RESET}"
             frame.append(f"{BG_BLUE}{WHITE}{BOLD} {scan_label} {RESET}{header}{RESET}")
 

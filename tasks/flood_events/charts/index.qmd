@@ -11,6 +11,7 @@ execute:
 ```{r}
 #| label: setup-flood-events
 #| include: false
+if (file.exists("_quarto.yml")) here::i_am("tasks/flood_events/charts/index.qmd")
 if (!exists("aoi")) {
   USE_GCS <<- FALSE
   source(here::here("core/R/setup.R"))
@@ -96,7 +97,8 @@ if (is.null(flood_archive) || nrow(flood_archive) == 0) print_text(paste_bold('N
       plot.margin = margin(5.5, 300, 5.5, 5.5, "pt"),
       plot.background = element_rect(fill = "white", color = NULL))
 
-  ggplot2:::print.ggplot(flood_event_plot)
+  print(flood_event_plot)
+  cat("\n\n")
 
   ggsave(here("03-render-output", "plots", "darthmouth_flood_events.pdf"), device = "pdf",
     width = 15, height = 4.36, units = "in", dpi = "print")

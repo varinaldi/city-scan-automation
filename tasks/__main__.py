@@ -71,7 +71,7 @@ def main():
                 ("--render scan-calculations", "Quarto render scan-calculations"),
                 ("--render charts",      "Render task charts (requires task name)"),
                 ("--parallel",           "Run tasks concurrently with TUI"),
-                ("--upload",             "Upload outputs to GCS after each task"),
+                ("--upload",             "Upload to GCS: with task=new outputs; with --render=new renders; alone=backfill all"),
                 ("-e",                   "Use existing city folder (skip folder prompt)"),
                 ("-t",                   "Shortcut for --sync tasks"),
                 ("-k / --keep",          "Run with code already in city folder (no sync)"),
@@ -167,6 +167,17 @@ def main():
             return
 
     # =========================================================
+    # UPLOAD ONLY (backfill: --upload with no tasks, no render, no --all)
+    # =========================================================
+    if flags['upload_enabled'] and not flags['render_targets'] and not flags['run_all']:
+        positional = [a for a in args if not a.startswith("-") and a != scan_id]
+        if not positional:
+            from core.py.gcs_module import upload_task_outputs
+            logger.info(f"Backfill upload: pushing all existing files for {scan.cityscan_id}")
+            upload_task_outputs(scan, task_name="backfill", files_before=None)
+            return
+
+    # =========================================================
     # RENDER
     # =========================================================
     if flags['render_targets']:
@@ -183,6 +194,11 @@ def main():
                 return
 
         task_names = [a for a in args if not a.startswith("-") and a != scan_id and a not in flags['render_targets']]
+
+        files_before = None
+        if flags['upload_enabled']:
+            from core.py.gcs_module import get_all_files, upload_task_outputs
+            files_before = get_all_files(scan.output_dir) | get_all_files(scan.render_dir)
 
         for render_target in flags['render_targets']:
             if render_target == "maps":
@@ -219,6 +235,10 @@ def main():
                         )
                     else:
                         logger.error(f"No charts found for task '{task}' at {qmd}")
+
+        if flags['upload_enabled']:
+            render_label = "render-" + "-".join(flags['render_targets'])
+            upload_task_outputs(scan, task_name=render_label, files_before=files_before)
         return
 
     # =========================================================

@@ -11,6 +11,7 @@ execute:
 ```{r}
 #| label: setup-cyclones
 #| include: false
+if (file.exists("_quarto.yml")) here::i_am("tasks/cyclones/charts/index.qmd")
 if (!exists("aoi")) {
   USE_GCS <<- FALSE
   source(here::here("core/R/setup.R"))
@@ -95,7 +96,8 @@ if (is.null(cyclones_near) || nrow(cyclones_near) == 0) {
 
     cyclones_text_select %>% print_paged_df()
 
-    ggplot2:::print.ggplot(cyclone_plot)
+    print(cyclone_plot)
+  cat("\n\n")
 
     cyclones_text %>% filter(min_distance <250) %>% count(USA_SSHS)  %>% print_paged_df()
     cyclones_text %>% mutate(distance_bin = cut_width(min_distance, width = 50, boundary = 0)) %>% count(distance_bin) %>% print_paged_df()

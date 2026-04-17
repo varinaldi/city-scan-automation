@@ -53,6 +53,74 @@ def _wp_direct_download(iso3, years, dataset, aoi_bounds):
     return [(results_dict[y][0], results_dict[y][1]) for y in years]
 
 
+def _wp_multi_country_download(iso3_list, years, dataset, aoi_bounds):
+    """Download WorldPop rasters for multiple countries, windowed read of AOI only per country,
+    mosaic per year. Downloads full file but only keeps AOI window in memory."""
+    from rasterio.merge import merge
+
+    all_bands = []
+    total_years = len(years)
+    logger.info(f"Multi-country download: {len(iso3_list)} countries ({', '.join(iso3_list)}), {total_years} years, {dataset.upper()}")
+
+    for yi, year in enumerate(years, 1):
+        country_clips = []
+        for iso3 in iso3_list:
+            try:
+                iso_lower = iso3.lower()
+                iso_upper = iso3.upper()
+                url = WP_URLS[dataset].format(year=year, ISO=iso_upper, iso=iso_lower)
+                response = urllib.request.urlopen(url)
+                with MemoryFile(response.read()) as memfile:
+                    with memfile.open() as src:
+                        window = rasterio.windows.from_bounds(*aoi_bounds, src.transform)
+                        data = src.read(window=window)
+                        transform = src.window_transform(window)
+                        meta = src.meta.copy()
+                        meta.update({"height": data.shape[1], "width": data.shape[2], "transform": transform})
+                # Store windowed result in MemoryFile for merge
+                clip_mf = MemoryFile()
+                with clip_mf.open(**meta) as dst:
+                    dst.write(data)
+                country_clips.append(clip_mf)
+                logger.info(f"  {dataset.upper()} {year} {iso3.upper()}: OK")
+                del data, response
+            except Exception as e:
+                logger.warning(f"  {dataset.upper()} {year} {iso3.upper()}: failed ({e})")
+                continue
+
+        if not country_clips:
+            logger.warning(f"  No data for year {year} from any country")
+            continue
+
+        # Mosaic clipped country rasters for this year
+        datasets = [mf.open() for mf in country_clips]
+        if len(datasets) == 1:
+            data = datasets[0].read()
+            transform = datasets[0].transform
+            meta = datasets[0].meta.copy()
+        else:
+            data, transform = merge(datasets)
+            meta = datasets[0].meta.copy()
+            meta.update({
+                "height": data.shape[1],
+                "width": data.shape[2],
+                "transform": transform,
+            })
+
+        all_bands.append((data, meta))
+
+        # Clean up
+        for ds in datasets:
+            ds.close()
+        for mf in country_clips:
+            mf.close()
+
+        print(f"  Downloading {dataset.upper()} ({len(iso3_list)} countries)... {yi}/{total_years}", end="\r")
+    print()
+
+    return all_bands
+
+
 def _stack_mask(band_list, aoi_shapes):
     """Stack list of (array, meta) into multi-band array and mask to AOI polygon.
     Returns (clipped_image, clipped_meta)."""
@@ -88,7 +156,8 @@ def datacollection(
         city_name: str,
         country_iso3: str,
         output_dir: str,
-        return_raster: bool = True
+        return_raster: bool = True,
+        country_iso3_list: list = None,
     ):
     """
     Download WorldPop rasters and clip to AOI.
@@ -132,6 +201,11 @@ def datacollection(
     aoi_shapes = [geom.__geo_interface__ for geom in aoi.geometry]  # for polygon masking
     iso_lower = country_iso3.lower()
 
+    # Multi-country support
+    if country_iso3_list is None:
+        country_iso3_list = [country_iso3]
+    multi_country = len(country_iso3_list) > 1
+
     # ==================================================================
     # Global 1 — 1km UN adjusted, 2000-2020, multi-band TIF
     # Direct download from WorldPop (not on GCS)
@@ -141,7 +215,10 @@ def datacollection(
     g1_years = list(range(2000, 2021))
 
     # Download and crop each year into memory
-    g1_bands = _wp_direct_download(country_iso3, g1_years, "g1", aoi_bounds)
+    if multi_country:
+        g1_bands = _wp_multi_country_download(country_iso3_list, g1_years, "g1", aoi_bounds)
+    else:
+        g1_bands = _wp_direct_download(country_iso3, g1_years, "g1", aoi_bounds)
     # Stack all years and mask to AOI polygon
     g1_image, g1_meta = _stack_mask(g1_bands, aoi_shapes)
 
@@ -161,22 +238,26 @@ def datacollection(
 
     g2_years = list(range(2015, 2031))
 
-    # Try GCS first (windowed reads, no full download needed)
-    try:
-        g2_bands = []
-        for year in g2_years:
-            fname = f"{iso_lower}_pop_{year}_CN_100m_R2025A_v1.tif"
-            with rasterio.open(f"{GCS_G2_BASE}/{fname}") as src:
-                window = rasterio.windows.from_bounds(*aoi_bounds, src.transform)
-                data = src.read(window=window)
-                transform = src.window_transform(window)
-                meta = src.meta.copy()
-                meta.update({"height": data.shape[1], "width": data.shape[2], "transform": transform})
-            g2_bands.append((data, meta))
-    except Exception as e:
-        # GCS not available for this ISO, download all years from WorldPop
-        logger.info(f"  GCS failed ({e}), downloading from WorldPop directly")
-        g2_bands = _wp_direct_download(country_iso3, g2_years, "g2", aoi_bounds)
+    if multi_country:
+        # Multi-country: download from WorldPop directly for all countries, mosaic per year
+        g2_bands = _wp_multi_country_download(country_iso3_list, g2_years, "g2", aoi_bounds)
+    else:
+        # Try GCS first (windowed reads, no full download needed)
+        try:
+            g2_bands = []
+            for year in g2_years:
+                fname = f"{iso_lower}_pop_{year}_CN_100m_R2025A_v1.tif"
+                with rasterio.open(f"{GCS_G2_BASE}/{fname}") as src:
+                    window = rasterio.windows.from_bounds(*aoi_bounds, src.transform)
+                    data = src.read(window=window)
+                    transform = src.window_transform(window)
+                    meta = src.meta.copy()
+                    meta.update({"height": data.shape[1], "width": data.shape[2], "transform": transform})
+                g2_bands.append((data, meta))
+        except Exception as e:
+            # GCS not available for this ISO, download all years from WorldPop
+            logger.info(f"  GCS failed ({e}), downloading from WorldPop directly")
+            g2_bands = _wp_direct_download(country_iso3, g2_years, "g2", aoi_bounds)
 
     # Stack all years and mask to AOI polygon
     g2_image, g2_meta = _stack_mask(g2_bands, aoi_shapes)

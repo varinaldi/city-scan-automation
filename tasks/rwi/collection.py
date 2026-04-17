@@ -13,7 +13,8 @@ def datacollection(
         city_name: str,
         country_iso3: str,
         output_dir: str,
-        return_gdf: bool = True
+        return_gdf: bool = True,
+        country_iso3_list: list = None,
     ):
     """
     Download Relative Wealth Index CSV from global bucket for the AOI country and construct geodataframe.
@@ -50,16 +51,31 @@ def datacollection(
 
     logger.info(f"AOI CRS: {aoi.crs}")
 
-    # Construct GCS URL
-    country_iso3 = country_iso3.upper()
+    # Multi-country support
+    if country_iso3_list is None:
+        country_iso3_list = [country_iso3]
+
     bucket_base = "https://storage.googleapis.com/city-scan-global-public/"
-    rwi_blob = f"relative_wealth_index/{country_iso3}_relative_wealth_index.csv"
-    rwi_url = bucket_base + rwi_blob
-    logger.info(f"Requesting rwi csv: {rwi_url}")
 
     try:
-        # Build geometry from lat/lon
-        rwi_df = pd.read_csv(rwi_url)
+        # Download RWI CSV(s) — one per country, concat for multi-country AOIs
+        rwi_frames = []
+        for iso3 in country_iso3_list:
+            iso_upper = iso3.upper()
+            rwi_blob = f"relative_wealth_index/{iso_upper}_relative_wealth_index.csv"
+            rwi_url = bucket_base + rwi_blob
+            logger.info(f"Requesting rwi csv: {rwi_url}")
+            try:
+                rwi_frames.append(pd.read_csv(rwi_url))
+            except Exception as e:
+                logger.warning(f"RWI not available for {iso_upper}: {e}")
+                continue
+
+        if not rwi_frames:
+            logger.error("No RWI data available for any country")
+            return None
+
+        rwi_df = pd.concat(rwi_frames, ignore_index=True)
         # RWI values are already z-scored by Meta (mean=0, sd=1 within each country)
         # See: https://www.pnas.org/doi/10.1073/pnas.2113658119
 

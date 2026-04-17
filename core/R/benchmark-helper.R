@@ -13,7 +13,19 @@ if (!exists("oxford_location_file") || !file.exists(oxford_location_file)) {
 # Is city in Oxford Economics? --------------------------------------------------------------
 oxford_locations <- readr::read_csv(oxford_location_file, col_types = "c")
 oxford_locations_in_country <- dplyr::filter(oxford_locations, Country == country)
-in_oxford <- city %in% oxford_locations_in_country$Location
+
+# Match with or without diacritics (e.g. "Chișinău" == "Chisinau")
+.strip_diacritics <- function(x) stringi::stri_trans_general(x, "Latin-ASCII")
+city_ascii <- .strip_diacritics(city)
+oxford_ascii <- .strip_diacritics(oxford_locations_in_country$Location)
+in_oxford <- city_ascii %in% oxford_ascii
+
+# If city matched only via ASCII normalization, use the Oxford spelling for lookups
+if (in_oxford && !(city %in% oxford_locations_in_country$Location)) {
+  oxford_city_name <- oxford_locations_in_country$Location[oxford_ascii == city_ascii][1]
+  message(glue("Matched '{city}' → Oxford name '{oxford_city_name}'"))
+  city <- oxford_city_name
+}
 
 message(glue("{city} in Oxford Economics: {in_oxford}"))
 
@@ -369,4 +381,3 @@ get_benchmark_worldpop <- function(cities, oxford_pop_df = NULL) {
   bind_rows(all_results)
 }
 
-message("=== Benchmark selection complete ===\n")

@@ -245,9 +245,13 @@ adjust_deforstation_years <- function() {
     max_val <- global(deforest, "max", na.rm = TRUE)[1,1]
     out_path <- file.path(spatial_dir, "deforestation-edit.tif")
     if (!is.na(max_val) && max_val > 0 && max_val < 100) {
-      app(deforest, \(x) x + 2000, filename = out_path, overwrite = TRUE)
+      # Preserve integer year semantics — without wopt datatype override, terra::app
+      # writes FLT4S and the legend formats years as "2,020" via ggplot's default
+      # thousands separator.
+      app(deforest, \(x) x + 2000, filename = out_path, overwrite = TRUE,
+          wopt = list(datatype = "INT2U"))
     } else {
-      writeRaster(deforest, out_path, overwrite = TRUE)
+      writeRaster(deforest, out_path, overwrite = TRUE, datatype = "INT2U")
     }
   }
 }

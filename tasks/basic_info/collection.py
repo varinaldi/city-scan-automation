@@ -66,7 +66,13 @@ def datacollection(aoi, city_name, country_name, output_dir):
         with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as tmp:
             blob.download_to_filename(tmp.name)
             oxford_df = pd.read_csv(tmp.name)
-        in_oxford = city_name.lower() in oxford_df['Location'].str.lower().values
+        # Match with diacritic stripping (e.g. "Chișinău" → "Chisinau")
+        import unicodedata
+        def _strip_ascii(s):
+            return unicodedata.normalize('NFKD', str(s)).encode('ascii', 'ignore').decode('ascii').lower()
+        city_ascii = _strip_ascii(city_name)
+        oxford_ascii = oxford_df['Location'].map(_strip_ascii)
+        in_oxford = city_ascii in oxford_ascii.values
         logger.info(f"Oxford Economics: {city_name} {'found' if in_oxford else 'not found'}")
         os.unlink(tmp.name)
     except Exception as e:

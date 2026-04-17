@@ -50,12 +50,14 @@ librarian::shelf(quiet = T,
   # Spatial
   sf,
   rspatial/terra, # Only the github version of leaflet supports terra, in place of raster, which is now required as sp (on which raster depends) is being deprecated
-  tidyterra, 
-  leaflet, 
+  tidyterra,
+  leaflet,
   leafem,
-  ggspatial, 
+  ggspatial,
   jsonlite,
   geojsonsf,
+  exactextractr,
+  h3o,
 
 
   # Web
@@ -119,7 +121,7 @@ if (scan_id == "") {
 }
 
 # Validate format and fall back to user-inputs.R if invalid
-if (!grepl("^[0-9]{4}-[0-9]{2}-[a-z_]+-[a-z_-]+$", tolower(scan_id)) ||
+if (!grepl("^[0-9]{4}-[0-9]{2}-[a-z_-]+$", tolower(scan_id)) ||
     scan_id == "" || is.na(scan_id)) {
 
   if (file.exists(here("core/R/user-inputs.R"))) {

@@ -6,8 +6,8 @@ from core.py.log_module import setup_logger
 
 logger = setup_logger(__name__)
 
-# GCS_BASE = "/vsicurl/https://storage.googleapis.com/city-scan-global-public/SectGDP30"
-LOCAL_BASE = "/Users/vivaldirinaldi/Documents/Work/03-multi-scan-materials/SectGDP30"
+GCS_BASE = "/vsicurl/https://storage.googleapis.com/city-scan-global-public/SectGDP30"
+# LOCAL_BASE = "/Users/vivaldirinaldi/Documents/Work/03-multi-scan-materials/SectGDP30"  # offline-dev fallback
 
 SECTORS = ["Agriculture", "Industry", "Service"]
 YEARS = [2010, 2015, 2020]
@@ -38,8 +38,8 @@ def datacollection(aoi, city_name, output_dir):
 
         for year in YEARS:
             filename = f"{sector}GDP_{year}.tif"
-            # src_path = f"{GCS_BASE}/{filename}"
-            src_path = f"{LOCAL_BASE}/{filename}"
+            src_path = f"{GCS_BASE}/{filename}"
+            # src_path = f"{LOCAL_BASE}/{filename}"  # offline-dev fallback
 
             try:
                 with rasterio.open(src_path) as src:

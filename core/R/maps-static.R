@@ -21,7 +21,7 @@ include_captions <- FALSE
 
 # Load libraries and pre-process rasters
 source(here("core/R/setup.R"), local = T)
-source(here("core/R/pre-mapping.R"), local = T)
+if (!exists("render_tasks")) source(here("core/R/pre-mapping.R"), local = T)
 
 # Define map extent and zoom level adjustment
 # static_map_bounds <- aspect_buffer(aoi, aspect_ratio, buffer_percent = 0.05)
@@ -33,16 +33,39 @@ render_custom <- NULL
 if (exists("render_tasks") && length(render_tasks) > 0) {
   render_layers <- c()
   render_custom <- c()
-  for (task_name in render_tasks) {
+  # Resolve task aliases (e.g. population → worldpop)
+  task_aliases <- yaml::read_yaml(here("source/tasks.yml"))$aliases
+  resolved_tasks <- render_tasks
+  for (i in seq_along(resolved_tasks)) {
+    alias <- task_aliases[[resolved_tasks[i]]]
+    if (!is.null(alias) && is.character(alias)) resolved_tasks[i] <- alias
+  }
+  # Collect layers, custom scripts, and dependencies
+  dep_layers <- c()
+  for (task_name in resolved_tasks) {
     maps_yml <- here("tasks", task_name, "maps.yml")
     if (file.exists(maps_yml)) {
       task_maps <- yaml::read_yaml(maps_yml)
       if (!is.null(task_maps$layers)) render_layers <- c(render_layers, task_maps$layers)
       if (!is.null(task_maps$custom)) render_custom <- c(render_custom, task_maps$custom)
+      # Resolve depends — render dependency layers (standard only, not their custom scripts)
+      if (!is.null(task_maps$depends)) {
+        for (dep in task_maps$depends) {
+          dep_resolved <- task_aliases[[dep]] %||% dep
+          if (is.list(dep_resolved)) dep_resolved <- dep_resolved$folder %||% dep
+          dep_yml <- here("tasks", dep_resolved, "maps.yml")
+          if (file.exists(dep_yml)) {
+            dep_maps <- yaml::read_yaml(dep_yml)
+            if (!is.null(dep_maps$layers)) dep_layers <- c(dep_layers, dep_maps$layers)
+          }
+        }
+      }
     }
   }
+  render_layers <- c(render_layers, dep_layers)
   message("Rendering maps for tasks: ", paste(render_tasks, collapse = ", "))
   if (length(render_layers) > 0) message("  Layers: ", paste(render_layers, collapse = ", "))
+  if (length(dep_layers) > 0) message("  Dependency layers: ", paste(dep_layers, collapse = ", "))
   if (length(render_custom) > 0) message("  Custom: ", paste(render_custom, collapse = ", "))
 }
 
@@ -81,12 +104,29 @@ plots$aoi <- plot_static_layer(aoi_only = T, plot_aoi = T, plot_wards = !is.null
   expansion = 1.5, zoom_adj = zoom_adjustment, aoi_stroke = list(color = "yellow", linewidth = 0.4),
   baseplot = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}.jpg",
   captions = include_captions)
-# if inherits(wards, "SpatVector") {
-#   ward_labels <- site_labels(wards, simplify = F)
-#   plots$wards <- plot_static_layer(aoi_only = T, plot_aoi = F, plot_wards = T) +
-#     # geom_spatvector_text(data = wards, aes(label = as.numeric(str_extract(WARD_NO, "\\d*$"))))
-#     geom_spatvector_text(data = ward_labels, aes(label = WARD_NO), size = 2, fontface = "bold")
-# }
+  
+if (!is.null(wards)) {
+  # Find the best label column
+  ward_names_col <- intersect(names(wards), c("shapeName", "WARD_NO", "NAME", "name", "Name", "WARD", "ADM2_EN", "ADM2_NAME"))[1]
+  if (!is.na(ward_names_col)) {
+    ward_centroids <- centroids(wards)
+    ward_centroids$label <- as.data.frame(wards)[[ward_names_col]]
+    ward_df <- data.frame(
+      x = geom(ward_centroids)[, "x"],
+      y = geom(ward_centroids)[, "y"],
+      label = ward_centroids$label
+    )
+    plots$wards <- plot_static_layer(aoi_only = T, plot_aoi = T, plot_wards = F,
+      expansion = 1.5, zoom_adj = zoom_adjustment, aoi_stroke = list(color = "yellow", linewidth = 0.4),
+      baseplot = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}.jpg",
+      captions = include_captions) +
+      geom_spatvector(data = wards, color = "white", fill = NA, linetype = "solid", linewidth = 0.25) +
+      geom_spatial_text_repel(data = ward_df, crs = "epsg:4326",
+        aes(x = x, y = y, label = label),
+        size = 2.5, fontface = "bold", color = "white",
+        segment.size = 0.2, box.padding = 0.3, max.overlaps = 20)
+  }
+}
 
 # Plot landmarks ---------------------------------------------------------------
 landmarks <- fuzzy_read(user_input_dir, "Landmark")
@@ -116,6 +156,36 @@ if (inherits(landmarks, "SpatVector")) {
             directory = styled_maps_dir)
 }
 
+# Aggregation config -----------------------------------------------------------
+aggregate_mode <- city_params$aggregate_mode %||% "none"
+aggregate_size <- city_params$aggregate_size %||% 1000
+
+# Build lookups: yaml_key → aggregate_fun and aggregate_mode from maps.yml per task
+aggregate_fun_lookup <- list()
+aggregate_mode_lookup <- list()
+aggregate_size_lookup <- list()
+aggregate_coverage_lookup <- list()
+smoothing_lookup <- list()  # yaml_key → list(method, window, sigma) when task sets `smoothing:`
+task_dirs <- list.dirs(here("tasks"), recursive = FALSE, full.names = FALSE)
+for (td in task_dirs) {
+  yml <- here("tasks", td, "maps.yml")
+  if (file.exists(yml)) {
+    task_maps <- yaml::read_yaml(yml)
+    afun <- task_maps$aggregate_fun %||% "mean"
+    amode <- task_maps$aggregate_mode  # NULL = inherit from city_inputs
+    asize <- task_maps$aggregate_size  # NULL = inherit from city_inputs
+    acov <- task_maps$min_coverage  # NULL = 0 (no filter)
+    smooth_cfg <- task_maps$smoothing  # NULL = no smoothing
+    for (lyr in task_maps$layers) {
+      aggregate_fun_lookup[[lyr]] <- afun
+      if (!is.null(amode)) aggregate_mode_lookup[[lyr]] <- amode
+      if (!is.null(asize)) aggregate_size_lookup[[lyr]] <- asize
+      if (!is.null(acov)) aggregate_coverage_lookup[[lyr]] <- acov
+      if (!is.null(smooth_cfg)) smoothing_lookup[[lyr]] <- smooth_cfg
+    }
+  }
+}
+
 # Standard plots ---------------------------------------------------------------
 standard_layers <- unlist(lapply(layer_params, \(x) x$fuzzy_string)) %>%
   discard_at(c("fluvial", "pluvial", "coastal", "combined_flooding", "burnt_area", "elevation",
@@ -131,22 +201,99 @@ standard_layers %>%
         message(paste("No data for:", yaml_key))
         return(NULL)
       }
-      # Changed from direct pipe to vectorize_if_coarse() — now selects
-      # data_variable band first for multi-band rasters (e.g. air quality)
+      # Select data_variable band for multi-band rasters (e.g. air quality)
       dv <- layer_params[[yaml_key]]$data_variable
       if (!is.null(dv) && inherits(data, "SpatRaster") && nlyr(data) > 1) data <- data[dv]
       # Clip raster to AOI (GEE/XEE rasters may only be bbox-clipped)
-      if (inherits(data, "SpatRaster")) data <- crop(data, aoi, mask = TRUE)
-      data <- vectorize_if_coarse(data)
-      if (nrow(data) == 0) {
-        message(paste("No data for:", yaml_key))
-        return(NULL)
+      # if (inherits(data, "SpatRaster")) data <- crop(data, aoi, mask = TRUE)
+
+      # Normal raster plot (always from the untouched original)
+      raster_data <- vectorize_if_coarse(data)
+      if (nrow(raster_data) > 0) {
+        plot <- plot_static_layer(
+          data = raster_data, yaml_key = yaml_key,
+          plot_aoi = T, plot_wards = !is.null(wards), zoom_adj = zoom_adjustment)
+        plots[[yaml_key]] <<- plot
+        message(paste("Success:", yaml_key))
       }
-      plot <- plot_static_layer(
-        data = data, yaml_key = yaml_key,
-        plot_aoi = T, plot_wards = !is.null(wards), zoom_adj = zoom_adjustment)
-      plots[[yaml_key]] <<- plot
-      message(paste("Success:", yaml_key))
+
+      # Smoothing (per-task, optional). Produces {layer}_smooth and feeds the
+      # smoothed raster into the hex path below. Wrapped in tryCatch so any
+      # smoothing failure (terra focal crash, OOM, etc.) skips gracefully
+      # without breaking the rest of the render.
+      smooth_cfg <- smoothing_lookup[[yaml_key]]
+      data_smoothed <- NULL
+      if (!is.null(smooth_cfg)) {
+        if (!inherits(data, "SpatRaster")) {
+          message(paste("  Smoothing skipped (non-raster):", yaml_key))
+        } else {
+          method <- smooth_cfg$method %||% "gaussian"
+          message(paste("  Smoothing:", yaml_key, "|", method))
+          data_smoothed <- tryCatch(
+            smooth_raster(
+              data,
+              method = method,
+              window = smooth_cfg$window %||% 3,
+              sigma  = smooth_cfg$sigma  %||% 1
+            ),
+            error = function(e) {
+              message(paste("  Smooth error:", yaml_key, "-", e$message))
+              NULL
+            })
+          if (!is.null(data_smoothed)) {
+            smooth_plot_data <- vectorize_if_coarse(data_smoothed)
+            if (nrow(smooth_plot_data) > 0) {
+              plots[[paste0(yaml_key, "_smooth")]] <<- plot_static_layer(
+                data = smooth_plot_data, yaml_key = yaml_key,
+                plot_aoi = T, plot_wards = !is.null(wards), zoom_adj = zoom_adjustment)
+              message(paste("Success:", yaml_key, "(smooth)"))
+            }
+          }
+        }
+      }
+
+      # Hex version if aggregate_mode is set (per-task override via maps.yml).
+      # When smoothing is active, hex is computed from the smoothed raster.
+      layer_agg_mode <- aggregate_mode_lookup[[yaml_key]] %||% aggregate_mode
+      layer_agg_size <- aggregate_size_lookup[[yaml_key]] %||% aggregate_size
+      if (layer_agg_mode != "none" && inherits(data, "SpatRaster")) {
+        layer_min_cov <- aggregate_coverage_lookup[[yaml_key]] %||% 0
+        message(paste("  Hexbin:", yaml_key, "| mode:", layer_agg_mode, "| size:", layer_agg_size))
+        afun <- aggregate_fun_lookup[[yaml_key]] %||% "mean"
+        gpkg_path <- file.path(spatial_dir, paste0(yaml_key, "_hex.gpkg"))
+        hex_input <- if (!is.null(data_smoothed)) data_smoothed else data
+
+        hex_data <- tryCatch(
+          run_aggregate(hex_input, aoi, layer_agg_mode, layer_agg_size, afun, gpkg_path, min_coverage = layer_min_cov),
+          error = function(e) { message(paste("  Hex error:", e$message)); NULL }
+        )
+
+        if (!is.null(hex_data) && nrow(hex_data) > 0) {
+          # Express hex cell as area rather than flat-to-flat distance.
+          # hexbin: cellsize is flat-to-flat d, so area = (sqrt(3)/2) * d^2
+          # resample: square cell of side d, so area = d^2
+          # h3: read area directly from the geometry (varies by resolution)
+          hex_label <- if (layer_agg_mode == "hexbin") {
+            area_km2 <- (sqrt(3) / 2) * (layer_agg_size / 1000)^2
+            paste0(signif(area_km2, 2), " km\u00b2")
+          } else if (layer_agg_mode == "resample") {
+            area_km2 <- (layer_agg_size / 1000)^2
+            paste0(signif(area_km2, 2), " km\u00b2")
+          } else if (layer_agg_mode == "h3") {
+            area_km2 <- mean(terra::expanse(hex_data, unit = "km"), na.rm = TRUE)
+            paste0(signif(area_km2, 2), " km\u00b2")
+          } else {
+            paste0(layer_agg_size, " m")
+          }
+          hex_subtitle <- paste0(afun, " per ", hex_label, " hex")
+          hex_plot <- plot_static_layer(
+            data = hex_data, yaml_key = yaml_key,
+            subtitle = hex_subtitle,
+            plot_aoi = T, plot_wards = !is.null(wards), zoom_adj = zoom_adjustment)
+          plots[[paste0(yaml_key, "_hex")]] <<- hex_plot
+          message(paste("Success:", yaml_key, "(hex)"))
+        }
+      }
     })
   }) %>% unlist() -> plot_log
 
@@ -162,11 +309,6 @@ if (!is.null(plots[["infrastructure"]])) {
 }
 
 # Non-standard static plots ----------------------------------------------------
-.source_custom <- function(script, label) {
-  if (!is.null(render_custom) && !script %in% render_custom) return()
-  message("  ", label)
-  source(here(script), local = parent.frame())
-}
 
 message("\nCustom maps:")
 if (is.null(render_custom) && !exists("render_tasks")) {
@@ -215,6 +357,8 @@ for (name in names(plots)) {
   )
 }
 
-# See which layers weren't successfully mapped
-unmapped <- setdiff(c(names(layer_params), "aoi", "forest_deforest", "burnt_area"), names(plots))
-if (length(unmapped) > 0) warning(paste(length(unmapped), "layers not mapped (not counting flood overlays):\n-", paste(unmapped, collapse = "\n- ")))
+# See which layers weren't successfully mapped (only show for full renders)
+if (!exists("render_tasks")) {
+  unmapped <- setdiff(c(names(layer_params), "aoi", "forest_deforest", "burnt_area"), names(plots))
+  if (length(unmapped) > 0) warning(paste(length(unmapped), "layers not mapped (not counting flood overlays):\n-", paste(unmapped, collapse = "\n- ")))
+}

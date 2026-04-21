@@ -336,7 +336,18 @@ plot_static_layer <- function(
       }
       params$breaks <- break_pretty2(
         data = vals, n = params$bins + 1, FUN = signif,
-        method = params$binning_method %>% {if(is.null(.)) "quantile" else .})
+        method = params$binning_method %>% {if(is.null(.)) "quantile" else .},
+        quantiles = params$quantiles)
+      # Sparse data can collapse multiple quantile cut points onto the same value
+      # (e.g. AOI with a single feature). Dedupe and shrink bins so scale_fill_stepsn
+      # doesn't error with "replacement has N rows, data has 1".
+      params$breaks <- unique(params$breaks)
+      if (length(params$breaks) < 2) {
+        params$bins <- 0
+        params$breaks <- NULL
+      } else {
+        params$bins <- length(params$breaks) - 1
+      }
     }
     geom <- create_geom(data, params)
     data_type <- type_data(data)
@@ -418,11 +429,14 @@ add_builtup_hatch <- function(p, underlay = FALSE) {
     pattern_spacing = 0.0125, pattern_fill = NA,
     pattern_density = 0.5, pattern_size = 0.25)
   if (underlay) {
-    # Insert hatch before data layers (after basemap/tile layers)
-    p$layers <- c(list(hatch_layer), p$layers)
-    p <- p +
+    # Add the hatch via `+` so ggplot registers it properly, then move it to position 3
+    # (above basemap, below all data layers). Direct insertion into $layers bypasses
+    # ggplot's compute-layer setup and errors with "Problem while computing layer data".
+    p <- p + hatch_layer +
       ggpattern::scale_pattern_manual(values = "stripe", name = "") +
       coord_3857_bounds(static_map_bounds)
+    n <- length(p$layers)
+    p$layers <- append(p$layers[-n], list(p$layers[[n]]), after = 2)
   } else {
     p <- p + hatch_layer +
       ggpattern::scale_pattern_manual(values = "stripe", name = "") +
@@ -479,21 +493,42 @@ fill_scale <- function(data_type, params) {
       na.translate = F,
       na.value = "transparent")
   } else if (params$bins == 0) {
+    # Labels: year-range integers (1900-2100) render without thousands separator;
+    # anything else gets the standard comma separator. Override per-layer via
+    # `big_mark` in layers.yml if auto-detection misfires.
+    .smart_labels <- if (!is.null(params$big_mark)) {
+      scales::label_number(big.mark = params$big_mark)
+    } else {
+      function(x) {
+        is_year <- all(is.finite(x)) && all(x >= 1900 & x <= 2100) && all(x == floor(x))
+        if (is_year) format(x, scientific = FALSE, trim = TRUE)
+        else scales::label_number(big.mark = ",")(x)
+      }
+    }
     scale_fill_gradientn(
       colors = params$palette,
       limits = if (is.null(params$domain)) NULL else params$domain,
       rescaler = if (!is.null(params$center)) ~ scales::rescale_mid(.x, mid = params$center) else scales::rescale,
-      labels = scales::label_number(big.mark = ","),
+      labels = .smart_labels,
       na.value = "transparent",
       name = format_title(params$title, params$subtitle))
   } else if (params$bins > 0) {
+    .smart_labels <- if (!is.null(params$big_mark)) {
+      scales::label_number(big.mark = params$big_mark)
+    } else {
+      function(x) {
+        is_year <- all(is.finite(x)) && all(x >= 1900 & x <= 2100) && all(x == floor(x))
+        if (is_year) format(x, scientific = FALSE, trim = TRUE)
+        else scales::label_number(big.mark = ",")(x)
+      }
+    }
     scale_fill_stepsn(
       colors = params$palette,
       # Length of labels is one less than breaks when we want a discrete legend
       breaks = if (is.null(params$breaks)) waiver() else if (diff(lengths(list(params$labels, params$breaks))) == 1) params$breaks[-1] else params$breaks,
       # breaks_midpoints() is important for getting the legend colors to match the specified colors
       values = if (is.null(params$breaks)) NULL else breaks_midpoints(params$breaks, rescaler = if (!is.null(params$center)) scales::rescale_mid else scales::rescale, mid = params$center),
-      labels = if (is.null(params$labels)) scales::label_number(big.mark = ",") else params$labels,
+      labels = if (is.null(params$labels)) .smart_labels else params$labels,
       limits = if (is.null(params$breaks)) NULL else range(params$breaks),
       rescaler = if (!is.null(params$center)) scales::rescale_mid else scales::rescale,
       na.value = "transparent",
@@ -936,14 +971,28 @@ aspect_buffer <- function(x, aspect_ratio, buffer_percent = 0, to_crs = "epsg:38
 }
 
 # Alternatively could be two separate functions: pretty_interval() and pretty_quantile()
-break_pretty2 <- function(data, n = 6, method = "quantile", FUN = signif, 
-                          digits = NULL, threshold = 1/(n-1)/4) {
-  divisions <- seq(from = 0, to = 1, length.out = n)
+break_pretty2 <- function(data, n = 6, method = "quantile", FUN = signif,
+                          digits = NULL, threshold = 1/(n-1)/4,
+                          quantiles = NULL, min_value = NULL) {
+  # Filter to values >= min_value before computing breaks
+  if (!is.null(min_value)) data <- data[data >= min_value & !is.na(data)]
+  divisions <- if (!is.null(quantiles)) as.numeric(unlist(quantiles)) else seq(from = 0, to = 1, length.out = n)
+  n <- length(divisions)
+  threshold <- 1/(n-1)/4
 
   if (method == "quantile") breaks <- unname(stats::quantile(data, divisions, na.rm = T))
   if (method == "interval") breaks <- divisions *
     (max(data, na.rm = T) - min(data, na.rm = T)) +
     min(data, na.rm = T)
+  if (method == "log") {
+    pos_data <- data[data > 0 & !is.na(data)]
+    if (length(pos_data) == 0) return(rep(0, n))
+    log_range <- log10(range(pos_data))
+    breaks <- c(0, 10^seq(log_range[1], log_range[2], length.out = n - 1))
+  }
+
+  # Skip prettification when min_value is set — return exact breaks
+  if (!is.null(min_value)) return(round(breaks))
 
   if (is.null(digits)) {
     digits <- if (all.equal(FUN, signif)) 1 else if (all.equal(FUN, round)) 0
@@ -1017,6 +1066,197 @@ aggregate_if_too_fine <- function(data, threshold = 1e5, fun = "modal") {
     if (factor > 1) data <- terra::aggregate(data, fact = factor, fun = fun)
   }
   return(data)
+}
+
+# Parse a fun spec that may be "q{N}" (e.g. "q25", "q10", "q90") into a weighted
+# quantile function compatible with exactextractr::exact_extract. Anything else
+# is returned unchanged so the built-in exactextractr stats (mean, median, min,
+# max, mode, sum, ...) still work.
+parse_agg_fun <- function(fun) {
+  if (is.function(fun)) return(fun)
+  if (is.character(fun) && grepl("^q[0-9]+(\\.[0-9]+)?$", fun)) {
+    q <- as.numeric(sub("^q", "", fun)) / 100
+    if (q < 0 || q > 1) stop("quantile out of range: ", fun)
+    return(function(values, coverage_fractions) {
+      ok <- !is.na(values)
+      if (!any(ok)) return(NA_real_)
+      as.numeric(stats::quantile(values[ok], probs = q, na.rm = TRUE, type = 7))
+    })
+  }
+  fun
+}
+
+run_aggregate <- function(data, aoi, mode, size, fun, gpkg_path, min_coverage = 0) {
+  current_params <- paste(mode, size, fun, min_coverage)
+
+  # Check cache
+  if (file.exists(gpkg_path)) {
+    tryCatch({
+      cached_meta <- readLines(paste0(gpkg_path, ".params"), warn = FALSE)
+      if (length(cached_meta) > 0 && cached_meta[1] == current_params) {
+        message("  Loaded cached hex")
+        return(vect(gpkg_path))
+      }
+    }, error = function(e) NULL)
+  }
+
+  # Generate
+  hd <- if (mode == "hexbin") {
+    hexbin_aggregate(data, aoi, hex_size_m = size, fun = fun, min_coverage = min_coverage)
+  } else if (mode == "h3") {
+    h3_aggregate(data, aoi, fun = fun)
+  } else if (mode == "resample") {
+    cell_aggregate(data, target_m = size, fun = fun)
+  }
+
+  message(paste("  Hex result:", if (is.null(hd)) "NULL" else paste(nrow(hd), "hexes")))
+
+  # Save cache (hexbin/h3 only — resample stays as raster)
+  if (!is.null(hd) && mode %in% c("hexbin", "h3")) {
+    writeVector(hd, gpkg_path, overwrite = TRUE)
+    writeLines(current_params, paste0(gpkg_path, ".params"))
+    message(paste("  Saved:", gpkg_path))
+  }
+
+  hd
+}
+
+cell_aggregate <- function(data, target_m = 1000, fun = "mean") {
+  fun <- parse_agg_fun(fun)
+  if (class(data)[1] %in% c("sf", "SpatVector")) return(data)
+  if (nlyr(data) > 1) data <- data[[1]]
+  cell_m <- as.numeric(sqrt(cellSize(data, unit = "m")[1, 1]))
+  if (cell_m >= target_m) return(data)
+  fact <- round(target_m / cell_m)
+  if (fact > 1) {
+    if (is.function(fun)) {
+      data <- terra::aggregate(data, fact = fact,
+        fun = function(x, ...) fun(x, rep(1, length(x))))
+    } else {
+      data <- terra::aggregate(data, fact = fact, fun = fun)
+    }
+  }
+  return(data)
+}
+
+# Smooth a raster in-place without mutating the input. Three methods:
+#   gaussian: weighted kernel via terra::focalMat(..., "Gauss") — for continuous data
+#   median:   uniform window, preserves peaks — for continuous data
+#   modal:    most-common value — for categorical/temporal (e.g. WSF year, landcover)
+# max_cells caps pre-focal raster size: terra::focal segfaults on rasters with
+# tens of millions of cells (seen on Lobito's ~1000km AOI at native WSF resolution).
+# Pre-aggregation reduces cells to a safe range before focal runs.
+smooth_raster <- function(data, method = "gaussian", window = 3, sigma = 1, max_cells = 5e5) {
+  if (!inherits(data, "SpatRaster")) {
+    stop("smooth_raster requires a SpatRaster; got ", class(data)[1])
+  }
+  original_names <- names(data)  # preserve across aggregate + focal so plot_static_layer's data_variable lookup still works
+  n <- terra::ncell(data)
+  if (n > max_cells) {
+    factor <- round(sqrt(n / max_cells))
+    if (factor > 1) {
+      # For categorical/temporal rasters (modal), "max" preserves the urban
+      # signal in sparse blocks better than string "modal", which can collapse
+      # NA-heavy blocks to NA and wipe the map. max = "latest year any pixel
+      # was built in this block", same year semantics as the input.
+      pre_fun <- if (method == "modal") "max" else "mean"
+      message(paste0("  Pre-aggregating ", n, " cells by ", factor, "x before smoothing (fun=", pre_fun, ")"))
+      data <- terra::aggregate(data, fact = factor, fun = pre_fun, na.rm = TRUE)
+    }
+  }
+  result <- if (method == "gaussian") {
+    w <- terra::focalMat(data, sigma, "Gauss")
+    terra::focal(data, w = w, fun = "sum", na.rm = TRUE, na.policy = "omit")
+  } else if (method == "median") {
+    terra::focal(data, w = window, fun = "median", na.rm = TRUE, na.policy = "omit")
+  } else if (method == "modal") {
+    terra::focal(data, w = window, fun = "modal", na.rm = TRUE, na.policy = "omit")
+  } else {
+    stop("Unknown smoothing method: ", method, " (expected gaussian, median, or modal)")
+  }
+  names(result) <- original_names
+  result
+}
+
+hexbin_aggregate <- function(data, aoi, hex_size_m = 1000, fun = "mean", min_coverage = 0) {
+  fun <- parse_agg_fun(fun)
+  aoi_sf <- sf::st_as_sf(aoi)
+
+  # Project AOI to UTM for metric hex sizing
+  if (sf::st_is_longlat(aoi_sf)) {
+    centroid <- sf::st_coordinates(sf::st_centroid(sf::st_union(aoi_sf)))
+    utm_zone <- floor((centroid[1] + 180) / 6) + 1
+    utm_crs <- sf::st_crs(paste0("+proj=utm +zone=", utm_zone,
+      if (centroid[2] < 0) " +south" else "", " +datum=WGS84"))
+    aoi_utm <- sf::st_transform(aoi_sf, utm_crs)
+  } else {
+    aoi_utm <- aoi_sf
+  }
+
+  # Create hex grid over AOI
+  hex_grid <- sf::st_make_grid(aoi_utm, cellsize = hex_size_m, square = FALSE)
+  hex_grid <- sf::st_sf(geometry = hex_grid)
+  message(paste("  hex grid cells:", nrow(hex_grid)))
+  hex_grid <- sf::st_intersection(hex_grid, sf::st_union(aoi_utm))
+  # st_intersection can produce mixed geometries (lines/points at edges) — keep only polygons
+  hex_grid <- hex_grid[sf::st_is(hex_grid, c("POLYGON", "MULTIPOLYGON")), ]
+  message(paste("  hex after intersection:", nrow(hex_grid)))
+
+  # Extract raster values per hex
+  hex_wgs <- sf::st_transform(hex_grid, sf::st_crs(data))
+  message(paste("  raster CRS:", sf::st_crs(data)$input))
+  message(paste("  hex CRS:", sf::st_crs(hex_wgs)$input))
+  message(paste("  raster ext:", paste(as.vector(ext(data)), collapse=", ")))
+  message(paste("  hex bbox:", paste(round(sf::st_bbox(hex_wgs), 4), collapse=", ")))
+
+  r <- if (inherits(data, "SpatRaster")) data else rast(data)
+  vals <- exactextractr::exact_extract(r, hex_wgs, fun, progress = FALSE)
+  message(paste("  extracted values: n=", length(vals), "NAs=", sum(is.na(vals)), "zeros=", sum(vals == 0, na.rm=T)))
+  hex_wgs$value <- vals
+
+  # Remove hexes with no data
+  hex_wgs <- hex_wgs[!is.na(hex_wgs$value), ]
+  if (min_coverage > 0) {
+    cov_frac <- exactextractr::exact_extract(r, hex_wgs,
+      function(values, cov) sum(cov[!is.na(values)]) / sum(cov), progress = FALSE)
+    hex_wgs <- hex_wgs[cov_frac >= min_coverage, ]
+    message(paste("  after coverage filter (>=", min_coverage, "):", nrow(hex_wgs), "hexes"))
+  }
+  message(paste("  after filter:", nrow(hex_wgs), "hexes"))
+
+  if (nrow(hex_wgs) == 0) return(NULL)
+
+  vect(hex_wgs)
+}
+
+h3_aggregate <- function(data, aoi, fun = "mean") {
+  fun <- parse_agg_fun(fun)
+  aoi_sf <- sf::st_as_sf(aoi)
+
+  # Auto-detect H3 resolution from AOI area
+  aoi_area_km2 <- as.numeric(sf::st_area(sf::st_union(aoi_sf))) / 1e6
+  # Target ~3000 hexes, find res where hex area ≈ aoi_area / 3000
+  target_hex_area_km2 <- aoi_area_km2 / 3000
+  h3_areas <- c(4250546, 607221, 86745, 12393, 1770, 252, 36, 5.16, 0.74, 0.11)  # km² per res 0-9
+  res <- which.min(abs(h3_areas - target_hex_area_km2)) - 1  # 0-indexed
+  res <- max(3, min(res, 9))  # clamp to 3-9
+  message(glue("H3: using resolution {res} (~{round(h3_areas[res + 1])} km² per hex) for {round(aoi_area_km2)} km² AOI"))
+
+  # Get H3 cell indices covering the AOI
+  aoi_wgs <- sf::st_transform(aoi_sf, 4326)
+  h3_cells <- h3o::polygon_to_cells(sf::st_union(aoi_wgs), res = res)
+  hex_polys <- h3o::cell_to_polygon(h3_cells)
+  hex_sf <- sf::st_sf(h3_index = h3_cells, geometry = hex_polys, crs = 4326)
+
+  # Extract raster values per hex
+  hex_sf$value <- exactextractr::exact_extract(rast(data), hex_sf, fun)
+
+  # Remove empty hexes
+  hex_sf <- hex_sf[!is.na(hex_sf$value) & hex_sf$value != 0, ]
+
+  if (nrow(hex_sf) == 0) return(NULL)
+
+  vect(hex_sf)
 }
 
 center_max_circle <- \(x, simplify = T, tolerance = 0.0001) {

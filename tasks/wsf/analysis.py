@@ -241,7 +241,24 @@ def harmonize_wsf(
     backdated = evo_clean_vals[nearest_idx[0], nearest_idx[1]]
 
     disputed = (trk_mode == 2016).values & ~(evo.values > 0)
-    logger.info(f"Distance threshold: {dist_thresh} pixels (~{dist_thresh * 30}m at 30m res)")
+
+    # Auto dist_thresh: 90th percentile of disputed-pixel distances. For dense
+    # cities this stays small (~5-10px); for sparse corridors (e.g. Lobito) it
+    # scales up automatically so distant rural dev gets backdated too instead
+    # of piling into the tracker-2016 bucket and producing an artificial spike.
+    disputed_dists = distances[disputed]
+    if disputed_dists.size > 0:
+        auto_thresh = int(np.ceil(np.percentile(disputed_dists, 90)))
+        median_d = int(np.median(disputed_dists))
+        logger.info(
+            f"Auto dist_thresh: {auto_thresh} pixels "
+            f"(~{auto_thresh * 30}m at 30m res) | "
+            f"median disputed dist: {median_d}px, 90th: {auto_thresh}px, "
+            f"manual default was {dist_thresh}"
+        )
+        dist_thresh = auto_thresh
+    else:
+        logger.info(f"Distance threshold: {dist_thresh} pixels (~{dist_thresh * 30}m at 30m res)")
 
     # Backdate disputed pixels within threshold
     needs_backdate = (trk_mode == 2016) & ~(evo > 0) & (distances <= dist_thresh)

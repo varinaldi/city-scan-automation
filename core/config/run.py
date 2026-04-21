@@ -46,17 +46,26 @@ def run_task(task_name, scan, step=None):
                 logger.info(f"\n{header}\n  {'─' * (len(header) - 2)}")
                 with ErrorTracker() as tracker:
                     if ext == ".R":
-                        r_result = subprocess.run(
-                            ["Rscript", "-e", f"source(here::here('{ma_file.relative_to(task_dir.parent.parent)}'))"],
-                            check=True, capture_output=True, text=True
+                        # Stream R output live AND capture for post-run error scan.
+                        # Previously capture_output=True buffered everything so the
+                        # terminal looked frozen during long R jobs (fathom, gdp_sectoral).
+                        # Prepend `here` install check so fresh R installs self-heal:
+                        # setup.R auto-installs `here`, but its first line already uses
+                        # here::here() — chicken-and-egg. The inline check breaks the cycle.
+                        r_src = f"if (!'here' %in% rownames(installed.packages())) install.packages('here', repos='https://cloud.r-project.org'); source(here::here('{ma_file.relative_to(task_dir.parent.parent)}'))"
+                        proc = subprocess.Popen(
+                            ["Rscript", "-e", r_src],
+                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                            text=True, bufsize=1,
                         )
-                        # Print output so user sees it
-                        if r_result.stdout:
-                            print(r_result.stdout, end='')
-                        if r_result.stderr:
-                            print(r_result.stderr, end='')
-                        # Check for errors in R output
-                        r_output = (r_result.stdout or '') + (r_result.stderr or '')
+                        r_output_lines = []
+                        for line in proc.stdout:
+                            print(line, end='')
+                            r_output_lines.append(line)
+                        proc.wait()
+                        if proc.returncode != 0:
+                            raise subprocess.CalledProcessError(proc.returncode, proc.args)
+                        r_output = ''.join(r_output_lines)
                         if 'Error' in r_output and tracker.status == "OK":
                             tracker.warn("R script reported errors")
                     else:

@@ -13,7 +13,7 @@ from core.config.tasks import (
     menu_enabled, topo_sort
 )
 from core.config.cli import parse_args, validate_args, KNOWN_FLAGS
-from core.py.run import run_task, run_multicity
+from core.config.run import run_task, run_multicity
 
 logger = setup_logger("tasks")
 
@@ -27,6 +27,25 @@ def main():
     if not args or "--help" in args:
         print(__doc__)
         return
+
+    # =========================================================
+    # CHECK (environment preflight — runs before scan logic)
+    # =========================================================
+    if "--check" in args:
+        from core.config.cli import CHECK_TARGETS
+        from core.config.check_env import run_checks
+        idx = args.index("--check")
+        targets = []
+        for a in args[idx + 1:]:
+            if a.startswith("-"):
+                break
+            if a in CHECK_TARGETS:
+                targets.append(a)
+            else:
+                break
+        if not targets:
+            targets = sorted(CHECK_TARGETS)
+        sys.exit(0 if run_checks(targets) else 1)
 
     # =========================================================
     # LIST
@@ -82,6 +101,8 @@ def main():
                 ("--list tasks",         "Show available tasks"),
                 ("--list cities",        "Show city folders in mnt/"),
                 ("--list flags",         "Show this list"),
+                ("--check",              "Preflight environment (all)"),
+                ("--check {targets}",    "Preflight subset: r, python, gee, gcs, quarto, inputs"),
             ]
             for flag, desc in flag_list:
                 print(f"  {flag:<30} {desc}")
@@ -246,6 +267,20 @@ def main():
     # =========================================================
     if os.path.isdir(city_dir):
         os.chdir(city_dir)
+        # When -k or --scan-id is set, run the city's own tasks/ code (not
+        # canonical). TASK_REGISTRY was built from canonical at startup, so
+        # rewire sys.path and clear the module cache; run_task's
+        # importlib.import_module then resolves to mnt/<city>/tasks/*.
+        if flags['keep_as_is'] or flags['scan_id']:
+            canonical_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            if canonical_root in sys.path:
+                sys.path.remove(canonical_root)
+            sys.path.insert(0, city_dir)
+            for k in list(sys.modules.keys()):
+                if k == 'tasks' or k.startswith('tasks.'):
+                    del sys.modules[k]
+            import importlib
+            importlib.invalidate_caches()
 
     # Determine tasks
     task_names = [a for a in args if not a.startswith("-") and a != scan_id]
@@ -309,7 +344,7 @@ def main():
 
     # --- Run tasks ---
     if flags['parallel_mode'] and len(task_names) > 1:
-        from core.py.multitask import run_parallel
+        from core.config.multitask import run_parallel
         all_results = run_parallel(
             task_names, scan, step=step,
             run_task_fn=run_task, skip_tasks=skip_tasks,
@@ -327,7 +362,14 @@ def main():
 
             files_before = get_all_files(scan.output_dir) | get_all_files(scan.render_dir) if flags['upload_enabled'] else None
 
-            results = run_task(name, scan, step=step)
+            # Per-task exception isolation — matches multitask.py:319-333 behavior.
+            # Without this, a single subprocess.CalledProcessError (e.g. missing R
+            # package) propagates up and kills every remaining task in serial mode.
+            try:
+                results = run_task(name, scan, step=step)
+            except Exception as e:
+                logger.error(f"Task '{name}' failed with error: {type(e).__name__}: {e}")
+                results = {"error": str(e)}
             all_results[name] = results
 
             if flags['upload_enabled']:

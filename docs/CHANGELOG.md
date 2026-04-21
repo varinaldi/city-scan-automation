@@ -1,6 +1,25 @@
 # Changelog
 
 ---
+## 2026-04-21
+
+### New
+- `python -m tasks --check` — environment preflight. Runs all six targets (`r`, `python`, `gee`, `gcs`, `quarto`, `inputs`) by default; scope to a subset with `--check r gee`. Reports per-check ✓/✗, prints fix commands for failures, and prompts interactively to auto-install missing R packages (`here`, `librarian`). Non-interactive fixes (auth, gcloud login) print the command without prompting. Entry point: `core/config/check_env.py::run_checks`.
+
+### Changed
+- `core/py/run.py` → `core/config/run.py` (moved). Orchestration (`run_task`, `run_multicity`) now lives alongside the other config/orchestrator modules (`scan.py`, `cli.py`, `tasks.py`). `core/py/` is now exclusively utilities.
+- `core/py/multitask.py` → `core/config/multitask.py` (moved). Same reasoning — parallel task runner with TUI is orchestration.
+- `core/config/run.py` — R multianalysis subprocess now **streams** output live instead of buffering. Replaced `subprocess.run(..., capture_output=True)` with `subprocess.Popen` + line-by-line read loop; output still captured for the post-run `'Error'` scan. Long R jobs (fathom, gdp_sectoral multianalysis) no longer make the terminal look frozen.
+- `core/config/run.py` — the multianalysis `Rscript -e` command now prepends an `install.packages('here')` check so fresh R installs self-heal. `setup.R` can't install `here` because its entry uses `here::here()` — chicken-and-egg. The inline guard breaks the cycle for the one call site that goes through `run_task`.
+- `tasks/__main__.py` — when `-k` or `--scan-id` is set, rebind `tasks` imports to the city folder: remove canonical root from `sys.path`, prepend `city_dir`, clear `tasks.*` from `sys.modules`, `importlib.invalidate_caches()`. Before this, city-local `tasks/*/…py` edits were ignored because `run_task`'s `importlib.import_module('tasks.X')` returned the canonical-cached module. With the fix, `-k` and `--scan-id` actually run the city-specific code as intended.
+- `tasks/wsf/analysis.py::harmonize_wsf` — `dist_thresh` (backdating cutoff for disputed tracker-2016 pixels) is now auto-computed as the 90th percentile of the actual disputed-pixel-to-nearest-evo distances. Dense cities land at ≈ 5-10 px (same behavior as before); sparse AOIs (e.g. Lobito Corridor) auto-scale to tens/hundreds of pixels so rural dev undercounted by Evolution gets backdated instead of stacking into the 2016 bucket and producing an artificial growth spike at 2015→2016. Logs median + 90th percentile + prior manual default so the picked value is inspectable.
+- `core/R/fns.R` — `parse_agg_fun()` helper added; `fun = "q25"` / `"q90"` / any `q{N}` now works as a weighted quantile in `hexbin_aggregate`, `h3_aggregate`, and `cell_aggregate` (built-in exactextractr stats like `mean`/`median`/`min` still work unchanged). Useful for WSF hex maps where median smears early-built pixels later — `q25` surfaces the earliest-quarter build year per hex without being dragged by outliers like `min`.
+- `tasks/gdp_sectoral/collection.py` — `BASE` switched back to `/vsicurl/https://storage.googleapis.com/city-scan-global-public/SectGDP30` now that the GCS copy has been refreshed. Local path is retained as a commented fallback.
+
+### Fixed
+- `tasks/__main__.py` — serial mode now wraps `run_task()` in try/except. Previously, any task that raised (e.g. `subprocess.CalledProcessError` from a missing R package) propagated up and killed the rest of the run; only `--parallel` mode had per-task exception isolation. Serial mode now matches `core/config/multitask.py:319-333`: the failure is logged, `all_results[name]` gets `{"error": ...}`, and the loop continues to the next task.
+
+---
 ## 2026-04-17
 
 ### New

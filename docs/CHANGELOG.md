@@ -4,9 +4,12 @@
 ## 2026-04-24
 
 ### Fixed
-- `core/py/raster_module.py::mosaic_raster` — replaced `from osgeo import gdal; gdal.VSIStatL(...)` tile-existence check with `rasterio.open(...)`. `osgeo` isn't in `requirements.txt` (rasterio bundles GDAL internally but not the Python bindings), so fresh envs without a separate `conda install gdal` silently failed every /vsi path check — the ImportError was swallowed by `_process_year`'s `try/except`, masquerading as "no valid RP data". Rasterio is always available, works in every env.
-- `tasks/fathom/collection.py` — flat→folder naming fallback was treating silent no-op as success (`mosaic_raster` returns without writing when 0 tiles match), so folder naming was never tried. Now checks the temp file exists before declaring success.
-- SectGDP30 folder in `gs://city-scan-global-public/` had a leading space (`" SectGDP30/"`) causing 404s on every `tasks/gdp_sectoral` collect. Renamed to `"SectGDP30/"` — no code change needed.
+- `core/py/raster_module.py::mosaic_raster` — `osgeo` isn't in `requirements.txt`, so the GDAL stat check silently ImportError'd on fresh envs. Swapped to `rasterio.open()` (always available).
+- `tasks/fathom/collection.py` — flat→folder naming fallback treated silent no-op as success. Now checks the temp mosaic file exists before declaring success.
+- `core/R/gcs-overrides.R::file.exists` — absolute paths (tempfiles, `/tmp/...`) were getting `city_dir` prepended and returning FALSE. Broke coastal_erosion collect (tempfile for ShorelineMonitor CSV). Leaves leading-`/` paths alone.
+- `tasks/coastal_erosion/collection.R` — AOI buffer 1 km → 10 km so ShorelineMonitor transects a few km offshore get captured.
+- `gs://city-scan-global-public/ SectGDP30/` had a leading space, causing 404s in gdp_sectoral. Renamed to `SectGDP30/`.
+- `tasks/basic_info/collection.py` + `tasks/worldpop/charts/index.qmd` — moved `benchmark-assembly.R` from chart render to basic_info collect. Benchmark CSVs now exist before any chart reads them.
 
 ### Changed
 - `requirements.txt` — removed `pyrosm` (broken PyPI build). Install separately via `conda install -c conda-forge pyrosm` for AOIs > 5000 km².

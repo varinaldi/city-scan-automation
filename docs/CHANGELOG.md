@@ -1,6 +1,20 @@
 # Changelog
 
 ---
+## 2026-04-24
+
+### Fixed
+- `tasks/fathom/collection.py` — flat→folder naming fallback was treating silent no-op as success (`mosaic_raster` returns without writing when 0 tiles match), so folder naming was never tried. Now checks the temp file exists before declaring success.
+
+### Changed
+- `requirements.txt` — removed `pyrosm` (broken PyPI build). Install separately via `conda install -c conda-forge pyrosm` for AOIs > 5000 km².
+- `core/py/osm_pbf.py` — lazy import of `pyrosm` with a clear ImportError pointing to the conda install.
+- `docs/` — reorganized into `getting-started/`, `interface/`, `reference/`, `archived/`. `inputs-config.md` covers all YAML parameters. Workflow graph and repo structure split out of the root README.
+- `docs/getting-started/setup.md` — added `conda init zsh` note for VS Code terminals, latest stable R requirement, recommended VS Code extensions.
+- `inputs/` — untracked from git, templates synced to `templates/`, `.gitkeep` placeholders in `inputs/` and `mnt/`.
+- `README.md` — rewritten around the `scan` CLI.
+
+---
 ## 2026-04-23
 
 ### Fixed

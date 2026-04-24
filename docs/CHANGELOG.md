@@ -4,7 +4,9 @@
 ## 2026-04-24
 
 ### Fixed
+- `core/py/raster_module.py::mosaic_raster` — replaced `from osgeo import gdal; gdal.VSIStatL(...)` tile-existence check with `rasterio.open(...)`. `osgeo` isn't in `requirements.txt` (rasterio bundles GDAL internally but not the Python bindings), so fresh envs without a separate `conda install gdal` silently failed every /vsi path check — the ImportError was swallowed by `_process_year`'s `try/except`, masquerading as "no valid RP data". Rasterio is always available, works in every env.
 - `tasks/fathom/collection.py` — flat→folder naming fallback was treating silent no-op as success (`mosaic_raster` returns without writing when 0 tiles match), so folder naming was never tried. Now checks the temp file exists before declaring success.
+- SectGDP30 folder in `gs://city-scan-global-public/` had a leading space (`" SectGDP30/"`) causing 404s on every `tasks/gdp_sectoral` collect. Renamed to `"SectGDP30/"` — no code change needed.
 
 ### Changed
 - `requirements.txt` — removed `pyrosm` (broken PyPI build). Install separately via `conda install -c conda-forge pyrosm` for AOIs > 5000 km².

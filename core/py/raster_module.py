@@ -151,15 +151,17 @@ def mosaic_raster(mosaic_list, local_output_dir, mosaic_file, method = 'first'):
     import rasterio
     from rasterio.merge import merge
 
-    # Filter to only existing files (cloud paths may 404)
-    from osgeo import gdal
+    # Filter to only existing files (cloud paths may 404).
+    # Use rasterio (always available via requirements.txt) — opening in read
+    # mode hits GDAL's internal stat/HEAD without loading data.
     valid_list = []
     for p in mosaic_list:
         if p.startswith('/vsi'):
-            # Use GDAL stat for cloud paths — lightweight HEAD request, no data loaded
-            stat = gdal.VSIStatL(p)
-            if stat is not None:
-                valid_list.append(p)
+            try:
+                with rasterio.open(p):
+                    valid_list.append(p)
+            except rasterio.errors.RasterioIOError:
+                continue
         elif os.path.exists(p):
             valid_list.append(p)
     mosaic_list = valid_list

@@ -11,7 +11,6 @@ execute:
 ```{r setup, message=FALSE, warning=FALSE, results='hide'}
 if (file.exists("_quarto.yml")) here::i_am("tasks/worldpop/charts/index.qmd")
 if (!exists("aoi")) source(here::here("core/R/setup.R"))
-source(here::here("core/R/benchmark-assembly.R"))
 source("https://raw.githubusercontent.com/compoundrisk/monitor/databricks/src/fns/helpers.R")
 ```
 

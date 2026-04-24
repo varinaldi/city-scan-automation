@@ -1,5 +1,7 @@
 # Orchestration
 
+> For a visual diagram of the orchestration flow, see [orchestration-graph.md](../reference/orchestration-graph.md).
+
 ## Prerequisites
 
 1. Activate the conda environment:

@@ -1,9 +1,9 @@
-# Running City Scans
+# Multi-City Runs
 
 ## Single City
 
 ```bash
-python -m tasks --all
+scan --all
 ```
 
 ### Setup
@@ -29,13 +29,13 @@ python -m tasks --all
 
 From root with existing city:
 ```bash
-python -m tasks --all --scan-id 2026-04-namibia-windhoek
+scan --all --scan-id 2026-04-namibia-windhoek
 ```
 
 From city folder:
 ```bash
 cd mnt/2026-04-namibia-windhoek
-python -m tasks --all
+scan --all
 ```
 
 > **Note:** The `scan` shell alias always resolves to the repo root, so it requires `--scan-id` even if you're inside a city folder. To run without `--scan-id`, use `python -m tasks` directly from the city folder — this resolves paths relative to the local `tasks/__main__.py`.
@@ -45,7 +45,7 @@ python -m tasks --all
 ## Multiple Cities
 
 ```bash
-python -m tasks --all --multicity
+scan --all --multicity
 ```
 
 ### Setup
@@ -115,7 +115,7 @@ For each city in the list:
    - `AOI_shp_name` auto-detected from subfolder
    - `bm_cities_manual` auto-populated with the other cities in the list
 4. Writes `city_inputs.yml` to `inputs/`
-5. Runs `python -m tasks` (with all passthrough flags) as subprocess
+5. Runs `scan` (with all passthrough flags) as subprocess
 6. Normal single-city flow takes over:
    - Creates `mnt/{scan_id}/`
    - Copies only this city's AOI files flat → `01-user-input/AOI/`
@@ -142,10 +142,10 @@ Each city is self-contained. Benchmark cities (`bm_cities_manual`) point to sibl
 All flags work with `--multicity`:
 
 ```bash
-python -m tasks --all --multicity --parallel    # parallel tasks within each city
-python -m tasks --all --multicity --collect     # collect only for all cities
-python -m tasks wsf fathom --multicity          # specific tasks for all cities
-python -m tasks --all --multicity --upload      # upload to GCS after each task
+scan --all --multicity --parallel    # parallel tasks within each city
+scan --all --multicity --collect     # collect only for all cities
+scan wsf fathom --multicity          # specific tasks for all cities
+scan --all --multicity --upload      # upload to GCS after each task
 ```
 
 Cities always run sequentially; `--parallel` applies to tasks within each city.

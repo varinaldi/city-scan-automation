@@ -39,7 +39,7 @@ Authentication is managed in `core/config/`:
 
 Tasks that need GEE (forest, landcover, LST, NDVI, nightlight) or private GCS (WSF, fathom, landcover burn, basic info) are automatically authenticated before running. If auth fails, those tasks are skipped with a warning.
 
-See [google cloud setup](googlecloud.md) for more details.
+See [google cloud setup](../reference/googlecloud.md) for more details.
 
 
 --- 
@@ -144,7 +144,7 @@ When setup is successful, you should see:
 
 ### R
 
-The maps and webpage are made using the language R. You will need R in order to run the frontend, and you can download it [here](https://cran.r-project.org/). To use R in VS Code, we recommend installing the [R extension](https://marketplace.visualstudio.com/items?itemName=REditorSupport.r): follow the instructions at the link; we also recommend installing [radian](https://github.com/randy3k/radian).
+R is used for the maps, charts, and scan-calculations report, and also for several data collection tasks (earthquake, oxford, cyclones, flood_events, gdp_gridded, coastal_erosion, sea_level_rise). You can download R [here](https://cran.r-project.org/). **Use the latest stable R release** (currently 4.5.x) — the repo depends on a current `ggplot2`, `terra`, `sf`, and `tidyterra` stack that won't install cleanly on older R. If you already have R, run `R --version` and upgrade if you're behind. To use R in VS Code, we recommend installing the [R extension](https://marketplace.visualstudio.com/items?itemName=REditorSupport.r): follow the instructions at the link; we also recommend installing [radian](https://github.com/randy3k/radian).
 
 If you have used R in the past, you likely used RStudio as your editor. For the City Scan workflow and development, we recommend VS Code as it supports multiple languages and has a better terminal and Git integration. Still, RStudio can still be useful, and can be downloaded [here](https://posit.co/download/rstudio-desktop/).
 

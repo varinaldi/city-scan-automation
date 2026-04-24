@@ -22,7 +22,7 @@ This document describes how to run the data gathering and processing code for th
 The backend code is set up to run as a Cloud Run Job on Google Cloud Platform (GCP). (_Task: revise main.py, etc. so it can also run locally._) Because of this, we don't need this repository to run the code. Instead, we can run it directly on Google Cloud Platform. We can either run it in-browser using the GCP Console or from the command line. The command line requires a little more setup but is much more convenient once setup, and is especially helpful when running multiple jobs.
 
 > [!NOTE]  
-> Both methods require Google Cloud access. If you don't have access, please write Ben Notkin to get set up. For instructions on how to give someone access, see [docs/google-cloud-access.md](google-cloud-access.md).
+> Both methods require Google Cloud access. If you don't have access, please write Ben Notkin to get set up. For instructions on how to give someone access, see [googlecloud.md](../reference/googlecloud.md).
 
 Whether running in-browser or from the command line, we need to tell the Job details about what we want. We need to specify the city, the boundaries to use for that city (optional), and which layers to include in the scan. For this we use two YAML files (`city_inputs.yml`, `menu.yml`), and a shapefile. (_Task: allow for any vector file format._)
 
@@ -39,7 +39,7 @@ To run the Job, we must provide these two or three files to Google Cloud, and th
 #### Prepare city-specific files
 
 1. Edit `city_inputs.yml` and `menu.yml`
-2. (Optional) Find or create AOI shapefile (for help with this, see [Finding an AOI](finding-aoi.md))
+2. (Optional) Find or create AOI shapefile (for help with this, see [Finding an AOI](../reference/finding-aoi.md))
 
 The AOI shapefile is optional because if it is not included, the Job will use default boundaries from GHSL's Urban Centre Database or OpenStreetMap based on the city name. Beware, however, that these areas, though, can be quite large and also wrong (such as when there are multiple cities with the same name – we do not yet allow for specification by country.) (_Task: allow for specification by country, probably via country name -> iso code.)
 
@@ -65,7 +65,7 @@ To use these outputs, you can download them from the bucket or [run the frontend
 
 To run from the command line, you will need to have the [Google Cloud SDK](https://cloud.google.com/sdk/docs/install) installed. Slightly simpler instructions are [here](https://cloud.google.com/sdk/docs/downloads-interactive). Once it is installed, you will need to authenticate and set the project.
 
-(For all installations and dependencies, refer to setup instructions at [docs/setup.md](setup.md).)
+(For all installations and dependencies, refer to setup instructions at [setup.md](../getting-started/setup.md).)
 
 ```bash
 gcloud auth login
@@ -83,7 +83,7 @@ Alternatively, you can run the Job `gcloud` commands more directly.
 #### Prepare city-specific files
 
 1. Edit `city_inputs.yml` and `menu.yml`
-2. (Optional) Find or create AOI shapefile (for help with this, see [Finding an AOI](finding-aoi.md))
+2. (Optional) Find or create AOI shapefile (for help with this, see [Finding an AOI](../reference/finding-aoi.md))
 
 #### Upload the files
 

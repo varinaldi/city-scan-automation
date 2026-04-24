@@ -2,7 +2,7 @@
 
 Run all tasks concurrently with a terminal UI:
 ```
-python -m tasks --all --parallel
+scan --all --parallel
 ```
 
 ## How it works

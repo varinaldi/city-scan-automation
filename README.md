@@ -1,108 +1,82 @@
 # City Scan
 
-A City Scan is a rapid geospatial assessment of a city's demographic, socioeconomic, climate, and risk conditions. It is a collection of maps and charts made from global and publicly available datasets that provide quick high-level insights into resilience-related topics for a city. These scans are especialy useful for grounding early-stage conversations in geospatial data.
+A City Scan is a rapid geospatial assessment of a city's demographic, socioeconomic, climate, and risk conditions. It is a collection of maps and charts made from global and publicly available datasets that provide quick high-level insights into resilience-related topics for a city. These scans are especially useful for grounding early-stage conversations in geospatial data.
 
-
-This repository provides automation tools for city scanning and analysis. The new task-based structure organizes each topic and data source into its own module under `tasks/`, with standardized data collection, analysis, visualization components. 
+This repository provides automation tools for city scanning and analysis. The task-based structure organizes each topic and data source into its own module under `tasks/`, with standardized data collection, analysis, and visualization components.
 
 ---
 
 ## Getting Started
 
-See [docs/getting-started.md](docs/getting-started.md) for setup, configuration, and usage instructions.
+1. **Install prerequisites** — R, Python, Quarto, and gcloud. See [docs/getting-started/setup.md](docs/getting-started/setup.md) for full instructions per OS.
+
+2. **Clone the repo and install the Command Line Interface (CLI)** — from the repo root, run:
+   ```bash
+   pip install -e .
+   ```
+   This installs the `scan` command. For details on the CLI and how the orchestration works, see [docs/getting-started/orchestration.md](docs/getting-started/orchestration.md).
+
+3. **Verify your environment** — run:
+   ```bash
+   scan --check
+   ```
+   This runs a preflight on R, Python, GEE, GCS, Quarto, and inputs. Fix anything that fails before continuing.
+
+4. **Run your first scan** — configure `inputs/city_inputs.yml` + `inputs/menu.yml`, drop an AOI shapefile in `inputs/AOI/`, then run `scan --all`. Step-by-step in [docs/getting-started/run-scan.md](docs/getting-started/run-scan.md).
+
+For a longer guided tour (including modifying maps and creating charts), see [docs/getting-started/walkthrough.md](docs/getting-started/walkthrough.md).
+
+---
 
 ## Structure
-The main components to run a city scan are
 
-- **`inputs/`** — User config for new scans (city_inputs.yml, menu.yml, AOI/)
-    - **`multi_inputs.yml`** — Multi-city batch config (shared settings + city list)
+Top-level folders:
+
+- **`inputs/`** — User config (`city_inputs.yml`, `multi_inputs.yml`, `menu.yml`, `AOI/`)
 - **`tasks/`** — Scan topics, each with collection, analysis, and charts
-    - **`charts/`** — contains `index.qmd` to create / sandbox charts
-    - **`__main__.py`** — CLI entry point (arg parsing, calls core/py/run.py)
-- **`core/`** — Shared infrastructure
-    - **`config/`** — Configuration modules
-        - `scan.py` — Scan class (city folder creation, input loading)
-        - `paths.py` — Auto-detects INPUTS/OUTPUTS based on run location
-        - `auth.py` — GEE + GCS authentication
-        - `tasks.py` — Task registry, aliases, dependencies (reads source/tasks.yml)
-    - **`py/`** — Python utilities
-        - `run.py` — run_task(), run_multicity() execution logic
-        - `error_tracker.py` — ErrorTracker for counting errors during task runs
-        - `log_module.py` — Logging setup
-        - `aoi_module.py` — AOI/country detection
-        - `gcs_module.py` — GCS upload/download
-        - `multitask.py` — Parallel task execution with TUI
-    - **`R/`** — R functions (setup.R, fns.R, maps, pre-charting, etc.)
-    - **`ojs/`** — Observable JS chart functions
-- **`source/`** — Canonical configs copied to each city
-    - `layers.yml` — Map layer styling (palettes, breaks, labels)
-    - `tasks.yml` — Task config (auth requirements, aliases, dependencies)
-    - `generic-text.yml` — Default narrative text per section
+- **`core/`** — Shared infrastructure (Python, R, config)
+- **`source/`** — Canonical configs copied to each city (`layers.yml`, `tasks.yml`, `generic-text.yml`)
+- **`scan-calculations/`** — Quarto project that compiles per-task charts into a single report
+- **`mnt/`** — Auto-created per-city output folders (`YYYY-MM-country-city/`)
+- **`templates/`** — Boilerplate files for new tasks and starter input configs
+- **`docs/`** — Setup guides and reference (see [docs/README.md](docs/README.md))
 - **`logs/`** — Auto-created log files
 
-The output scan folder will be saved in **`mnt/`** under the directory name: **`YYYY-MM-country-city`**, automaticaly generated and referencing `city-inputs.yml`. 
+Each scan in `mnt/{scan_id}/` contains:
+- `01-user-input/` — copy of the user's `inputs/`
+- `02-process-output/` — spatial rasters and tabular CSVs
+- `03-render-output/` — static maps and chart PNGs
+- copies of `tasks/`, `core/`, `source/`, `scan-calculations/`
 
-This scan directory will include:
+See [docs/reference/structure.md](docs/reference/structure.md) for a full breakdown.
 
-- copies of **`tasks/`**, **`core/`** ,**`source/`**, **`logs/`**
-- files in **`inputs/`** will be copied to **`01-user-inputs`**
-- output spatila/raster and tabular data in **`02-process-outputs`**
-- empty **`03-render-outputs`** for saving static maps and charts 
-- **`scan-calculations/`** — Quarto project that compiles `tasks/*/charts` into a reference sheet (see [scan-calculations](scan-calculations/README.md))
-
-
-Other folders that will stay in root:
-
-- **`docs/`** — Setup guides and reference
-- **`notebook/`** — sample notebooks for exploration, testing, and data cleaning
-- **`templates/`** — Boilerplate files for creating new tasks (see [docs/tasks.md](docs/tasks.md)) ** *need improvement* **
-
-See [docs/structure.md](docs/structure.md) for detailed breakdown of each folder.
-
-
+---
 
 ## Workflow
-```
-  city-scan-automation/                      mnt/2026-03-tunisia-tunis/                03-render-output/
- - - - - - - - - - - - -                    - - - - - - - - - - - - - -             - - - - - - - - - - - -
-  inputs/             ──────── copy ──────▶   01-user-input/
-    city_inputs.yml                             city_inputs.yml
-    menu.yml                                    menu.yml
-    AOI/                                        AOI/
 
-  tasks/             `python -m tasks --all`  02-process-output/
-    elevation/        ───── --collect ────▶     spatial/            ──▶ `Rscript 
-    fathom/           ───── --analyze ────▶     tabular/                  core/R/maps-static.R` ──▶ maps/*.png
-    worldpop/
-    ...               ── --multianalysis ─▶     tabular/
-      charts/
-        index.qmd ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  ─ ─ ─ ─ ─  ┐
-                                                                            ▼
-        └──────────────────── copy ───────▶  tasks/                      includes      ──▶ plots/*.png
-  core/                                      core/                          :
-  source/                                    source/                        :
-  scan-calculations/                         scan-calculations/    ──▶ `quarto render` ──▶ scan-calculations.html
-  .here (R Path Resolution)
-                                          
-```
+The general workflow is:
 
-While this repository provides a modular structure, the general workflow is as follow:
 1. **Configure** — set up AOI boundary and city parameters in `inputs/`
-2. **Collect** — download and clip global datasets to the AOI
-3. **Analyze** — compute statistics, generate CSVs and processed data
-4. **Map** — generate static maps from spatial data using `layers.yml` styling
-5. **Chart** — render / sandbox per-topic Quarto charts
-6. **Compile** — assemble charts into a single scan-calculations referece sheet
+2. **Collect** — `scan --collect` downloads and clips global datasets to the AOI
+3. **Analyze** — `scan --analyze` computes statistics and generates CSVs
+4. **Multianalysis** — `scan --multianalysis` runs cross-task R/Python analysis (e.g. fathom flood exposure)
+5. **Map** — `scan --render maps` generates static maps from spatial data using `layers.yml` styling
+6. **Chart** — `scan --render charts {task}` renders per-topic Quarto charts
+7. **Compile** — `scan --render scan-calculations` assembles the combined report
 
-Steps 2–3 are handled per task via `python -m tasks`. Steps 4–6 are handled by `Rscripts` and the `quarto render`, and must be run from the city root (e.g. `mnt/2026-03-tunisia-tunis/`).
+`scan --all` runs steps 2–3 for every task enabled in `menu.yml`. Step 4 runs only for tasks with a `multianalysis.R`/`.py` file. Steps 5–7 use the `--render` flag and can be run from the repo root (with `--scan-id`) or directly inside a city folder.
 
+For a visual diagram of how data flows, see [docs/reference/workflow-graph.md](docs/reference/workflow-graph.md). For a hands-on walkthrough, see [docs/getting-started/walkthrough.md](docs/getting-started/walkthrough.md).
+
+---
 
 ## Path Resolution
 
-The CLI and scripts can run from two locations:
+The CLI runs from two locations:
 
-- **Root** (`city-scan-automation/`) — on first run, `python -m tasks --all` creates the city folder in `mnt/` and copies `tasks/`, `core/`, `source/` into it. Use `--scan-id` to target an existing city.
-- **City folder** (`mnt/YYYY-MM-country-city/`) — run directly from here after the first run. All paths resolve relative to this folder.
+- **Repo root** (`city-scan-automation/`) — on first run, `scan --all` creates the city folder in `mnt/` and copies `tasks/`, `core/`, `source/` into it. Use `--scan-id` to target an existing city.
+- **City folder** (`mnt/YYYY-MM-country-city/`) — run `python -m tasks` from here without needing `--scan-id`. All paths resolve relative to this folder.
+
+> The `scan` shell alias always resolves to the repo root, so it requires `--scan-id` for existing cities. To run without `--scan-id`, use `python -m tasks` directly from the city folder.
 
 R scripts use the `here` package (`.here` file) to resolve the project root. Python uses `core/config/paths.py` which auto-detects whether it's running from root or a city folder by looking for `01-user-input/`. Both approaches ensure the same code works from either location.
-

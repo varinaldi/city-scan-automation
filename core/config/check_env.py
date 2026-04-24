@@ -117,13 +117,20 @@ def check_python():
 
 
 # ---------- GEE ----------
+GEE_LOGIN_CMD = (
+    "gcloud auth application-default login "
+    "--scopes=openid,https://www.googleapis.com/auth/userinfo.email,"
+    "https://www.googleapis.com/auth/cloud-platform,"
+    "https://www.googleapis.com/auth/earthengine"
+)
+
+
 def check_gee():
     _print_header("Google Earth Engine")
     try:
         import ee
     except ImportError:
-        _print_check(FAIL, "earthengine-api not installed",
-                     "pip install earthengine-api")
+        _print_check(FAIL, "earthengine-api not importable")
         return False
     try:
         ee.Initialize()
@@ -131,8 +138,18 @@ def check_gee():
         return True
     except Exception as e:
         msg = str(e).splitlines()[0] if str(e) else type(e).__name__
-        _print_check(FAIL, f"ee.Initialize() failed: {msg}",
-                     "Run: earthengine authenticate")
+        _print_check(FAIL, f"ee.Initialize() failed: {msg}")
+        print(f"      Fix: create ADC with the earthengine scope")
+        print(f"      {GEE_LOGIN_CMD}")
+        if _prompt_yes("Run it now?"):
+            result = subprocess.run(GEE_LOGIN_CMD, shell=True)
+            if result.returncode == 0:
+                try:
+                    ee.Initialize()
+                    _print_check(OK, "authenticated after interactive login")
+                    return True
+                except Exception as e2:
+                    _print_check(FAIL, f"still failing: {e2}")
         return False
 
 

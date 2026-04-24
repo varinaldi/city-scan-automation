@@ -1,6 +1,16 @@
 # Changelog
 
 ---
+## 2026-04-23
+
+### Fixed
+- `core/config/auth.py::init_gee()` — dropped `devstorage.full_control` scope (was forcing a browser re-login mid-scan since gcloud ADC doesn't carry it by default). Kept `earthengine` + `cloud-platform`.
+- `core/config/auth.py::init_gee()` — rewritten as non-interactive tiered fallback (existing creds → gcloud ADC → fail with clear fix command). No more hanging mid-run on auth.
+
+### Changed
+- `core/config/check_env.py::check_gee()` — on failure, prompts to run `gcloud auth application-default login --scopes=...,earthengine` (the scope gcloud ADC doesn't include by default).
+
+---
 ## 2026-04-21
 
 ### New

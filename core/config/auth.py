@@ -12,23 +12,41 @@ def _on_cloud_run():
 
 
 def init_gee():
-    """Initialize Google Earth Engine.
+    """Initialize GEE. Uses existing credentials, falls back to gcloud ADC.
 
-    - Cloud Run: uses the service account's ADC automatically.
-    - Local: tries existing credentials first, falls back to
-      ee.Authenticate(auth_mode='gcloud') if not authenticated.
+    Does NOT interactively authenticate — that would hang a task run.
+    If both tiers fail, raises with a clear instruction to run `scan --check gee`
+    as a one-time setup.
     """
+    # Tier 1: existing credentials
     try:
         ee.Initialize(project=GEE_PROJECT)
+        logger.info(f"GEE initialized (project={GEE_PROJECT})")
+        return
     except Exception:
-        logger.info("GEE credentials not found, authenticating via gcloud...")
-        ee.Authenticate(auth_mode="gcloud",  scopes=[
-                "https://www.googleapis.com/auth/earthengine",
-                "https://www.googleapis.com/auth/cloud-platform",
-                "https://www.googleapis.com/auth/devstorage.full_control",
-            ],)
+        pass
+
+    # Tier 2: gcloud ADC. Requires ADC to have been created with the earthengine
+    # scope — otherwise gcloud will trigger a browser re-login (bad UX mid-run).
+    # See check_env.py for the one-time setup command.
+    try:
+        ee.Authenticate(auth_mode="gcloud", quiet=True, scopes=[
+            "https://www.googleapis.com/auth/earthengine",
+            "https://www.googleapis.com/auth/cloud-platform",
+        ])
         ee.Initialize(project=GEE_PROJECT)
-    logger.info(f"GEE initialized (project={GEE_PROJECT})")
+        logger.info(f"GEE initialized via gcloud (project={GEE_PROJECT})")
+        return
+    except Exception:
+        pass
+
+    raise RuntimeError(
+        "GEE authentication failed. Run `scan --check gee` for a guided fix, or:\n"
+        "  gcloud auth application-default login \\\n"
+        "    --scopes=openid,https://www.googleapis.com/auth/userinfo.email,"
+        "https://www.googleapis.com/auth/cloud-platform,"
+        "https://www.googleapis.com/auth/earthengine"
+    )
 
 
 def init_gcs():

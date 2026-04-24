@@ -21,14 +21,8 @@ RESOURCE_LIMITS = {
     "default": 3,
 }
 
-# Task dependencies — imported from __main__ at runtime to avoid duplication
-# Fallback defined here in case of direct import
-TASK_DEPENDENCIES = {
-    "fathom": {"wsf"},
-    "slope": {"elevation"},
-    "worldpop": {"wsf", "oxford"},
-    "landcover_burn": {"landcover"},
-}
+# Task dependencies — sourced from source/tasks.yml (single source of truth)
+from core.config.tasks import TASK_DEPENDENCIES
 
 TASK_RESOURCES = {
     "forest": "gee",

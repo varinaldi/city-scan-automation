@@ -45,7 +45,7 @@ menu_keys:
 
 # Task dependencies: task runs after its dependencies
 dependencies:
-  fathom: [wsf]
+  fathom: [wsf, worldpop, accessibility]
   slope: [elevation]
   worldpop: [wsf, oxford]
   landcover_burn: [landcover]

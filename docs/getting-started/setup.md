@@ -173,6 +173,16 @@ To install Quarto, follow the instructions at [Quarto's installation page](https
 VS Code isn't strictly necessary, but it makes working with multiple files and filetypes much easier. It also makes working with [Git](#git) much clearer. VS Code is a free code editor with an integrated terminal and near endless extensions. (If you're coming from R, you've probably been using RStudio; VS Code is like RStudio but for all languages, a better terminal, easier Git integration and better handling of multiple windows. If you're coming from Python, I'm not and don't know what you're probably using.)
 
 Install VS Code from [Visual Studio Code](https://code.visualstudio.com/Download).
+
+**Recommended extensions** for working with this repo:
+
+- [Python](https://marketplace.visualstudio.com/items?itemName=ms-python.python) — Python language support
+- [R](https://marketplace.visualstudio.com/items?itemName=REditorSupport.r) — R language support
+- [Quarto](https://marketplace.visualstudio.com/items?itemName=quarto.quarto) — Quarto rendering + preview
+- [Rainbow CSV](https://marketplace.visualstudio.com/items?itemName=mechatroner.rainbow-csv) — color-coded columns for the many CSVs under `02-process-output/tabular/`
+- [Color Highlight](https://marketplace.visualstudio.com/items?itemName=naumovs.color-highlight) — inline color swatches for hex codes in `source/layers.yml`
+- [Geo Data Viewer](https://marketplace.visualstudio.com/items?itemName=RandomFractalsInc.geo-data-viewer) — preview `.geojson`, `.shp`, and other vector files on a map
+- [GeoTIFF Viewer](https://marketplace.visualstudio.com/items?itemName=omar2535.geotiff-viewer) — preview `.tif` rasters directly in the editor
 <!-- 
 ### gcloud
 

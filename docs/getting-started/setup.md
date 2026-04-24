@@ -69,6 +69,14 @@ We recommend creating a python environment to run City Scan Tasks. Here are the 
 - Restart your terminal after installation completes
 - Verify installation by running: `conda --version`
 
+> **If `conda --version` returns `command not found`** (especially in the VS Code integrated terminal), conda was installed but not initialized for your shell. Run once:
+> ```bash
+> conda init zsh        # macOS / Linux (zsh — default on modern macOS)
+> conda init bash       # Linux / older macOS / WSL
+> conda init powershell # Windows PowerShell
+> ```
+> Then close and reopen the terminal. You should see `(base)` in your prompt and `conda` should resolve.
+
 
 ##### Step 2: Create and Activate the Environment
 

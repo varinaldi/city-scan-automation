@@ -194,7 +194,13 @@ def _load_features(pbf_path, tags, bbox):
     Load features from a country PBF into a GeoDataFrame via pyrosm.
     Filters to bbox at parse time (low memory).
     """
-    from pyrosm import OSM
+    try:
+        from pyrosm import OSM
+    except ImportError:
+        raise ImportError(
+            "pyrosm is required for AOIs > 5000 km² (Geofabrik PBF route). "
+            "Install with: conda install -c conda-forge pyrosm"
+        )
 
     # pyrosm bounding_box = [minx, miny, maxx, maxy]
     osm = OSM(str(pbf_path), bounding_box=list(bbox))

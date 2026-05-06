@@ -31,7 +31,7 @@ if (is.null(buildings_path) || length(buildings_path) == 0 || !file.exists(build
     theme_void() +
     theme(panel.background = element_rect(fill = "black"))
 
-  if (!is.null(roads)) {
+  if (inherits(roads, "SpatVector")) {
     p <- p + geom_spatvector(data = roads, color = "white", linewidth = 0.1)
   }
 

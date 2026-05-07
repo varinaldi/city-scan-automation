@@ -57,6 +57,80 @@ Mode <- \(x, na.rm = F) {
   unique_values[which.max(tabulate(match(x, unique_values)))]
 }
 
+# ---------- AUTO-ROOT here() BASED ON CALLER LOCATION ----------
+# Walks the call stack to find the script that triggered the source chain,
+# then walks up from its directory looking for a .here marker and setwd there.
+# Lets `source(.../mnt/<scan-id>/.../some-chart.R)` pick up the city's .here
+# without needing to setwd or pass a scan_id.
+auto_root_here <- function() {
+  # Goal: figure out the path of the file that triggered this call,
+  # then walk up its parent dirs to find a .here marker and setwd there.
+  #
+  # Two candidates we try to extract from the R call stack:
+  #   caller -> the outer script (e.g. mnt/<city>/.../some-chart.R) that
+  #             ultimately sourced setup.R. This is what we want when a chart
+  #             script lives inside a city folder.
+  #   self   -> setup.R or fns-util.R's own path, used as a fallback when
+  #             setup.R was sourced directly with no outer script above it.
+  caller <- NULL
+  self <- NULL
+
+  # sys.frames() = every active R function frame (the call stack). For frames
+  # created by source("path/to/file.R"), R sets `$ofile` to that path. We walk
+  # newest -> oldest so the FIRST non-setup ofile we find is the outermost
+  # script that started the chain.
+  for (f in rev(sys.frames())) {
+    if (!is.null(f$ofile)) {
+      if (!basename(f$ofile) %in% c("setup.R", "fns-util.R")) {
+        # This frame is the outer caller (e.g. some-chart.R) -> use it.
+        caller <- normalizePath(f$ofile, mustWork = FALSE)
+        break
+      } else if (is.null(self)) {
+        # First setup.R/fns-util.R frame we see -> remember as fallback.
+        self <- normalizePath(f$ofile, mustWork = FALSE)
+      }
+    }
+  }
+
+  # No outer caller found in the stack. `self` (setup.R's own path) isn't
+  # useful for finding the *city* — it just points at canonical's setup.R when
+  # source(here("core/R/setup.R")) was the entry point. So fall back to asking
+  # VSCode what file the user is actively editing. This is what makes "Run
+  # Cell" work: the cell text is pasted into the terminal with no source()
+  # context, but the active editor still tells us which .qmd lives in
+  # mnt/<city>/. Requires vscode-R's RStudio API emulation
+  # (`r.session.emulateRStudioAPI`, on by default).
+  if (is.null(caller)) {
+    caller <- tryCatch(
+      rstudioapi::getSourceEditorContext()$path,
+      error = function(e) NULL
+    )
+    if (is.null(caller) || !nzchar(caller)) caller <- NULL
+    else caller <- normalizePath(caller, mustWork = FALSE)
+  }
+
+  # Starting point for the walk-up:
+  #   prefer caller's dir (most informative), fall back to self's dir, then cwd.
+  start <- if (!is.null(caller)) dirname(caller)
+           else if (!is.null(self)) dirname(self)
+           else getwd()
+
+  # Walk up the filesystem tree dir-by-dir, looking for a .here marker.
+  # Stop when we find one (setwd + bust here()'s cache) or hit the FS root
+  # (`d == dirname(d)` is true at "/" since dirname("/") == "/").
+  d <- start
+  while (d != dirname(d)) {
+    if (file.exists(file.path(d, ".here"))) {
+      setwd(d)
+      here::i_am(".here")    # re-roots here() to this dir, busts cached root
+      return(invisible(d))
+    }
+    d <- dirname(d)
+  }
+  # No .here found anywhere upward -> leave cwd / here() alone.
+  invisible(NULL)
+}
+
 
 # ---------- FUZZY READ FILES ----------
 fuzzy_read <- function(dir, fuzzy_string, FUN = NULL, path = T, convert_to_vect = F, ...) {
@@ -102,6 +176,9 @@ fuzzy_read <- function(dir, fuzzy_string, FUN = NULL, path = T, convert_to_vect 
       return(NA)
     }
   }
+
+
+
 
 
 # ---------- LOAD MAPS STATIC FOR SPECIFIC TASKS ----------

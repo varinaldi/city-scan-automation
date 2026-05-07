@@ -1,6 +1,26 @@
 # Changelog
 
 ---
+## 2026-05-07
+
+### New
+- `core/R/fns-util.R::auto_root_here()` — finds the calling script via `sys.frames()$ofile` (or active editor via `rstudioapi` for "Run Cell"), walks up to `.here`, sets cwd + re-roots `here()`. Lets sourcing/running chart scripts from `mnt/<scan-id>/` work without manual setwd.
+
+### Changed
+- `core/R/setup.R` — moved `fns.R` source + `auto_root_here()` to top (right after `library(here)`); scan_id derivation/validation now runs before `dir.create` so a failed root doesn't pollute canonical with `01-`/`02-`/`03-` folders. Validation `stop()`s loudly.
+- `core/config/inputs.py::prepare_inputs` — AOI copy filtered by `AOI_shp_name` from `city_inputs.yml`; was copying every shapefile in `inputs/AOI/` (issue #5).
+- `tasks/wsf/analysis.py::harmonize_wsf` — takes `aoi: gpd.GeoDataFrame` (was glob-reading first `.shp` from spatial_dir); `tasks/wsf/__init__.py` passes `scan.aoi`.
+- `tasks/*/charts/index.qmd` — dropped `USE_GCS <<- FALSE` (14 files). `setup.R` already defaults `USE_GCS` to false; the override forced it even when GCS was wanted.
+- `.vscode/settings.json` — `excludeGitIgnore` was hiding `mnt/`; replaced with explicit `files.exclude` for the root junk we want hidden.
+
+### Fixed
+- `core/R/map-building-footprints.R:23` — `!is.null(roads)` → `inherits(roads, "SpatVector")`. PR #6 patched line 34 only; line 23 (gating the `crop()` that produced the error) was missed. `fuzzy_read` returns `NA` not `NULL`.
+
+### Removed
+- `core/R/user-inputs.R` — silent fallback that hardcoded a city when `scan_id` couldn't be derived (ran nouakchott when user wanted a different city). Replaced by loud `stop()` in `setup.R`.
+- `core/R/validate-data-files.R` — unreferenced.
+
+---
 ## 2026-05-04
 
 ### Changed

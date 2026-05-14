@@ -8,21 +8,24 @@ execute:
 
 ## WorldPop
 
-```{r setup, message=FALSE, warning=FALSE, results='hide'}
+```{r, message=FALSE, warning=FALSE, results='hide'}
 if (file.exists("_quarto.yml")) here::i_am("tasks/worldpop/charts/index.qmd")
 if (!exists("aoi")) source(here::here("core/R/setup.R"))
 source("https://raw.githubusercontent.com/compoundrisk/monitor/databricks/src/fns/helpers.R")
 ```
 
-```{r data-loading, message=FALSE, warning=FALSE, results='hide'}
+```{r, message=FALSE, warning=FALSE, results='hide'}
 # All data comes from CSVs produced by dataanalysis.R
 wp_ridge <- tryCatch(
   read_csv(file.path(tabular_dir, paste0(city_string, "_pop_density_pixels.csv")), show_col_types = FALSE),
   error = function(e) tibble())
 
+empty_pop_tbl <- tibble(Year = integer(), Population = numeric(), Location = character(),
+                        Country = character(), Group = character(), Source = character())
+
 pop_longitude <- tryCatch(
   read_csv(file.path(tabular_dir, paste0(city_string, "_pop_benchmark.csv")), show_col_types = FALSE),
-  error = function(e) tibble())
+  error = function(e) empty_pop_tbl)
 
 density <- tryCatch(
   read_csv(file.path(tabular_dir, paste0(city_string, "_density_benchmark.csv")), show_col_types = FALSE),
@@ -30,12 +33,12 @@ density <- tryCatch(
 
 pop_growth <- tryCatch(
   read_csv(file.path(tabular_dir, paste0(city_string, "_pop_growth.csv")), show_col_types = FALSE),
-  error = function(e) tibble())
+  error = function(e) empty_pop_tbl)
 ```
 
 ### Population Growth
 
-```{r population-growth, message=FALSE, warning=FALSE}
+```{r, message=FALSE, warning=FALSE}
 #| label: chart-population-growth
 #| results: asis
 
@@ -129,7 +132,7 @@ if (nrow(pop_growth) > 0 && "Year" %in% names(pop_growth)) {
 
 ### WorldPop Global 1 (2000-2020)
 
-```{r population-growth-g1, message=FALSE, warning=FALSE}
+```{r, message=FALSE, warning=FALSE}
 #| label: chart-population-growth-g1
 #| results: asis
 
@@ -159,7 +162,7 @@ if (nrow(pop_g1) > 0) {
 
 ### WorldPop Global 2 (2015-2030)
 
-```{r population-growth-g2, message=FALSE, warning=FALSE}
+```{r, message=FALSE, warning=FALSE}
 #| label: chart-population-growth-g2
 #| results: asis
 
@@ -189,7 +192,7 @@ if (nrow(pop_g2) > 0) {
 
 ### Population Density Distribution
 
-```{r chart-worldpop-density-ridge, message=FALSE, warning=FALSE}
+```{r, message=FALSE, warning=FALSE}
 #| label: chart-worldpop-density-ridge
 
 if (nrow(wp_ridge) > 0) {
@@ -238,7 +241,7 @@ if (nrow(wp_ridge) > 0) {
 
 ### Population Density
 
-```{r population-density, message=FALSE, warning=FALSE}
+```{r, message=FALSE, warning=FALSE}
 #| label: chart-population-density
 #| results: asis
 
@@ -287,7 +290,7 @@ if (nrow(density) > 0 && any(!is.na(density$Density))) {
 
 ### Benchmark Cities Population (WorldPop Global 1)
 
-```{r multi-city-pop-g1, message=FALSE, warning=FALSE}
+```{r, message=FALSE, warning=FALSE}
 #| label: chart-multi-city-pop-g1
 #| results: asis
 
@@ -344,7 +347,7 @@ if (nrow(pop_g1_bm) > 0 && nrow(city_g1) > 0) {
 
 ### Benchmark Cities Population (WorldPop G1 + Oxford)
 
-```{r multi-city-pop-g1-oxford, message=FALSE, warning=FALSE}
+```{r, message=FALSE, warning=FALSE}
 #| label: chart-multi-city-pop-g1-oxford
 #| results: asis
 
@@ -404,7 +407,7 @@ if (nrow(pop_g1_ox) > 0 && nrow(city_g1) > 0 && (nrow(bm_g1) > 0 || nrow(bm_oxfo
 
 ### Benchmark Cities Population (WorldPop Global 2)
 
-```{r multi-city-pop-g2, message=FALSE, warning=FALSE}
+```{r, message=FALSE, warning=FALSE}
 #| label: chart-multi-city-pop-g2
 #| results: asis
 

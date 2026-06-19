@@ -1,26 +1,8 @@
 from core.py.log_module import setup_logger
 logger = setup_logger(__name__)
-import requests
-import shutil
 
 # Tracks which data source was used (set by collection functions)
 data_source = None
-
-def download_public_zip(url, output_path):
-    """
-    Download a publicly accessible ZIP file via HTTP.
-
-    Parameters
-    ----------
-    url : str
-        Public URL of the ZIP file.
-    output_path : str
-        Local path to save the ZIP.
-    """
-    with requests.get(url, stream=True, timeout=300) as r:
-        r.raise_for_status()
-        with open(output_path, "wb") as f:
-            shutil.copyfileobj(r.raw, f)
 
 def normalize_fabdem_tile_name(tile_name: str) -> str:
     """
@@ -76,15 +58,10 @@ def datacollection(
     """
 
     import os
-    import tempfile
-    import zipfile
-
     import geopandas as gpd
     import rasterio
     from rasterio.merge import merge
     from rasterio.mask import mask
-
-    import core.py as utils
 
     # ------------------------------------------------------------------
     # 1. Normalize AOI CRS
@@ -95,8 +72,6 @@ def datacollection(
         aoi = aoi.to_crs(epsg=4326)
 
     aoi_geom = aoi.geometry.values
-    aoi_bounds = aoi.total_bounds  # (minx, miny, maxx, maxy)
-
     # ------------------------------------------------------------------
     # 2. Prepare output directories
     # ------------------------------------------------------------------
@@ -140,67 +115,56 @@ def datacollection(
     )
 
     # ------------------------------------------------------------------
-    # 5. Download ZIP files & extract required TIFFs (public bucket)
+    # 5. Open required FABDEM TIFFs directly from remote ZIP archives
     # ------------------------------------------------------------------
-    logger.info("Downloading FABDEM ZIP archives from public bucket")
+    logger.info("Opening FABDEM TIFFs directly from remote ZIP archives")
 
-    extracted_tifs = []
+    src_files = []
+    attempted_tifs = 0
+    successful_tifs = 0
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        logger.info("Using temporary directory for ZIP extraction")
+    # Build one remote /vsizip//vsicurl/ path per (tile_name, zipfile_name).
+    # This avoids downloading full ZIP archives when only a subset of tiles is needed.
+    pairs = (
+        intersecting[["tile_name", "zipfile_name"]]
+        .drop_duplicates()
+        .itertuples(index=False)
+    )
 
-        for zip_name in zip_files:
-            zip_url = f"{bucket_base}fabdem/{zip_name}"
-            local_zip = os.path.join(tmpdir, zip_name)
+    for tile_name, zip_name in pairs:
+        normalized_tile = normalize_fabdem_tile_name(tile_name)
+        member_name = f"{normalized_tile}_FABDEM_V1-2.tif"
+        zip_url = f"{bucket_base}fabdem/{zip_name}"
+        remote_tif_path = f"/vsizip//vsicurl/{zip_url}/{member_name}"
+        attempted_tifs += 1
 
-            logger.info(f"Downloading {zip_url}")
+        logger.debug(f"Opening remote TIFF: {remote_tif_path}")
+        try:
+            src = rasterio.open(remote_tif_path)
+            src_files.append(src)
+            successful_tifs += 1
+        except Exception as e:
+            logger.warning(
+                f"Failed to open remote TIFF {member_name} from {zip_name}: {e}"
+            )
 
-            try:
-                with requests.get(zip_url, stream=True, timeout=300) as r:
-                    r.raise_for_status()
-                    with open(local_zip, "wb") as f:
-                        shutil.copyfileobj(r.raw, f)
-            except Exception as e:
-                logger.warning(f"Failed to download {zip_name}: {e}")
-                continue
+    logger.info(
+        f"Opened {successful_tifs}/{attempted_tifs} remote FABDEM TIFFs"
+    )
 
-            logger.info(f"Extracting required TIFFs from {zip_name}")
+    if not src_files:
+        logger.warning("No FABDEM TIFFs opened from remote ZIPs — trying FABDEM from GEE")
+        return gee_fabdem(aoi, city_name, output_dir, return_raster, create_raster_buffer)
 
-            try:
-                with zipfile.ZipFile(local_zip, "r") as z:
-                    zip_contents = z.namelist()
+    global data_source
+    data_source = "FABDEM (GCS)"
 
-                    logger.debug(
-                        f"ZIP {zip_name} contains {len(zip_contents)} files"
-                    )
-
-                    for tile in tile_names:
-                        normalized_tile = normalize_fabdem_tile_name(tile)
-                        expected_suffix = f"{normalized_tile}_FABDEM_V1-2.tif"
-
-                        for member in zip_contents:
-                            if member.endswith(expected_suffix):
-                                logger.info(f"Extracting {member}")
-                                z.extract(member, tmpdir)
-
-                                extracted_tifs.append(
-                                    os.path.join(tmpdir, member)
-                                )
-
-            except Exception as e:
-                logger.error(f"Failed to extract {zip_name}: {e}")
-
-        if not extracted_tifs:
-            logger.warning("No FABDEM TIFFs extracted from GCS — trying FABDEM from GEE")
-            return gee_fabdem(aoi, city_name, output_dir, return_raster, create_raster_buffer)
-        global data_source
-        data_source = "FABDEM (GCS)"
+    try:
         # ------------------------------------------------------------------
         # 6. Mosaic tiles
         # ------------------------------------------------------------------
         logger.info("Mosaicing FABDEM tiles")
 
-        src_files = [rasterio.open(fp) for fp in extracted_tifs]
         mosaic_array, mosaic_transform = merge(src_files)
 
         mosaic_meta = src_files[0].meta.copy()
@@ -209,9 +173,6 @@ def datacollection(
             "width": mosaic_array.shape[2],
             "transform": mosaic_transform,
         })
-
-        for src in src_files:
-            src.close()
 
         # ------------------------------------------------------------------
         # 7. Clip mosaic to AOI
@@ -296,6 +257,9 @@ def datacollection(
 
             with rasterio.open(buf_output_path, "w", **buf_meta) as dst:
                 dst.write(buf_array)
+    finally:
+        for src in src_files:
+            src.close()
 
         
 

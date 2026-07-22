@@ -12,7 +12,9 @@ _GEE_SCOPES = [
 
 
 def _on_cloud_run():
-    return os.environ.get("K_SERVICE") is not None
+    # K_SERVICE = Cloud Run services; CLOUD_RUN_JOB/CLOUD_RUN_EXECUTION = Cloud Run jobs
+    return any(os.environ.get(v) is not None
+               for v in ("K_SERVICE", "CLOUD_RUN_JOB", "CLOUD_RUN_EXECUTION"))
 
 
 def _gee_credentials():

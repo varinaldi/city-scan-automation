@@ -3177,11 +3177,20 @@ function plot_lc(lc, {
     cityName = globalCity,
   } = {}) {
     
-    // filter and prepare data
+    if (!lc || !lc.length) return null;  // no data -> render nothing (don't throw)
+
+    // filter and prepare data. The CSV (tasks/landcover/analysis.py) has columns
+    // "Land Cover Type" + "Pixel Count" (raw counts) — compute percentage here.
+    const lcTotal = lc.reduce((s, d) => s + (+d["Pixel Count"] || 0), 0);
     const filtered = lc
+      .map(d => ({
+        lcType: d["Land Cover Type"],
+        pixelCount: +d["Pixel Count"] || 0,
+        percentage: lcTotal ? (+d["Pixel Count"] || 0) / lcTotal * 100 : 0
+      }))
       .filter(d => d.percentage > 0)
       .sort((a, b) => b.percentage - a.percentage);
-      
+
     const hierarchyData = {
       name: `Land Cover in ${cityName}`,
       children: filtered.map(d => ({
@@ -3265,7 +3274,7 @@ function plot_lc(lc, {
         d3.select(this).attr("fill-opacity", 1);
         tooltip.style("visibility", "visible")
           .html(`
-            <div style="margin-bottom: 3px;"><strong>${d.data.name}</strong>: ${d.data.value.toFixed(1)}%</div>
+            <div style="margin-bottom: 3px;"><strong>${d.data.name}</strong>: ${(d.data.value ?? 0).toFixed(1)}%</div>
           `);
       })
       .on("mousemove", function(event) {
@@ -3348,7 +3357,7 @@ function plot_lc(lc, {
       })
       .style("fill", "#141414")
       .style("pointer-events", "none")
-      .text(d => `${d.data.value.toFixed(1)}%`);
+      .text(d => `${(d.data.value ?? 0).toFixed(1)}%`);
   
     const container = d3.create("div").attr("class", "plot-container");
   
@@ -5971,6 +5980,8 @@ function plot_ndvi_area(ndvi_area, {
     color = "black"
   } = {}) {
 
+    if (!ndvi_area || !ndvi_area.length) return null;  // no data -> render nothing (don't throw)
+
     // map from bin values to "type" (similar to binToConditionMap in plot_pv_alt)
     const binToTypeMap = {
       "-1-0.015": "Water",
@@ -6539,6 +6550,8 @@ function plot_flood_prob(data, {
   yLabel = "Exposed Urban Built-up Area (sq km)"
 } = {}) {
 
+  if (!data || !data.length) return null;  // no data -> render nothing (don't throw)
+
   height = height ?? (width * heightRatio);
   const margin = {
     top: 90,
@@ -6755,6 +6768,8 @@ function plot_fu(fu, {
   color = "black"
 } = {}) {
 
+  if (!fu || !fu.length) return null;  // no data -> render nothing (don't throw)
+
   height = height ?? (width * heightRatio);
   const margin = {
     top: 90,
@@ -6969,6 +6984,8 @@ function plot_pu(pu, {
   yLabel = "Exposed Urban Built-up Area (sq km)",
   color = "black"
 } = {}) {
+
+  if (!pu || !pu.length) return null;  // no data -> render nothing (don't throw)
 
   height = height ?? (width * heightRatio);
   const margin = {
@@ -7185,6 +7202,8 @@ function plot_cu(cu, {
   color = "black"
 } = {}) {
 
+  if (!cu || !cu.length) return null;  // no data -> render nothing (don't throw)
+
   height = height ?? (width * heightRatio);
   const margin = {
     top: 90,
@@ -7398,6 +7417,8 @@ function plot_comb(comb, pu, fu, cu, {
   yLabel = "Exposed Urban Built-up Area (sq km)",
   color = "black"
 } = {}) {
+
+  if (!comb || !comb.length) return null;  // no data -> render nothing (don't throw)
 
   height = height ?? (width * heightRatio);
   const margin = {
